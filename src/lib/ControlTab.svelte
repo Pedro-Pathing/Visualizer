@@ -213,6 +213,7 @@
               class="px-4 py-2 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-auto"
               title="Optimize"
               name="Optimize"
+
               on:click={() => {
                 line = fpa({
                   startPoint: idx === 0 ? startPoint : lines[idx - 1].endPoint,
@@ -221,7 +222,7 @@
                   color: line.color,
                 });
               }}
-            />
+            >Optimize</button>
           </div>
         </div>
         {#each line.controlPoints as point, idx1}
