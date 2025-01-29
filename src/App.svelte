@@ -310,7 +310,7 @@
 
   function fpa(fpaline: FPALine): Line {
     return {
-        endPoint: { x: 36, y: 80, heading: "linear", startDeg: 0, endDeg: 0 },
+        endPoint: { x: _.random(36, 108), y: _.random(36, 108), heading: "linear", startDeg: 0, endDeg: 0 },
         controlPoints: [],
         color: getRandomColor(),
       }
