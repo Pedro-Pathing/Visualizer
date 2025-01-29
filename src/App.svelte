@@ -308,6 +308,14 @@
     cancelAnimationFrame(animationFrame);
   }
 
+  function fpa(fpaline: FPALine): Line {
+    return {
+        endPoint: { x: 36, y: 80, heading: "linear", startDeg: 0, endDeg: 0 },
+        controlPoints: [],
+        color: getRandomColor(),
+      }
+  }
+
   onMount(() => {
     two = new Two({
       fitted: true,
@@ -538,5 +546,6 @@ hotkeys('s', function(event, handler){
     bind:robotHeading
     {x}
     {y}
+    {fpa}
   />
 </div>

@@ -14,6 +14,7 @@
   export let robotHeading: number;
   export let x: d3.ScaleLinear<number, number, number>;
   export let y: d3.ScaleLinear<number, number, number>;
+  export let fpa: (arg0:FPALine) => Line;
 </script>
 
 <div class="flex-1 flex flex-col justify-start items-center gap-2 h-full">
@@ -207,6 +208,19 @@
               <p class="text-sm font-extralight">Reverse:</p>
               <input type="checkbox" bind:checked={line.endPoint.reverse} />
             {/if}
+
+            <button
+              class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-14"
+              title="Optimize"
+              on:click={() => {
+                line = fpa({
+                  startPoint: idx === 0 ? startPoint : lines[idx - 1].endPoint,
+                  endPoint: line.endPoint,
+                  controlPoints: line.controlPoints,
+                  color: line.color,
+                });
+              }}
+            />
           </div>
         </div>
         {#each line.controlPoints as point, idx1}
