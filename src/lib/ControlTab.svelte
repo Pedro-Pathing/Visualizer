@@ -210,16 +210,16 @@
             {/if}
 
             <button
-              class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-14"
-              title="Optimize"
-              on:click={() => {
-                line = fpa({
-                  startPoint: idx === 0 ? startPoint : lines[idx - 1].endPoint,
-                  endPoint: line.endPoint,
-                  controlPoints: line.controlPoints,
-                  color: line.color,
-                });
-              }}
+                    class="px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none"
+                    title="Optimize"
+                    on:click={() => {
+    line = fpa({
+      startPoint: idx === 0 ? startPoint : lines[idx - 1].endPoint,
+      endPoint: line.endPoint,
+      controlPoints: line.controlPoints,
+      color: line.color,
+    });
+  }}
             >Optimize</button>
           </div>
         </div>
