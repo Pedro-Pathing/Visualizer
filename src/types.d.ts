@@ -36,6 +36,18 @@ interface Line {
   color: string;
 }
 
+interface FPASettings {
+    vMax: number;
+    mass: number;
+    kFriction: number;
+    drag: number;
+    aVel: number;
+    bTolerance: number;
+    sTolerance: number;
+    rWidth: number;
+    rHeight: number;
+}
+
 interface FPALine {
     startPoint: Point;
     endPoint: Point;

@@ -19,6 +19,7 @@
   export let lines: Line[];
 
   let dialogOpen = false;
+  let settingsOpen = false;
 
   onMount(() => {
     darkMode.subscribe((val) => {
@@ -92,6 +93,11 @@
 
     dialogOpen = true;
   }
+
+  function openSettings() {
+    settingsOpen = true;
+  }
+
 </script>
 
 <svelte:head>
@@ -217,6 +223,9 @@
         />
       </svg>
     </button>
+    <button title="Open Settings" on:click={openSettings}>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    </button>
     <button
       title="Toggle Dark/Light Mode"
       on:click={() => {
@@ -330,6 +339,47 @@
             />
           </svg>
         </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if settingsOpen}
+  <div
+          transition:fade={{ duration: 500, easing: cubicInOut }}
+          class="bg-black bg-opacity-25 flex flex-col justify-center items-center absolute top-0 left-0 w-full h-full z-[1005]"
+  >
+    <div
+            transition:fly={{ duration: 500, easing: cubicInOut, y: 20 }}
+            class="flex flex-col justify-start items-start p-4 bg-white dark:bg-neutral-900 rounded-lg w-full max-w-4xl gap-2.5"
+    >
+      <div class="flex flex-row justify-between items-center w-full">
+        <p class="text-sm font-light text-neutral-700 dark:text-neutral-400">
+          Settings:
+        </p>
+        <button
+                class=""
+                on:click={() => {
+            settingsOpen = false;
+          }}
+        ><svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+                stroke="currentColor"
+                class="size-6 text-neutral-700 dark:text-neutral-400"
+        >
+          <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M6 18 18 6M6 6l12 12"
+          />
+        </svg>
+        </button>
+      </div>
+
+      <div class="relative w-full">
       </div>
     </div>
   </div>
