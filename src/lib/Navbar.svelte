@@ -377,7 +377,7 @@
                 class=""
                 on:click={() => {
                 settingsOpen = false;
-                console.log(String(settings));
+                console.log(settings.vMax, settings.mass, settings.kFriction, settings.drag, settings.aVel, settings.bTolerance, settings.sTolerance, settings.rWidth, settings.rHeight);
           }}
         ><svg
                 xmlns="http://www.w3.org/2000/svg"
