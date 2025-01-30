@@ -364,7 +364,7 @@
         <button
                 class=""
                 on:click={() => {
-            settingsOpen = false;
+                settingsOpen = false;
           }}
         ><svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -390,8 +390,8 @@
                 type="number"
                 min="0"
                 bind:value={settings.mass}
-        />
-
+        /></div>
+      <div class="relative w-full">
         <div class="font-extralight">Max Linear Velocity:</div>
         <input
                 class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
@@ -399,8 +399,8 @@
                 type="number"
                 min="0"
                 bind:value={settings.vMax}
-        />
-
+        /></div>
+        <div class="relative w-full">
         <div class="font-extralight">Angular Velocity:</div>
         <input
                 class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
@@ -408,8 +408,8 @@
                 type="number"
                 min="0"
                 bind:value={settings.aVel}
-        />
-
+        /></div>
+          <div class="relative w-full">
         <div class="font-extralight">Kinetic Friction:</div>
         <input
                 class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
@@ -417,8 +417,8 @@
                 type="number"
                 min="0"
                 bind:value={settings.kFriction}
-        />
-
+        /></div>
+            <div class="relative w-full">
         <div class="font-extralight">Drag Coefficient:</div>
         <input
                 class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
@@ -427,7 +427,8 @@
                 min="0"
                 bind:value={settings.drag}
         />
-
+            </div>
+              <div class="relative w-full">
         <div class="font-extralight">Boundary Tolerance:</div>
         <input
                 class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
@@ -436,7 +437,8 @@
                 min="0"
                 bind:value={settings.bTolerance}
         />
-
+              </div>
+                <div class="relative w-full">
         <div class="font-extralight">Submersible Tolerance:</div>
         <input
                 class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
@@ -445,9 +447,8 @@
                 min="0"
                 bind:value={settings.sTolerance}
         />
-
+        </div>
 
       </div>
     </div>
-  </div>
 {/if}
