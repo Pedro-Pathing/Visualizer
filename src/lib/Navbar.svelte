@@ -15,8 +15,12 @@
   export let loadFile: (evt: any) => any;
   export let loadRobot: (evt: any) => any;
 
+  export let robotWidth: number;
+  export let robotHeight: number;
+
   export let startPoint: Point;
   export let lines: Line[];
+  export let settings: FPASettings;
 
   let dialogOpen = false;
   let settingsOpen = false;
@@ -97,6 +101,11 @@
   function openSettings() {
     settingsOpen = true;
   }
+
+  settings.rHeight = robotHeight;
+  settings.rWidth = robotWidth;
+
+  console.log(String(settings));
 
 </script>
 
@@ -378,8 +387,71 @@
         </svg>
         </button>
       </div>
-
       <div class="relative w-full">
+        <div class="font-extralight">Mass:</div>
+        <input
+                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
+                step="0.1"
+                type="number"
+                min="0"
+                bind:value={settings.mass}
+        />
+
+        <div class="font-extralight">Max Linear Velocity:</div>
+        <input
+                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
+                step="0.1"
+                type="number"
+                min="0"
+                bind:value={settings.vMax}
+        />
+
+        <div class="font-extralight">Angular Velocity:</div>
+        <input
+                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
+                step="0.1"
+                type="number"
+                min="0"
+                bind:value={settings.aVel}
+        />
+
+        <div class="font-extralight">Kinetic Friction:</div>
+        <input
+                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
+                step="0.1"
+                type="number"
+                min="0"
+                bind:value={settings.kFriction}
+        />
+
+        <div class="font-extralight">Drag Coefficient:</div>
+        <input
+                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
+                step="0.1"
+                type="number"
+                min="0"
+                bind:value={settings.drag}
+        />
+
+        <div class="font-extralight">Boundary Tolerance:</div>
+        <input
+                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
+                step="0.1"
+                type="number"
+                min="0"
+                bind:value={settings.bTolerance}
+        />
+
+        <div class="font-extralight">Submersible Tolerance:</div>
+        <input
+                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
+                step="0.1"
+                type="number"
+                min="0"
+                bind:value={settings.sTolerance}
+        />
+
+
       </div>
     </div>
   </div>
