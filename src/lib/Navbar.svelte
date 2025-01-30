@@ -21,6 +21,18 @@
   export let startPoint: Point;
   export let lines: Line[];
   export let settings: FPASettings;
+  
+  settings = {
+    vMax: 50,
+    mass: 10,
+    kFriction: 0.01,
+    drag: 0.01,
+    aVel: 3,
+    bTolerance: 1,
+    sTolerance: 1,
+    rWidth: 16,
+    rHeight: 16,
+  }
 
   let dialogOpen = false;
   let settingsOpen = false;
