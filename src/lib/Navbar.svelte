@@ -102,11 +102,6 @@
     settingsOpen = true;
   }
 
-  settings.rHeight = robotHeight;
-  settings.rWidth = robotWidth;
-
-  console.log(String(settings));
-
 </script>
 
 <svelte:head>

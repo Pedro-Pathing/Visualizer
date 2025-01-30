@@ -512,7 +512,7 @@ hotkeys('s', function(event, handler){
 
 </script>
 
-<Navbar bind:lines bind:startPoint bind:settings bind:robotWidth bind:robotHeight {loadFile} {loadRobot}/>
+<Navbar bind:lines bind:startPoint bind:settings bind:robotWidth bind:robotHeight {saveFile} {loadFile} {loadRobot}/>
 <div
   class="w-screen h-screen pt-20 p-2 flex flex-row justify-center items-center gap-2"
 >
@@ -543,6 +543,7 @@ hotkeys('s', function(event, handler){
     bind:lines
     bind:robotWidth
     bind:robotHeight
+    bind:settings
     bind:percent
     bind:robotXY
     bind:robotHeading
