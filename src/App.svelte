@@ -313,8 +313,16 @@
   }
 
   function fpa(fpaline: FPALine): Line {
-    const s = new ConstantHeadingSolver(settings, fpaline).getSolution().getPath();
-    return new CubicBezierCurveImpl(s.getP0(), s.getP1(), s.getP2(), s.getP3()).exportAsLine(fpaline.endPoint.degrees ?? 0, fpaline.color);
+    if(fpaline.heading === "constant") {
+      const s = new ConstantHeadingSolver(settings, fpaline).getSolution().getPath();
+      return new CubicBezierCurveImpl(s.getP0(), s.getP1(), s.getP2(), s.getP3()).exportAsLine(fpaline.endPoint.degrees ?? 0, fpaline.color);
+    } else {
+      return {
+        endPoint: fpaline.endPoint,
+        controlPoints: [],
+        color: fpaline.color
+      }
+    }
   }
 
   onMount(() => {

@@ -53,4 +53,5 @@ interface FPALine {
     endPoint: Point;
     controlPoints: ControlPoint[];
     color: string;
+    heading: string;
 }
