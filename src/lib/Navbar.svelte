@@ -31,7 +31,7 @@
     bTolerance: 1,
     sTolerance: 1,
     rWidth: 16,
-    rHeight: 16,
+    rHeight: 16
   }
 
   let dialogOpen = false;
