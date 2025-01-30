@@ -17,6 +17,8 @@
     shortestRotation,
   } from "./utils";
   import hotkeys from 'hotkeys-js';
+  import {ConstantHeadingSolver} from "./utils/ConstantHeadingSolver";
+  import {CubicBezierCurveImpl} from "./utils/CubicBezierCurve.js";
 
   let two: Two;
   let twoElement: HTMLDivElement;
@@ -311,11 +313,8 @@
   }
 
   function fpa(fpaline: FPALine): Line {
-    return {
-        endPoint: { x: _.random(36, 108), y: _.random(36, 108), heading: "linear", startDeg: 0, endDeg: 0 },
-        controlPoints: [],
-        color: getRandomColor(),
-      }
+    const s = new ConstantHeadingSolver(settings, fpaline).getSolution().getPath();
+    return new CubicBezierCurveImpl(s.getP0(), s.getP1(), s.getP2(), s.getP3()).exportAsLine(fpaline.endPoint.degrees ?? 0, fpaline.color);
   }
 
   onMount(() => {

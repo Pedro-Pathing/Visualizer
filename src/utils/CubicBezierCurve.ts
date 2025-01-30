@@ -248,4 +248,13 @@ export class CubicBezierCurveImpl implements CubicBezierCurve {
   getP1(): Point2D { return this.P1; }
   getP2(): Point2D { return this.P2; }
   getP3(): Point2D { return this.P3; }
-} 
+
+  exportAsLine(degrees: number, color: string): Line {
+    return {
+      endPoint: { x: this.P3.x, y: this.P3.y, heading: "constant", degrees: degrees },
+      controlPoints: [this.P1, this.P2],
+      color: color
+    };
+  }
+}
+

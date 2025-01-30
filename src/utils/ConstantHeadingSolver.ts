@@ -14,7 +14,7 @@ export class ConstantHeadingSolver {
   private p3: Point2D;
   private thetaFinal: number;
   private isBlueAlliance: boolean;
-  private thetaInitial: number;
+  private thetaInitial: number | undefined;
   private angularVelocity: number;
   private boundaryTolerance: number;
   private submersibleTolerance: number;
@@ -22,38 +22,26 @@ export class ConstantHeadingSolver {
   private robotHeight: number;
 
   constructor(
-    vMax: number,
-    mass: number,
-    muK: number,
-    c1: number,
-    c2: number,
-    p0: Point2D,
-    p3: Point2D,
-    thetaT2: number,
-    boundaryTolerance: number,
-    submersibleDistanceTolerance: number,
-    isBlueAlliance: boolean,
-    thetaInitial: number,
-    angularVelocity: number,
-    robotWidth: number,
-    robotHeight: number
+    settings: FPASettings,
+    line: FPALine
   ) {
-    this.vMax = vMax;
-    this.mass = mass;
-    this.muK = muK;
-    this.c1 = c1;
-    this.c2 = c2;
-    this.p0 = p0;
-    this.p3 = p3;
-    this.thetaFinal = thetaT2;
-    this.isBlueAlliance = isBlueAlliance;
-    this.thetaInitial = thetaInitial;
-    this.angularVelocity = angularVelocity;
-    this.boundaryTolerance = boundaryTolerance;
-    this.submersibleTolerance = submersibleDistanceTolerance;
-    this.robotWidth = robotWidth;
-    this.robotHeight = robotHeight;
+    this.vMax = settings.vMax;
+    this.mass = settings.mass;
+    this.muK = settings.kFriction;
+    this.c1 = settings.drag;
+    this.c2 = 1;
+    this.p0 = line.startPoint;
+    this.p3 = line.endPoint;
+    this.thetaFinal = line.endPoint.degrees ?? 0;
+    this.isBlueAlliance = true;
+    this.thetaInitial = line.startPoint.degrees ?? 0;
+    this.angularVelocity = settings.aVel;
+    this.boundaryTolerance = settings.bTolerance;
+    this.submersibleTolerance = settings.sTolerance;
+    this.robotWidth = settings.rWidth;
+    this.robotHeight = settings.rHeight;
   }
+
 
   private performOptimization(): number[] {
     const initialGuess = [
@@ -210,7 +198,7 @@ export class ConstantHeadingSolver {
   private findT2(theta: number): number {
     return (
       Math.abs(this.thetaFinal - theta) +
-      Math.abs(this.thetaInitial - theta)
+      Math.abs(this.thetaInitial ?? 0 - theta)
     ) / this.angularVelocity;
   }
 

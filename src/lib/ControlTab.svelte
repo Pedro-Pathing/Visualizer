@@ -226,6 +226,7 @@
       endPoint: line.endPoint,
       controlPoints: line.controlPoints,
       color: line.color,
+      deg: line.endPoint.degrees
     });
   }}
             >Optimize</button>
