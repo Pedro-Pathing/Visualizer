@@ -1,4 +1,4 @@
-package MathUtil;
+package java.MathUtil;
 
 import java.awt.geom.Point2D;
 

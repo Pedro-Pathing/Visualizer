@@ -1,4 +1,4 @@
-package MathUtil;
+package java.MathUtil;
 
 import org.apache.commons.math3.geometry.euclidean.twod.Vector2D;
 import java.awt.geom.Point2D;

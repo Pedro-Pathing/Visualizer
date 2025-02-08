@@ -228,6 +228,8 @@
       color: line.color,
       heading: line.endPoint.heading,
     });
+
+    
   }}
             >Optimize</button>
           </div>

@@ -316,7 +316,6 @@
     if(fpaline.heading === "constant") {
       const s = new ConstantHeadingSolver(settings, fpaline).getSolution().getPath();
       return new CubicBezierCurveImpl(s.getP0(), s.getP1(), s.getP2(), s.getP3()).exportAsLine(fpaline.endPoint.degrees ?? 0, fpaline.color);
-      console.log("finished constant");
     } else {
       return {
         endPoint: fpaline.endPoint,

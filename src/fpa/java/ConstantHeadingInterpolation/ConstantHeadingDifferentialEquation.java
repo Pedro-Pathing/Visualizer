@@ -1,12 +1,12 @@
-package ConstantHeadingInterpolation;
+package java.ConstantHeadingInterpolation;
 
-import MathUtil.CubicBezierCurve;
 import org.apache.commons.math3.exception.DimensionMismatchException;
 import org.apache.commons.math3.exception.MaxCountExceededException;
 import org.apache.commons.math3.geometry.euclidean.twod.Vector2D;
 import org.apache.commons.math3.ode.FirstOrderDifferentialEquations;
 import org.apache.commons.math3.util.FastMath;
 
+import java.MathUtil.CubicBezierCurve;
 import java.awt.geom.Point2D;
 
 public class ConstantHeadingDifferentialEquation implements FirstOrderDifferentialEquations {

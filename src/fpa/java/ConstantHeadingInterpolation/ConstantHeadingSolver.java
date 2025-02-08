@@ -1,8 +1,5 @@
-package ConstantHeadingInterpolation;
+package java.ConstantHeadingInterpolation;
 
-import MathUtil.CubicBezierCurve;
-import MathUtil.RectangleIntersection;
-import MathUtil.SolutionPoints;
 import com.cureos.numerics.Calcfc;
 import com.cureos.numerics.Cobyla;
 import org.apache.commons.math3.analysis.MultivariateFunction;
@@ -18,6 +15,9 @@ import org.apache.commons.math3.random.RandomVectorGenerator;
 import org.apache.commons.math3.util.FastMath;
 //import com.*;
 
+import java.MathUtil.CubicBezierCurve;
+import java.MathUtil.RectangleIntersection;
+import java.MathUtil.SolutionPoints;
 import java.awt.geom.Point2D;
 
 public class ConstantHeadingSolver {
