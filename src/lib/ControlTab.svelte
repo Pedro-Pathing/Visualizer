@@ -27,16 +27,28 @@
         <div class="font-extralight">Robot Width:</div>
         <input
           bind:value={robotWidth}
+          on:input={() => {
+            if (robotWidth > 18) robotWidth = 18;
+            else if (robotWidth < 1 && robotWidth != undefined) robotWidth = 1;
+          }}
+          max="18"
+          min="1"
+          step="0.5"
           type="number"
           class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-16"
-          step="1"
         />
         <div class="font-extralight">Robot Height:</div>
         <input
           bind:value={robotHeight}
+          on:input={() => {
+            if (robotHeight > 18) robotHeight = 18;
+            else if (robotHeight < 1 && robotHeight != undefined) robotHeight = 1;
+          }}
+          max="18"
+          min="1"
+          step="0.5"
           type="number"
           class="pl-1.5 rounded-md bg-neutral-100 border-[0.5px] focus:outline-none w-16 dark:bg-neutral-950 dark:border-neutral-700"
-          step="1"
         />
       </div>
     </div>
@@ -63,6 +75,10 @@
         <div class="font-extralight">X:</div>
         <input
           bind:value={startPoint.x}
+          on:input={() => {
+            if (startPoint.x > 144) startPoint.x = 144;
+            else if (startPoint.x < 0 && startPoint.x != undefined) startPoint.x = 0;
+          }}
           min="0"
           max="144"
           type="number"
@@ -72,6 +88,10 @@
         <div class="font-extralight">Y:</div>
         <input
           bind:value={startPoint.y}
+          on:input={() => {
+            if (startPoint.y > 144) startPoint.y = 144;
+            else if (startPoint.y < 0 && startPoint.y != undefined) startPoint.y = 0;
+          }}
           min="0"
           max="144"
           type="number"
@@ -156,6 +176,10 @@
                 min="0"
                 max="144"
                 bind:value={line.endPoint.x}
+                on:input={() => {
+                  if (line.endPoint.x > 144) line.endPoint.x = 144;
+                  else if (line.endPoint.x < 0 && line.endPoint.x != undefined) line.endPoint.x = 0;
+                }}
               />
               <div class="font-extralight">Y:</div>
               <input
@@ -165,6 +189,10 @@
                 max="144"
                 type="number"
                 bind:value={line.endPoint.y}
+                on:input={() => {
+                  if (line.endPoint.y > 144) line.endPoint.y = 144;
+                  else if (line.endPoint.y < 0 && line.endPoint.y != undefined) line.endPoint.y = 0;
+                }}
               />
 
               <select
@@ -184,6 +212,10 @@
                   min="-180"
                   max="180"
                   bind:value={line.endPoint.startDeg}
+                  on:input={() => {
+                    if (line.endPoint.startDeg > 180) line.endPoint.startDeg = 180;
+                    else if (line.endPoint.startDeg < -180 && line.endPoint.startDeg != undefined) line.endPoint.startDeg = -180;
+                  }}
                 />
                 <input
                   class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-14"
@@ -192,6 +224,10 @@
                   min="-180"
                   max="180"
                   bind:value={line.endPoint.endDeg}
+                  on:input={() => {
+                    if (line.endPoint.endDeg > 180) line.endPoint.endDeg = 180;
+                    else if (line.endPoint.endDeg < -180 && line.endPoint.endDeg != undefined) line.endPoint.endDeg = -180;
+                  }}
                 />
               {:else if line.endPoint.heading === "constant"}
                 <input
@@ -201,6 +237,10 @@
                   min="-180"
                   max="180"
                   bind:value={line.endPoint.degrees}
+                  on:input={() => {
+                    if (line.endPoint.degrees > 180) line.endPoint.degrees = 180;
+                    else if (line.endPoint.degrees < -180 && line.endPoint.degrees != undefined) line.endPoint.degrees = -180;
+                  }}
                 />
               {:else if line.endPoint.heading === "tangential"}
                 <p class="text-sm font-extralight">Reverse:</p>
@@ -220,6 +260,10 @@
                   bind:value={point.x}
                   min="0"
                   max="144"
+                  on:input={() => {
+                    if (point.x > 140) point.x = 140;
+                    else if (point.x < 0 && point.x != undefined) point.x = 0;
+                  }}
                 />
                 <div class="font-extralight">Y:</div>
                 <input
@@ -227,6 +271,10 @@
                   step="0.1"
                   type="number"
                   bind:value={point.y}
+                  on:input={() => {
+                    if (point.y > 140) point.y = 140;
+                    else if (point.y < 0 && point.y != undefined) point.y = 0;
+                  }}
                   min="0"
                   max="144"
                 />
