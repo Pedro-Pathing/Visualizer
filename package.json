@@ -33,6 +33,7 @@
     "sass": "^1.77.8",
     "svelte-copy": "^1.4.2",
     "svelte-highlight": "^7.7.0",
+    "svelte-dnd-action": "^2.0.0",
     "two.js": "^0.8.14"
   }
 }
