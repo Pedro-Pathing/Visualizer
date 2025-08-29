@@ -59,20 +59,20 @@ ${lines
   ${line.controlPoints.length === 0 ? `new BezierLine` : `new BezierCurve`}(
     ${
                               idx === 0
-                                      ? `new Point(${startPoint.x.toFixed(3)}, ${startPoint.y.toFixed(3)}, Point.CARTESIAN),`
-                                      : `new Point(${lines[idx - 1].endPoint.x.toFixed(3)}, ${lines[idx - 1].endPoint.y.toFixed(3)}, Point.CARTESIAN),`
+                                      ? `new Pose(${startPoint.x.toFixed(3)}, ${startPoint.y.toFixed(3)}),`
+                                      : `new Pose(${lines[idx - 1].endPoint.x.toFixed(3)}, ${lines[idx - 1].endPoint.y.toFixed(3)}),`
                       }
     ${
                               line.controlPoints.length > 0
                                       ? `${line.controlPoints
                                               .map(
                                                       (point) =>
-                                                              `new Point(${point.x.toFixed(3)}, ${point.y.toFixed(3)}, Point.CARTESIAN)`
+                                                              `new Pose(${point.x.toFixed(3)}, ${point.y.toFixed(3)})`
                                               )
                                               .join(",\n")},`
                                       : ""
                       }
-    new Point(${line.endPoint.x.toFixed(3)}, ${line.endPoint.y.toFixed(3)}, Point.CARTESIAN)
+    new Pose(${line.endPoint.x.toFixed(3)}, ${line.endPoint.y.toFixed(3)})
   )
 ).${headingTypeToFunctionName[line.endPoint.heading]}(${line.endPoint.heading === "constant" ? `Math.toRadians(${line.endPoint.degrees})` : line.endPoint.heading === "linear" ? `Math.toRadians(${line.endPoint.startDeg}), Math.toRadians(${line.endPoint.endDeg})` : ""})
 ${line.endPoint.reverse ? ".setReversed(true)" : ""}
@@ -94,20 +94,20 @@ ${line.endPoint.reverse ? ".setReversed(true)" : ""}
               ${line.controlPoints.length === 0 ? `new BezierLine` : `new BezierCurve`}(
                 ${
                               idx === 0
-                                      ? `new Point(${startPoint.x.toFixed(3)}, ${startPoint.y.toFixed(3)}, Point.CARTESIAN),`
-                                      : `new Point(${lines[idx - 1].endPoint.x.toFixed(3)}, ${lines[idx - 1].endPoint.y.toFixed(3)}, Point.CARTESIAN),`
+                                      ? `new Pose(${startPoint.x.toFixed(3)}, ${startPoint.y.toFixed(3)}),`
+                                      : `new Pose(${lines[idx - 1].endPoint.x.toFixed(3)}, ${lines[idx - 1].endPoint.y.toFixed(3)}),`
                       }
                 ${
                               line.controlPoints.length > 0
                                       ? `${line.controlPoints
                                               .map(
                                                       (point) =>
-                                                              `new Point(${point.x.toFixed(3)}, ${point.y.toFixed(3)}, Point.CARTESIAN)`
+                                                              `new Pose(${point.x.toFixed(3)}, ${point.y.toFixed(3)})`
                                               )
                                               .join(",\n")},`
                                       : ""
                       }
-                new Point(${line.endPoint.x.toFixed(3)}, ${line.endPoint.y.toFixed(3)}, Point.CARTESIAN)
+                new Pose(${line.endPoint.x.toFixed(3)}, ${line.endPoint.y.toFixed(3)})
               )
             ).${headingTypeToFunctionName[line.endPoint.heading]}(${line.endPoint.heading === "constant" ? `Math.toRadians(${line.endPoint.degrees})` : line.endPoint.heading === "linear" ? `Math.toRadians(${line.endPoint.startDeg}), Math.toRadians(${line.endPoint.endDeg})` : ""})
             ${line.endPoint.reverse ? ".setReversed(true)" : ""}
