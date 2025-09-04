@@ -25,9 +25,10 @@
   let lineWidth = 0.57;
   let robotWidth = 16;
   let robotHeight = 16;
+  let sampleCircleRadius: number | null = null;
+  let allianceColor: "blue" | "red" = "blue";
 
   let percent: number = 0;
-
 
 
   /**
@@ -65,6 +66,29 @@
       color: getRandomColor(),
     },
   ];
+  let blueSamplePoints: BasePoint[] = [
+    // Specimen Side
+    { x: 45.75, y: 23 },
+    { x: 45.75, y: 12.55 },
+    { x: 45.75, y: 2.12 },
+
+    //Basket Side
+    { x: 45.75, y: 121.3 },
+    { x: 45.75, y: 131.7 },
+    { x: 45.75, y: 142 },
+  ];
+
+  let redSamplePoints: BasePoint[] = [
+    // Specimen Side
+    { x: 98.25, y: 23 },
+    { x: 98.25, y: 12.55 },
+    { x: 98.25, y: 2.12 },
+
+    //Basket Side
+    { x: 98.25, y: 121.3 },
+    { x: 98.25, y: 131.7 },
+    { x: 98.25, y: 142 },
+  ];
 
   $: points = (() => {
     let _points = [];
@@ -78,6 +102,22 @@
     startPointElem.noStroke();
 
     _points.push(startPointElem);
+
+    if(sampleCircleRadius !== null && sampleCircleRadius > 0) {
+      let samplePoints = allianceColor === "red" ? redSamplePoints : blueSamplePoints;
+
+      samplePoints.forEach((point, idx) => {
+        let samplePointElem = new Two.Circle(
+          x(point.x),
+          y(point.y),
+          x(sampleCircleRadius as number)
+        );
+        samplePointElem.id = `point-sample-${idx}`;
+        samplePointElem.fill = "transparent";
+        samplePointElem.stroke = "orange";
+        _points.push(samplePointElem);
+      });
+    }
 
     lines.forEach((line, idx) => {
       [line.endPoint, ...line.controlPoints].forEach((point, idx1) => {
@@ -533,6 +573,8 @@ hotkeys('s', function(event, handler){
     bind:lines
     bind:robotWidth
     bind:robotHeight
+    bind:sampleCircleRadius
+    bind:allianceColor
     bind:percent
     bind:robotXY
     bind:robotHeading
