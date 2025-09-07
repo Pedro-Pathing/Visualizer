@@ -52,15 +52,15 @@
   pointGroup.id = "point-group";
 
   let startPoint: Point = {
-    x: 8,
-    y: 80,
+    x: 56,
+    y: 8,
     heading: "linear",
-    startDeg: 0,
-    endDeg: 0
+    startDeg: 90,
+    endDeg: 180
   };
   let lines: Line[] = [
     {
-      endPoint: { x: 36, y: 80, heading: "linear", startDeg: 0, endDeg: 0 },
+      endPoint: { x: 56, y: 36, heading: "linear", startDeg: 90, endDeg: 180 },
       controlPoints: [],
       color: getRandomColor(),
     },
