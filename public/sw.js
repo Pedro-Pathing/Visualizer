@@ -5,6 +5,7 @@ const APP_STATIC_RESOURCES = [
   "/",
   "/fields/centerstage.webp",
   "/fields/intothedeep.webp",
+  "/fields/decode.webp",
   "/robot.png",
   "/assets/index.js",
   "/assets/index.css",
