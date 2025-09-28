@@ -106,7 +106,7 @@
     </div>
 
     <div class="flex flex-col w-full justify-start items-start gap-0.5 text-sm">
-      <div class="font-semibold">Shapes</div>
+      <div class="font-semibold">Obstacles</div>
       
       {#each shapes as shape, shapeIdx}
         <div class="flex flex-col w-full justify-start items-start gap-1 p-2 border rounded-md border-neutral-300 dark:border-neutral-600">
@@ -130,7 +130,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
               </button>
-              {#if shapes.length > 1}
+              {#if shapes.length > 0}
                 <button
                   title="Remove Shape"
                   on:click={() => {
@@ -148,24 +148,24 @@
           
           {#each shape.vertices as vertex, vertexIdx}
             <div class="flex flex-row justify-start items-center gap-2">
-              <div class="font-bold text-xs">{vertexIdx + 1}:</div>
-              <div class="font-extralight text-xs">X:</div>
+              <div class="font-bold text-sm">{vertexIdx + 1}:</div>
+              <div class="font-extralight text-sm">X:</div>
               <input
                 bind:value={vertex.x}
                 type="number"
                 min="0"
                 max="144"
                 step="0.1"
-                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-20 text-xs"
+                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-24 text-sm"
               />
-              <div class="font-extralight text-xs">Y:</div>
+              <div class="font-extralight text-sm">Y:</div>
               <input
                 bind:value={vertex.y}
                 type="number"
                 min="0"
                 max="144"
                 step="0.1"
-                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-20 text-xs"
+                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-24 text-sm"
               />
               {#if shape.vertices.length > 3}
                 <button
@@ -175,7 +175,7 @@
                     shape.vertices = shape.vertices;
                   }}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} class="size-3 stroke-red-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} class="size-4 stroke-red-500">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 12H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                   </svg>
                 </button>
@@ -185,7 +185,7 @@
         </div>
       {/each}
       
-      <!-- <div class="flex flex-row justify-start items-center gap-2 mt-1">
+      {#if shapes.length === 0}
         <button
           on:click={() => {
             shapes = [...shapes, createTriangle()];
@@ -208,7 +208,7 @@
           </svg>
           <p>Add Obstacle</p>
         </button>
-      </div> -->
+      {/if}
     </div>
 
     <div class="flex flex-col w-full justify-start items-start gap-0.5 text-sm">
