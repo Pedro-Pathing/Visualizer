@@ -415,12 +415,40 @@
     let status = 'Starting optimization...';
     let result = null;
     // Convert to arrays, not JSON strings - this was the main issue!
-    const obstacle = o.vertices.map(p => [p.x, p.y]);
+    // If no obstacle vertices, create a small default obstacle outside the field
+    const obstacle = o.vertices.length >= 3 ? 
+      o.vertices.map(p => [p.x, p.y]) : 
+      [[-10, -10], [-10, -5], [-5, -5], [-5, -10]]; // Small rectangle outside field
+      
     const inputWaypoints = [l.startPoint, ...l.controlPoints, l.endPoint].map(p => [p.x, p.y]);
+    
+    // Extract heading degrees based on Point type
+    let startHeadingDeg = 0;
+    let endHeadingDeg = 0;
+    
+    if (l.startPoint.heading === "linear") {
+      startHeadingDeg = l.startPoint.startDeg ?? 0;
+    } else if (l.startPoint.heading === "constant") {
+      startHeadingDeg = (l.startPoint as any).degrees ?? 0;
+    }
+    
+    if (l.endPoint.heading === "linear") {
+      endHeadingDeg = l.endPoint.endDeg ?? 0;
+    } else if (l.endPoint.heading === "constant") {
+      endHeadingDeg = (l.endPoint as any).degrees ?? 0;
+    }
+    
+    console.log('FPA Optimization Parameters:');
+    console.log('Waypoints:', inputWaypoints);
+    console.log('Obstacle:', obstacle);
+    console.log('Start heading:', startHeadingDeg);
+    console.log('End heading:', endHeadingDeg);
+    console.log('Settings:', s);
+    
     const payload = {
                 waypoints: inputWaypoints,
-                start_heading_degrees: l.startPoint.endDeg,
-                end_heading_degrees: l.endPoint.startDeg,
+                start_heading_degrees: startHeadingDeg,
+                end_heading_degrees: endHeadingDeg,
                 x_velocity: s.xVelocity,
                 y_velocity: s.yVelocity,
                 angular_velocity: s.aVelocity,
@@ -503,13 +531,22 @@
 
     export async function createTask(payload: any) {
         try {
+            console.log('Creating optimization task with payload:', payload);
             const response = await fetch('https://fpa.pedropathing.com/optimize', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Server error response:', errorText);
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
             const data = await response.json();
+            console.log('Job created with ID:', data.job_id);
             return data.job_id;
         } catch (error) {
             console.error('Failed to create optimization task:', error);
