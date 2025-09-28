@@ -38,6 +38,20 @@
 
   let percent: number = 0;
 
+  // Initialize default shapes
+  let shapes: Shape[] = [
+    {
+      id: "triangle-1",
+      vertices: [
+        { x: 20, y: 20 },
+        { x: 40, y: 20 },
+        { x: 30, y: 40 }
+      ],
+      color: "#dc2626", // red-600
+      fillColor: "#fca5a5" // red-300
+    }
+  ];
+
 
 
   /**
@@ -60,6 +74,8 @@
   lineGroup.id = "line-group";
   let pointGroup = new Two.Group();
   pointGroup.id = "point-group";
+  let shapeGroup = new Two.Group();
+  shapeGroup.id = "shape-group";
 
   let startPoint: Point = {
     x: 56,
@@ -212,6 +228,31 @@
     return _path;
   })();
 
+  $: shapeElements = (() => {
+    let _shapes: Path[] = [];
+
+    shapes.forEach((shape, idx) => {
+      if (shape.vertices.length >= 3) {
+        // Create polygon from vertices
+        let vertices = shape.vertices.map(vertex => new Two.Anchor(x(vertex.x), y(vertex.y)));
+        
+        // Close the shape by connecting back to the first vertex
+        vertices.push(new Two.Anchor(x(shape.vertices[0].x), y(shape.vertices[0].y)));
+        
+        let shapeElement = new Two.Path(vertices);
+        shapeElement.id = `shape-${idx}`;
+        shapeElement.stroke = shape.color;
+        shapeElement.fill = shape.fillColor;
+        shapeElement.linewidth = x(0.3); // Slightly thinner than path lines
+        shapeElement.automatic = false;
+        
+        _shapes.push(shapeElement);
+      }
+    });
+
+    return _shapes;
+  })();
+
   let robotXY: BasePoint = { x: 0, y: 0 };
   let robotHeading: number = 0;
 
@@ -270,6 +311,7 @@
 
     two.clear();
 
+    two.add(...shapeElements);
     two.add(...path);
     two.add(...points);
 
@@ -551,6 +593,7 @@ hotkeys('s', function(event, handler){
     bind:percent
     bind:robotXY
     bind:robotHeading
+    bind:shapes
     {x}
     {y}
     {fpa}

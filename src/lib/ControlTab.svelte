@@ -16,6 +16,56 @@
   export let x: d3.ScaleLinear<number, number, number>;
   export let y: d3.ScaleLinear<number, number, number>;
   export let settings: FPASettings;
+  export let shapes: Shape[];
+
+  function createTriangle(): Shape {
+    return {
+      id: `triangle-${shapes.length + 1}`,
+      vertices: [
+        { x: 30, y: 30 },
+        { x: 50, y: 30 },
+        { x: 40, y: 50 }
+      ],
+      color: "#dc2626",
+      fillColor: "#fca5a5"
+    };
+  }
+
+  function createRectangle(): Shape {
+    return {
+      id: `rectangle-${shapes.length + 1}`,
+      vertices: [
+        { x: 30, y: 30 },
+        { x: 60, y: 30 },
+        { x: 60, y: 50 },
+        { x: 30, y: 50 }
+      ],
+      color: "#dc2626",
+      fillColor: "#fca5a5"
+    };
+  }
+
+  function createNGon(sides: number): Shape {
+    const centerX = 45;
+    const centerY = 45;
+    const radius = 15;
+    const vertices = [];
+    
+    for (let i = 0; i < sides; i++) {
+      const angle = (i * 2 * Math.PI) / sides;
+      vertices.push({
+        x: centerX + radius * Math.cos(angle),
+        y: centerY + radius * Math.sin(angle)
+      });
+    }
+    
+    return {
+      id: `${sides}-gon-${shapes.length + 1}`,
+      vertices,
+      color: "#dc2626",
+      fillColor: "#fca5a5"
+    };
+  }
 </script>
 
 <div class="flex-1 flex flex-col justify-start items-center gap-2 h-full">
@@ -49,6 +99,133 @@
           class="pl-1.5 rounded-md bg-neutral-100 border-[0.5px] focus:outline-none w-16 dark:bg-neutral-950 dark:border-neutral-700"
           step="1"
         />
+      </div>
+    </div>
+
+    <div class="flex flex-col w-full justify-start items-start gap-0.5 text-sm">
+      <div class="font-semibold">Shapes</div>
+      
+      {#each shapes as shape, shapeIdx}
+        <div class="flex flex-col w-full justify-start items-start gap-1 p-2 border rounded-md" style="border-color: {shape.color}; background-color: {shape.fillColor}20;">
+          <div class="flex flex-row w-full justify-between items-center">
+            <div class="font-medium text-sm flex flex-row items-center gap-2">
+              Shape {shapeIdx + 1}
+              <div class="size-2 rounded-full" style="background-color: {shape.color}"></div>
+            </div>
+            <div class="flex flex-row gap-1">
+              <button
+                title="Add Vertex"
+                on:click={() => {
+                  shape.vertices = [...shape.vertices, { x: 50, y: 50 }];
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} class="size-4 stroke-green-500">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+              </button>
+              {#if shapes.length > 1}
+                <button
+                  title="Remove Shape"
+                  on:click={() => {
+                    shapes.splice(shapeIdx, 1);
+                    shapes = shapes;
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} class="size-4 stroke-red-500">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                </button>
+              {/if}
+            </div>
+          </div>
+          
+          {#each shape.vertices as vertex, vertexIdx}
+            <div class="flex flex-row justify-start items-center gap-2">
+              <div class="font-extralight text-xs">V{vertexIdx + 1}:</div>
+              <div class="font-extralight text-xs">X:</div>
+              <input
+                bind:value={vertex.x}
+                type="number"
+                min="0"
+                max="144"
+                step="0.1"
+                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-20 text-xs"
+              />
+              <div class="font-extralight text-xs">Y:</div>
+              <input
+                bind:value={vertex.y}
+                type="number"
+                min="0"
+                max="144"
+                step="0.1"
+                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-20 text-xs"
+              />
+              {#if shape.vertices.length > 3}
+                <button
+                  title="Remove Vertex"
+                  on:click={() => {
+                    shape.vertices.splice(vertexIdx, 1);
+                    shape.vertices = shape.vertices;
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} class="size-3 stroke-red-500">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                </button>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      {/each}
+      
+      <div class="flex flex-row justify-start items-center gap-2 mt-1 flex-wrap">
+        <button
+          on:click={() => {
+            shapes = [...shapes, createTriangle()];
+          }}
+          class="font-medium text-red-500 text-xs flex flex-row justify-start items-center gap-1 px-2 py-1 rounded-md border border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          <p>Triangle</p>
+        </button>
+        
+        <button
+          on:click={() => {
+            shapes = [...shapes, createRectangle()];
+          }}
+          class="font-medium text-red-500 text-xs flex flex-row justify-start items-center gap-1 px-2 py-1 rounded-md border border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          <p>Rectangle</p>
+        </button>
+        
+        <button
+          on:click={() => {
+            shapes = [...shapes, createNGon(5)];
+          }}
+          class="font-medium text-red-500 text-xs flex flex-row justify-start items-center gap-1 px-2 py-1 rounded-md border border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          <p>Pentagon</p>
+        </button>
+        
+        <button
+          on:click={() => {
+            shapes = [...shapes, createNGon(6)];
+          }}
+          class="font-medium text-red-500 text-xs flex flex-row justify-start items-center gap-1 px-2 py-1 rounded-md border border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          <p>Hexagon</p>
+        </button>
       </div>
     </div>
 

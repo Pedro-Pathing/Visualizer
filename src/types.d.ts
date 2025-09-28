@@ -51,3 +51,10 @@ interface FPASettings {
     rWidth: number;
     rHeight: number;
 }
+
+interface Shape {
+    id: string;
+    vertices: BasePoint[];
+    color: string;
+    fillColor: string;
+}
