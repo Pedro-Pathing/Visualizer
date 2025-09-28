@@ -422,9 +422,6 @@ ${line.endPoint.reverse ? ".setReversed(true)" : ""}
             class="flex flex-col justify-start items-start p-6 bg-white dark:bg-neutral-900 rounded-lg w-full max-w-md gap-4"
     >
       <div class="flex flex-row justify-between items-center w-full">
-        <p class="text-base font-light text-neutral-700 dark:text-neutral-400">
-          Settings:
-        </p>
         <button
                 class=""
                 on:click={() => {
