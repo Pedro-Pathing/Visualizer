@@ -235,17 +235,42 @@
 
     shapes.forEach((shape, idx) => {
       if (shape.vertices.length >= 3) {
-        // Create polygon from vertices
-        let vertices = shape.vertices.map(vertex => new Two.Anchor(x(vertex.x), y(vertex.y)));
+        // Create polygon from vertices - properly format for Two.js
+        let vertices = [];
         
-        // Close the shape by connecting back to the first vertex
-        vertices.push(new Two.Anchor(x(shape.vertices[0].x), y(shape.vertices[0].y)));
+        // Start with move command for first vertex
+        vertices.push(new Two.Anchor(
+          x(shape.vertices[0].x), 
+          y(shape.vertices[0].y), 
+          0, 0, 0, 0, 
+          Two.Commands.move
+        ));
+        
+        // Add line commands for remaining vertices
+        for (let i = 1; i < shape.vertices.length; i++) {
+          vertices.push(new Two.Anchor(
+            x(shape.vertices[i].x), 
+            y(shape.vertices[i].y), 
+            0, 0, 0, 0, 
+            Two.Commands.line
+          ));
+        }
+        
+        // Close the shape
+        vertices.push(new Two.Anchor(
+          x(shape.vertices[0].x), 
+          y(shape.vertices[0].y), 
+          0, 0, 0, 0, 
+          Two.Commands.close
+        ));
+        
+        vertices.forEach((point) => (point.relative = false));
         
         let shapeElement = new Two.Path(vertices);
         shapeElement.id = `shape-${idx}`;
         shapeElement.stroke = "#dc2626"; // Red border
         shapeElement.fill = "#fca5a5"; // Light red fill
-        shapeElement.linewidth = x(0.5); // Visible border width
+        shapeElement.linewidth = x(0.8); // Make border more visible
         shapeElement.automatic = false;
         
         _shapes.push(shapeElement);

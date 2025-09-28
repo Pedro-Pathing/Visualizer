@@ -185,55 +185,30 @@
         </div>
       {/each}
       
-      <div class="flex flex-row justify-start items-center gap-2 mt-1 flex-wrap">
+      <!-- <div class="flex flex-row justify-start items-center gap-2 mt-1">
         <button
           on:click={() => {
             shapes = [...shapes, createTriangle()];
           }}
-          class="font-medium text-red-500 text-xs flex flex-row justify-start items-center gap-1 px-2 py-1 rounded-md border border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20"
+          class="font-semibold text-red-500 text-sm flex flex-row justify-start items-center gap-1"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-3">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width={2}
+            stroke="currentColor"
+            class="size-5"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M12 4.5v15m7.5-7.5h-15"
+            />
           </svg>
-          <p>Triangle</p>
+          <p>Add Obstacle</p>
         </button>
-        
-        <button
-          on:click={() => {
-            shapes = [...shapes, createRectangle()];
-          }}
-          class="font-medium text-red-500 text-xs flex flex-row justify-start items-center gap-1 px-2 py-1 rounded-md border border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-3">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          <p>Rectangle</p>
-        </button>
-        
-        <button
-          on:click={() => {
-            shapes = [...shapes, createNGon(5)];
-          }}
-          class="font-medium text-red-500 text-xs flex flex-row justify-start items-center gap-1 px-2 py-1 rounded-md border border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-3">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          <p>Pentagon</p>
-        </button>
-        
-        <button
-          on:click={() => {
-            shapes = [...shapes, createNGon(6)];
-          }}
-          class="font-medium text-red-500 text-xs flex flex-row justify-start items-center gap-1 px-2 py-1 rounded-md border border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-3">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          <p>Hexagon</p>
-        </button>
-      </div>
+      </div> -->
     </div>
 
     <div class="flex flex-col w-full justify-start items-start gap-0.5 text-sm">

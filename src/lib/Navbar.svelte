@@ -60,7 +60,9 @@
 
 ${lines
               .map(
-                      (line, idx) => `public static PathChain line${idx + 1} = builder
+                      (line, idx) => {
+                        const variableName = line.name ? line.name.replace(/[^a-zA-Z0-9]/g, '') : `line${idx + 1}`;
+                        return `public static PathChain ${variableName} = builder
 .addPath(
   ${line.controlPoints.length === 0 ? `new BezierLine` : `new BezierCurve`}(
     ${
@@ -83,6 +85,7 @@ ${lines
 ).${headingTypeToFunctionName[line.endPoint.heading]}(${line.endPoint.heading === "constant" ? `Math.toRadians(${line.endPoint.degrees})` : line.endPoint.heading === "linear" ? `Math.toRadians(${line.endPoint.startDeg}), Math.toRadians(${line.endPoint.endDeg})` : ""})
 ${line.endPoint.reverse ? ".setReversed(true)" : ""}
 .build();`
+                      }
               )
               .join("\n\n")};
 
@@ -96,7 +99,9 @@ ${line.endPoint.reverse ? ".setReversed(true)" : ""}
 
         public static PathChain paths = builder${lines
               .map(
-                      (line, idx) => `.addPath(  // Line ${idx + 1}
+                      (line, idx) => {
+                        const lineName = line.name || `Path ${idx + 1}`;
+                        return `.addPath(  // ${lineName}
               ${line.controlPoints.length === 0 ? `new BezierLine` : `new BezierCurve`}(
                 ${
                               idx === 0
@@ -116,10 +121,11 @@ ${line.endPoint.reverse ? ".setReversed(true)" : ""}
                 new Pose(${line.endPoint.x.toFixed(3)}, ${line.endPoint.y.toFixed(3)})
               )
             ).${headingTypeToFunctionName[line.endPoint.heading]}(${line.endPoint.heading === "constant" ? `Math.toRadians(${line.endPoint.degrees})` : line.endPoint.heading === "linear" ? `Math.toRadians(${line.endPoint.startDeg}), Math.toRadians(${line.endPoint.endDeg})` : ""})
-            ${line.endPoint.reverse ? ".setReversed(true)" : ""}
-          .build();`
+            ${line.endPoint.reverse ? ".setReversed(true)" : ""}`;
+                      }
               )
-              .join("\n")};
+              .join("\n")}
+          .build();
 
     }
     `;
