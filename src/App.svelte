@@ -414,10 +414,11 @@
   async function fpa(l: FPALine, s: FPASettings, o: Shape): Promise<Line> {
     let status = 'Starting optimization...';
     let result = null;
-    const obstacle = JSON.stringify(o.vertices.map(p => [p.x, p.y]))
-    const points = JSON.stringify([l.startPoint, ...l.controlPoints, l.endPoint].map(p => [p.x, p.y]));
+    // Convert to arrays, not JSON strings - this was the main issue!
+    const obstacle = o.vertices.map(p => [p.x, p.y]);
+    const waypoints = [l.startPoint, ...l.controlPoints, l.endPoint].map(p => [p.x, p.y]);
     const payload = {
-                waypoints: points,
+                waypoints: waypoints,
                 start_heading_degrees: l.startPoint.endDeg,
                 end_heading_degrees: l.endPoint.startDeg,
                 x_velocity: s.xVelocity,
@@ -440,12 +441,30 @@
     }
 
     // result is already parsed JSON data, no need to call .json()
-    const k = result;
+    const resultData = result;
+    
+    // Handle the new API format that returns optimized_waypoints
+    let waypoints;
+    if (resultData.optimized_waypoints) {
+      waypoints = resultData.optimized_waypoints;
+    } else if (Array.isArray(resultData)) {
+      // Legacy format support
+      waypoints = resultData;
+    } else {
+      throw new Error('Unexpected result format from optimization API');
+    }
+    
     return {
       name: l.name,
-      endPoint: { x: k[k.length - 1][0], y: k[k.length - 1][1], heading: l.interpolation, startDeg: l.endPoint.startDeg, endDeg: l.endPoint.endDeg },
+      endPoint: { 
+        x: waypoints[waypoints.length - 1][0], 
+        y: waypoints[waypoints.length - 1][1], 
+        heading: l.interpolation, 
+        startDeg: l.endPoint.startDeg, 
+        endDeg: l.endPoint.endDeg 
+      },
       color: l.color,
-      controlPoints: k.slice(1, k.length - 1).map(p => ({ x: p[0], y: p[1] }))
+      controlPoints: waypoints.slice(1, waypoints.length - 1).map(p => ({ x: p[0], y: p[1] }))
     }
   
     /*return {
