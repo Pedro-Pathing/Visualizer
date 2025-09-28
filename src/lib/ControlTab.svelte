@@ -388,17 +388,6 @@
               name="Optimize"
               on:click={async () => {
                 try {
-                  // Create default obstacle if none exists
-                  const defaultObstacle = {
-                    id: "default-obstacle",
-                    name: "",
-                    vertices: [],
-                    color: "#991b1b",
-                    fillColor: "#ef4444"
-                  };
-                  
-                  const obstacleToUse = shapes.length > 0 ? shapes[0] : defaultObstacle;
-                  
                   const optimizedLine = await fpa(
                     {
                       startPoint: idx === 0 ? startPoint : lines[idx - 1].endPoint,
@@ -408,13 +397,18 @@
                       color: line.color,
                     },
                     settings,
-                    obstacleToUse
+                    shapes.length > 0 ? shapes[0] : { 
+                      id: "default-obstacle", 
+                      name: "", 
+                      vertices: [] as BasePoint[], 
+                      color: "#991b1b", 
+                      fillColor: "#ef4444" 
+                    } as Shape
                   );
                   lines = lines.map((l, i) => i === idx ? optimizedLine : l);
-                } catch (error) {
+                } catch (error: any) {
                   console.error('Optimization failed:', error);
-                  const msg = typeof error === "object" && error !== null && "message" in error ? error.message : String(error);
-                  alert(`Optimization failed: ${msg}`);
+                  alert(`Optimization failed: ${error.message}`);
                 }
               }}
             >Optimize</button>
