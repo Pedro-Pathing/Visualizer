@@ -790,12 +790,12 @@ hotkeys('s', function(event, handler){
 
 <Navbar bind:lines bind:startPoint bind:shapes bind:settings bind:robotWidth bind:robotHeight {saveFile} {loadFile} {loadRobot}/>
 <div
-  class="w-screen h-screen pt-20 p-2 flex flex-col xl:flex-row justify-center items-center gap-2 overflow-hidden"
+  class="w-screen h-screen pt-20 p-2 flex flex-row justify-center items-center gap-2"
 >
-  <div class="flex h-full xl:h-full w-full xl:w-auto justify-center items-center min-w-0 flex-1">
+  <div class="flex h-full justify-center items-center">
     <div
       bind:this={twoElement}
-      class="w-full h-full max-w-full max-h-full aspect-square rounded-lg shadow-md bg-neutral-50 dark:bg-neutral-900 relative overflow-clip"
+      class="h-full aspect-square rounded-lg shadow-md bg-neutral-50 dark:bg-neutral-900 relative overflow-clip"
     >
       <img
         src="/fields/decode.webp"
