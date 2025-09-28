@@ -386,20 +386,24 @@
               class="px-2 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm"
               title="Optimize"
               name="Optimize"
-              on:click={() => {
-                fpa(
-                  {
-                    startPoint: idx === 0 ? startPoint : lines[idx - 1].endPoint,
-                    endPoint: line.endPoint,
-                    controlPoints: line.controlPoints,
-                    interpolation: line.endPoint.heading,
-                    color: line.color,
-                  },
-                  settings,
-                  shapes[0] 
-                ).then((optimizedLine) => {
+              on:click={async () => {
+                try {
+                  const optimizedLine = await fpa(
+                    {
+                      startPoint: idx === 0 ? startPoint : lines[idx - 1].endPoint,
+                      endPoint: line.endPoint,
+                      controlPoints: line.controlPoints,
+                      interpolation: line.endPoint.heading,
+                      color: line.color,
+                    },
+                    settings,
+                    shapes.length > 0 ? shapes[0] : { name: "", vertices: [] }
+                  );
                   lines = lines.map((l, i) => i === idx ? optimizedLine : l);
-                });
+                } catch (error) {
+                  console.error('Optimization failed:', error);
+                  alert(`Optimization failed: ${error.message}`);
+                }
               }}
             >Optimize</button>
           </div>

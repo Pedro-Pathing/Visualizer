@@ -436,9 +436,11 @@
       status = 'Optimization Complete!';
     } catch (e) {
       status = 'Error: ' + e.message;
+      throw e;
     }
 
-    const k = result.json();
+    // result is already parsed JSON data, no need to call .json()
+    const k = result;
     return {
       name: l.name,
       endPoint: { x: k[k.length - 1][0], y: k[k.length - 1][1], heading: l.interpolation, startDeg: l.endPoint.startDeg, endDeg: l.endPoint.endDeg },
@@ -459,27 +461,38 @@
     }
 
     export async function createTask(payload) {
-        const response = await fetch('https://fpa.pedropathing.com/optimize', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        const data = await response.json();
-        return data.job_id;
+        try {
+            const response = await fetch('https://fpa.pedropathing.com/optimize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            const data = await response.json();
+            return data.job_id;
+        } catch (error) {
+            console.error('Failed to create optimization task:', error);
+            throw error;
+        }
     }
 
     export async function pollForResult(jobId, pollInterval = 1000, maxTries = 60) {
         for (let i = 0; i < maxTries; i++) {
-            const response = await fetch(`https://fpa.pedropathing.com/job/${jobId}`);
-            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            const data = await response.json();
-            if (data.status === 'completed' && data.result) {
-                return data.result;
-            } else if (data.status === 'error') {
-                throw new Error('Optimization failed with error.');
+            try {
+                const response = await fetch(`https://fpa.pedropathing.com/job/${jobId}`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const data = await response.json();
+                if (data.status === 'completed' && data.result) {
+                    return data.result;
+                } else if (data.status === 'error') {
+                    throw new Error('Optimization failed with error.');
+                }
+                await sleep(pollInterval);
+            } catch (error) {
+                console.error(`Polling attempt ${i + 1} failed:`, error);
+                if (i === maxTries - 1) throw error; // Re-throw on last attempt
+                await sleep(pollInterval);
             }
-            await sleep(pollInterval);
         }
         throw new Error('Timeout waiting for job result.');
     }
