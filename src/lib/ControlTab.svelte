@@ -346,6 +346,10 @@
             <select
               bind:value={line.endPoint.heading}
               class=" rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28 text-sm"
+              title="The heading style of the robot. 
+With constant heading, the robot maintains the same heading throughout the line. 
+With linear heading, heading changes linearly between given start and end angles. 
+With tangential heading, the heading follows the direction of the line."
             >
               <option value="constant">Constant</option>
               <option value="linear">Linear</option>
@@ -360,6 +364,7 @@
                 min="-180"
                 max="180"
                 bind:value={line.endPoint.startDeg}
+                title="The heading the robot starts this line at (in degrees)"
               />
               <input
                 class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-14"
@@ -368,6 +373,7 @@
                 min="-180"
                 max="180"
                 bind:value={line.endPoint.endDeg}
+                title="The heading the robot ends this line at (in degrees)"
               />
             {:else if line.endPoint.heading === "constant"}
               <input
@@ -377,10 +383,11 @@
                 min="-180"
                 max="180"
                 bind:value={line.endPoint.degrees}
+                title="The constant heading the robot maintains throughout this line (in degrees)"
               />
             {:else if line.endPoint.heading === "tangential"}
               <p class="text-sm font-extralight">Reverse:</p>
-              <input type="checkbox" bind:checked={line.endPoint.reverse} />
+              <input type="checkbox" bind:checked={line.endPoint.reverse} title="Reverse the direction the robot faces along the tangential path" />
             {/if}
             <button
               class="px-2 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm"
