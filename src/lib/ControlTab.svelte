@@ -8,8 +8,8 @@
   export let pause: () => any;
   export let startPoint: Point;
   export let lines: Line[];
-  export let robotWidth: number;
-  export let robotHeight: number;
+  export let robotWidth: number = 16;
+  export let robotHeight: number = 16;
   export let robotXY: BasePoint;
   export let robotHeading: number;
   export let fpa: (arg0: FPALine) => Line;
