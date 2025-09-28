@@ -416,9 +416,9 @@
     let result = null;
     // Convert to arrays, not JSON strings - this was the main issue!
     const obstacle = o.vertices.map(p => [p.x, p.y]);
-    const waypoints = [l.startPoint, ...l.controlPoints, l.endPoint].map(p => [p.x, p.y]);
+    const inputWaypoints = [l.startPoint, ...l.controlPoints, l.endPoint].map(p => [p.x, p.y]);
     const payload = {
-                waypoints: waypoints,
+                waypoints: inputWaypoints,
                 start_heading_degrees: l.startPoint.endDeg,
                 end_heading_degrees: l.endPoint.startDeg,
                 x_velocity: s.xVelocity,
@@ -430,7 +430,7 @@
                 robot_height: s.rHeight,
                 min_coord_field: 0,
                 max_coord_field: 144,
-                interpolation: l.interpolation
+                interpolation: l.interpolation === "tangential" ? "tangent" : l.interpolation
     };
     try {
       result = await runOptimization(payload);
@@ -444,27 +444,49 @@
     const resultData = result;
     
     // Handle the new API format that returns optimized_waypoints
-    let waypoints;
+    let optimizedWaypoints;
     if (resultData.optimized_waypoints) {
-      waypoints = resultData.optimized_waypoints;
+      optimizedWaypoints = resultData.optimized_waypoints;
     } else if (Array.isArray(resultData)) {
       // Legacy format support
-      waypoints = resultData;
+      optimizedWaypoints = resultData;
     } else {
       throw new Error('Unexpected result format from optimization API');
     }
     
+    // Handle the different Point types based on heading
+    let endPoint: Point;
+    
+    if (l.interpolation === "tangential") {
+      endPoint = {
+        x: optimizedWaypoints[optimizedWaypoints.length - 1][0], 
+        y: optimizedWaypoints[optimizedWaypoints.length - 1][1], 
+        heading: "tangential",
+        reverse: l.endPoint.reverse ?? false
+      };
+    } else if (l.interpolation === "constant") {
+      endPoint = {
+        x: optimizedWaypoints[optimizedWaypoints.length - 1][0], 
+        y: optimizedWaypoints[optimizedWaypoints.length - 1][1], 
+        heading: "constant",
+        degrees: (l.endPoint as any).degrees ?? 0
+      };
+    } else {
+      // linear
+      endPoint = {
+        x: optimizedWaypoints[optimizedWaypoints.length - 1][0], 
+        y: optimizedWaypoints[optimizedWaypoints.length - 1][1], 
+        heading: "linear",
+        startDeg: l.endPoint.startDeg ?? 0,
+        endDeg: l.endPoint.endDeg ?? 0
+      };
+    }
+    
     return {
       name: l.name,
-      endPoint: { 
-        x: waypoints[waypoints.length - 1][0], 
-        y: waypoints[waypoints.length - 1][1], 
-        heading: l.interpolation, 
-        startDeg: l.endPoint.startDeg, 
-        endDeg: l.endPoint.endDeg 
-      },
+      endPoint,
       color: l.color,
-      controlPoints: waypoints.slice(1, waypoints.length - 1).map(p => ({ x: p[0], y: p[1] }))
+      controlPoints: optimizedWaypoints.slice(1, optimizedWaypoints.length - 1).map(p => ({ x: p[0], y: p[1] }))
     }
   
     /*return {
@@ -680,8 +702,9 @@
         x: _.random(36, 108),
         y: _.random(36, 108),
         heading: "tangential",
-        reverse: false,
-      },
+        reverse: true,
+        // Remove startDeg/endDeg for tangential type if not needed by your Point type
+      } as Point,
       controlPoints: [],
       color: getRandomColor(),
     },
