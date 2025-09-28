@@ -435,7 +435,7 @@
     try {
       result = await runOptimization(payload);
       status = 'Optimization Complete!';
-    } catch (e) {
+    } catch (e: any) {
       status = 'Error: ' + e.message;
       throw e;
     }
@@ -486,7 +486,7 @@
       name: l.name,
       endPoint,
       color: l.color,
-      controlPoints: optimizedWaypoints.slice(1, optimizedWaypoints.length - 1).map(p => ({ x: p[0], y: p[1] }))
+      controlPoints: optimizedWaypoints.slice(1, optimizedWaypoints.length - 1).map((p: number[]) => ({ x: p[0], y: p[1] }))
     }
   
     /*return {
@@ -497,11 +497,11 @@
   }
 
 
-    function sleep(ms) {
+    function sleep(ms: number) {
         return new Promise(res => setTimeout(res, ms));
     }
 
-    export async function createTask(payload) {
+    export async function createTask(payload: any) {
         try {
             const response = await fetch('https://fpa.pedropathing.com/optimize', {
                 method: 'POST',
@@ -517,7 +517,7 @@
         }
     }
 
-    export async function pollForResult(jobId, pollInterval = 1000, maxTries = 60) {
+    export async function pollForResult(jobId: string, pollInterval = 1000, maxTries = 60) {
         for (let i = 0; i < maxTries; i++) {
             try {
                 const response = await fetch(`https://fpa.pedropathing.com/job/${jobId}`);
@@ -539,7 +539,7 @@
     }
 
     // 3. Run Optimization - creates task, then polls for result and returns it
-    export async function runOptimization(payload, pollInterval = 1000, maxTries = 60) {
+    export async function runOptimization(payload: any, pollInterval = 1000, maxTries = 60) {
         const jobId = await createTask(payload);
         const result = await pollForResult(jobId, pollInterval, maxTries);
         return result;

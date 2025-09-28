@@ -397,10 +397,16 @@
                       color: line.color,
                     },
                     settings,
-                    shapes.length > 0 ? shapes[0] : { name: "", vertices: [] }
+                    shapes.length > 0 ? shapes[0] : { 
+                      id: "default-obstacle", 
+                      name: "", 
+                      vertices: [] as BasePoint[], 
+                      color: "#991b1b", 
+                      fillColor: "#ef4444" 
+                    } as Shape
                   );
                   lines = lines.map((l, i) => i === idx ? optimizedLine : l);
-                } catch (error) {
+                } catch (error: any) {
                   console.error('Optimization failed:', error);
                   alert(`Optimization failed: ${error.message}`);
                 }

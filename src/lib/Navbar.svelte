@@ -479,7 +479,12 @@ ${line.endPoint.reverse ? ".setReversed(true)" : ""}
                 type="number"
                 min="0"
                 bind:value={angularVelocityDisplay}
-                on:input={(e) => settings.aVelocity = parseFloat(e.target.value) * Math.PI}
+                on:input={(e: Event) => {
+                  const target = e.target as HTMLInputElement;
+                  if (target) {
+                    settings.aVelocity = parseFloat(target.value) * Math.PI;
+                  }
+                }}
               />
             </div>
             <div class="text-sm text-neutral-500 dark:text-neutral-400 self-end">
