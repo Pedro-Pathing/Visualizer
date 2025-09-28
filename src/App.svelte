@@ -626,12 +626,12 @@ hotkeys('s', function(event, handler){
 
 <Navbar bind:lines bind:startPoint bind:shapes bind:settings bind:robotWidth bind:robotHeight {saveFile} {loadFile} {loadRobot}/>
 <div
-  class="w-screen h-screen pt-20 p-2 flex flex-row justify-center items-center gap-2"
+  class="w-screen h-screen pt-20 p-2 flex flex-col xl:flex-row justify-center items-center gap-2 overflow-hidden"
 >
-  <div class="flex h-full justify-center items-center">
+  <div class="flex h-full xl:h-full w-full xl:w-auto justify-center items-center min-w-0 flex-1">
     <div
       bind:this={twoElement}
-      class="h-full aspect-square rounded-lg shadow-md bg-neutral-50 dark:bg-neutral-900 relative overflow-clip"
+      class="w-full h-full max-w-full max-h-full aspect-square rounded-lg shadow-md bg-neutral-50 dark:bg-neutral-900 relative overflow-clip"
     >
       <img
         src="/fields/decode.webp"
@@ -640,8 +640,6 @@ hotkeys('s', function(event, handler){
       />
       <img
         src={"/robot.png"}
-        width={x(robotWidth)}
-        height={x(robotHeight)}
         alt="Robot"
         style={`position: absolute; top: ${robotXY.y}px; left: ${robotXY.x}px; transform: translate(-50%, -50%) rotate(${robotHeading}deg); z-index: 20; width: ${x(robotWidth)}px; height: ${x(robotHeight)}px;`}
       />
