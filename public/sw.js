@@ -3,6 +3,7 @@ const CACHE_NAME = `pedro-visualizer-${VERSION}`;
 
 const APP_STATIC_RESOURCES = [
   "/",
+  "/favicon.ico",
   "/fields/centerstage.webp",
   "/fields/intothedeep.webp",
   "/fields/decode.webp",

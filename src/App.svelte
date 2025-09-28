@@ -25,7 +25,16 @@
   let lineWidth = 0.57;
   let robotWidth = 16;
   let robotHeight = 16;
-  let settings: FPASettings;
+  let settings: FPASettings = {
+    xVelocity: 60,
+    yVelocity: 60,
+    aVelocity: Math.PI,
+    kFriction: 0.05,
+    rWidth: robotWidth,
+    rHeight: robotHeight
+  };
+
+  let x
 
   let percent: number = 0;
 
@@ -496,16 +505,12 @@ hotkeys('w', function(event, handler){
 hotkeys('a', function(event, handler){
   event.preventDefault();
   addControlPoint();
-  $: points;
-  $: path;
   two.update();
 });
 
 hotkeys('s', function(event, handler){
   event.preventDefault();
   removeControlPoint();
-  $: points;
-  $: path;
   two.update();
 });
 

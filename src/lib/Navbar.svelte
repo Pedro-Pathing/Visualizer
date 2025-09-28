@@ -143,9 +143,10 @@ ${line.endPoint.reverse ? ".setReversed(true)" : ""}
       settingsOpen = true;
   }
 
-  settings.rHeight = robotHeight;
-  settings.rWidth = robotWidth;
-  console.log(String(settings));
+  $: if (settings) {
+    settings.rHeight = robotHeight;
+    settings.rWidth = robotWidth;
+  }
 </script>
 
 <svelte:head>

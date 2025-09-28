@@ -29,7 +29,9 @@
         <input
           bind:value={robotWidth}
           on:change={() => {
-            settings.rWidth = robotWidth;
+            if (settings) {
+              settings.rWidth = robotWidth;
+            }
           }}
           type="number"
           class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-16"
@@ -39,7 +41,9 @@
         <input
           bind:value={robotHeight}
           on:change={() => {
-            settings.rHeight = robotHeight;
+            if (settings) {
+              settings.rHeight = robotHeight;
+            }
           }}
           type="number"
           class="pl-1.5 rounded-md bg-neutral-100 border-[0.5px] focus:outline-none w-16 dark:bg-neutral-950 dark:border-neutral-700"
