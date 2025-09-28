@@ -247,19 +247,7 @@ ${line.endPoint.reverse ? ".setReversed(true)" : ""}
       color: getRandomColor(),
     },
   ];
-  shapes = [
-    {
-      id: "triangle-1",
-      name: "Obstacle 1",
-      vertices: [
-        { x: 20, y: 20 },
-        { x: 40, y: 20 },
-        { x: 30, y: 40 }
-      ],
-      color: "#dc2626",
-      fillColor: "#fca5a5"
-    }
-  ];
+  shapes = [];
       }}
     >
       <svg
@@ -460,41 +448,53 @@ ${line.endPoint.reverse ? ".setReversed(true)" : ""}
       </div>
 
       <div class="relative w-full">
-        <div class="font-extralight">X Velocity (in/s):</div>
-        <input
-                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
-                step="0.1"
-                type="number"
-                min="0"
-                bind:value={settings.xVelocity}
-        />
-      
-        <div class="font-extralight">Y Velocity (in/s):</div>
-        <input
-                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
-                step="0.1"
-                type="number"
-                min="0"
-                bind:value={settings.yVelocity}
-        />
-        
-        <div class="font-extralight">Angular Velocity (rad/s):</div>
-        <input
-                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
-                step="0.1"
-                type="number"
-                min="0"
-                bind:value={settings.aVelocity}
-        />
+        <div class="flex flex-col w-full justify-start items-start gap-2 text-sm">
+          <div class="font-semibold">FPA Settings</div>
           
-        <div class="font-extralight">Friction Coefficient:</div>
-        <input
-                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
-                step="0.1"
-                type="number"
-                min="0"
-                bind:value={settings.kFriction}
-        />
+          <div class="flex flex-row justify-start items-center gap-2">
+            <div class="font-extralight">X Velocity (in/s):</div>
+            <input
+              class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-24 text-sm"
+              step="0.1"
+              type="number"
+              min="0"
+              bind:value={settings.xVelocity}
+            />
+          </div>
+        
+          <div class="flex flex-row justify-start items-center gap-2">
+            <div class="font-extralight">Y Velocity (in/s):</div>
+            <input
+              class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-24 text-sm"
+              step="0.1"
+              type="number"
+              min="0"
+              bind:value={settings.yVelocity}
+            />
+          </div>
+          
+          <div class="flex flex-row justify-start items-center gap-2">
+            <div class="font-extralight">Angular Velocity (rad/s):</div>
+            <input
+              class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-24 text-sm"
+              step="0.1"
+              type="number"
+              min="0"
+              bind:value={settings.aVelocity}
+            />
+          </div>
+            
+          <div class="flex flex-row justify-start items-center gap-2">
+            <div class="font-extralight">Friction Coefficient:</div>
+            <input
+              class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-24 text-sm"
+              step="0.1"
+              type="number"
+              min="0"
+              bind:value={settings.kFriction}
+            />
+          </div>
+        </div>
       </div>
     </div>
   </div> 

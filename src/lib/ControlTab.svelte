@@ -21,11 +21,11 @@
   function createTriangle(): Shape {
     return {
       id: `triangle-${shapes.length + 1}`,
-      name: `Obstacle ${shapes.length + 1}`,
+      name: "", // Empty name to show placeholder
       vertices: [
-        { x: 30, y: 30 },
-        { x: 50, y: 30 },
-        { x: 40, y: 50 }
+        { x: 60, y: 60 },
+        { x: 84, y: 60 },
+        { x: 72, y: 84 }
       ],
       color: "#dc2626",
       fillColor: "#fca5a5"
@@ -383,7 +383,7 @@
               <input type="checkbox" bind:checked={line.endPoint.reverse} />
             {/if}
             <button
-              class="px-2 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none"
+              class="px-2 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm"
               title="Optimize"
               name="Optimize"
               on:click={() => {

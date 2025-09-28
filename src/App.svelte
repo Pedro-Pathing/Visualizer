@@ -38,20 +38,8 @@
 
   let percent: number = 0;
 
-  // Initialize default shapes
-  let shapes: Shape[] = [
-    {
-      id: "triangle-1",
-      name: "Obstacle 1",
-      vertices: [
-        { x: 20, y: 20 },
-        { x: 40, y: 20 },
-        { x: 30, y: 40 }
-      ],
-      color: "#dc2626", // Will be overridden but kept for compatibility
-      fillColor: "#fca5a5" // Will be overridden but kept for compatibility
-    }
-  ];
+  // Initialize default shapes - start with no obstacles
+  let shapes: Shape[] = [];
 
 
 
