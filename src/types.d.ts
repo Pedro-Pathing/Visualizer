@@ -34,6 +34,7 @@ interface Line {
   endPoint: Point;
   controlPoints: ControlPoint[];
   color: string;
+  name?: string;
 }
 
 interface FPALine {
@@ -41,6 +42,7 @@ interface FPALine {
   endPoint: Point;
   controlPoints: ControlPoint[];
   color: string;
+  name?: string;
 }
 
 interface FPASettings {
@@ -54,6 +56,7 @@ interface FPASettings {
 
 interface Shape {
     id: string;
+    name?: string;
     vertices: BasePoint[];
     color: string;
     fillColor: string;

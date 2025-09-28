@@ -21,6 +21,7 @@
   function createTriangle(): Shape {
     return {
       id: `triangle-${shapes.length + 1}`,
+      name: `Obstacle ${shapes.length + 1}`,
       vertices: [
         { x: 30, y: 30 },
         { x: 50, y: 30 },
@@ -34,6 +35,7 @@
   function createRectangle(): Shape {
     return {
       id: `rectangle-${shapes.length + 1}`,
+      name: `Obstacle ${shapes.length + 1}`,
       vertices: [
         { x: 30, y: 30 },
         { x: 60, y: 30 },
@@ -61,6 +63,7 @@
     
     return {
       id: `${sides}-gon-${shapes.length + 1}`,
+      name: `Obstacle ${shapes.length + 1}`,
       vertices,
       color: "#dc2626",
       fillColor: "#fca5a5"
@@ -106,11 +109,15 @@
       <div class="font-semibold">Shapes</div>
       
       {#each shapes as shape, shapeIdx}
-        <div class="flex flex-col w-full justify-start items-start gap-1 p-2 border rounded-md" style="border-color: {shape.color}; background-color: {shape.fillColor}20;">
+        <div class="flex flex-col w-full justify-start items-start gap-1 p-2 border rounded-md border-neutral-300 dark:border-neutral-600">
           <div class="flex flex-row w-full justify-between items-center">
             <div class="font-medium text-sm flex flex-row items-center gap-2">
-              Shape {shapeIdx + 1}
-              <div class="size-2 rounded-full" style="background-color: {shape.color}"></div>
+              <input
+                bind:value={shape.name}
+                placeholder="Obstacle {shapeIdx + 1}"
+                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm font-medium"
+              />
+              <div class="size-2 rounded-full bg-red-600"></div>
             </div>
             <div class="flex flex-row gap-1">
               <button
@@ -275,7 +282,11 @@
           <div
             class="font-semibold flex flex-row justify-start items-center gap-2"
           >
-            <p>Line {idx + 1}</p>
+            <input
+              bind:value={line.name}
+              placeholder="Path {idx + 1}"
+              class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm font-semibold"
+            />
             <div
               class="size-2.5 rounded-full shadow-md"
               style={`background: ${line.color}`}
@@ -465,6 +476,7 @@
         lines = [
           ...lines,
           {
+            name: `Path ${lines.length + 1}`,
             endPoint: {
               x: _.random(0, 144),
               y: _.random(0, 144),

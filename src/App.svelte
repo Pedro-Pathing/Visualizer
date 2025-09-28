@@ -42,13 +42,14 @@
   let shapes: Shape[] = [
     {
       id: "triangle-1",
+      name: "Obstacle 1",
       vertices: [
         { x: 20, y: 20 },
         { x: 40, y: 20 },
         { x: 30, y: 40 }
       ],
-      color: "#dc2626", // red-600
-      fillColor: "#fca5a5" // red-300
+      color: "#dc2626", // Will be overridden but kept for compatibility
+      fillColor: "#fca5a5" // Will be overridden but kept for compatibility
     }
   ];
 
@@ -86,6 +87,7 @@
   };
   let lines: Line[] = [
     {
+      name: "Path 1",
       endPoint: { x: 56, y: 36, heading: "linear", startDeg: 90, endDeg: 180 },
       controlPoints: [],
       color: getRandomColor(),
@@ -241,9 +243,9 @@
         
         let shapeElement = new Two.Path(vertices);
         shapeElement.id = `shape-${idx}`;
-        shapeElement.stroke = shape.color;
-        shapeElement.fill = shape.fillColor;
-        shapeElement.linewidth = x(0.3); // Slightly thinner than path lines
+        shapeElement.stroke = "#dc2626"; // Red border
+        shapeElement.fill = "#fca5a5"; // Light red fill
+        shapeElement.linewidth = x(0.5); // Visible border width
         shapeElement.automatic = false;
         
         _shapes.push(shapeElement);
@@ -428,7 +430,7 @@
   });
 
   function saveFile() {
-    const jsonString = JSON.stringify({ startPoint, lines });
+    const jsonString = JSON.stringify({ startPoint, lines, shapes });
 
     const blob = new Blob([jsonString], { type: "application/json" });
 
@@ -462,10 +464,14 @@
           const jsonObj: {
             startPoint: Point;
             lines: Line[];
+            shapes?: Shape[];
           } = JSON.parse(result);
 
           startPoint = jsonObj.startPoint;
           lines = jsonObj.lines;
+          if (jsonObj.shapes) {
+            shapes = jsonObj.shapes;
+          }
         } catch (err) {
           console.error(err);
         }
@@ -558,7 +564,7 @@ hotkeys('s', function(event, handler){
 
 </script>
 
-<Navbar bind:lines bind:startPoint bind:settings bind:robotWidth bind:robotHeight {saveFile} {loadFile} {loadRobot}/>
+<Navbar bind:lines bind:startPoint bind:shapes bind:settings bind:robotWidth bind:robotHeight {saveFile} {loadFile} {loadRobot}/>
 <div
   class="w-screen h-screen pt-20 p-2 flex flex-row justify-center items-center gap-2"
 >

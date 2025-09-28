@@ -18,6 +18,7 @@
   let separateLines = false;
   export let startPoint: Point;
   export let lines: Line[];
+  export let shapes: Shape[];
   export let robotWidth: number;
   export let robotHeight: number;
   export let settings: FPASettings;
@@ -234,10 +235,24 @@ ${line.endPoint.reverse ? ".setReversed(true)" : ""}
   };
   lines = [
     {
+      name: "Path 1",
       endPoint: { x: 56, y: 36, heading: "linear", startDeg: 90, endDeg: 180 },
       controlPoints: [],
       color: getRandomColor(),
     },
+  ];
+  shapes = [
+    {
+      id: "triangle-1",
+      name: "Obstacle 1",
+      vertices: [
+        { x: 20, y: 20 },
+        { x: 40, y: 20 },
+        { x: 30, y: 40 }
+      ],
+      color: "#dc2626",
+      fillColor: "#fca5a5"
+    }
   ];
       }}
     >
