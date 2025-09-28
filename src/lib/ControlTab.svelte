@@ -148,7 +148,7 @@
           
           {#each shape.vertices as vertex, vertexIdx}
             <div class="flex flex-row justify-start items-center gap-2">
-              <div class="font-extralight text-xs">V{vertexIdx + 1}:</div>
+              <div class="font-bold text-xs">{vertexIdx + 1}:</div>
               <div class="font-extralight text-xs">X:</div>
               <input
                 bind:value={vertex.x}

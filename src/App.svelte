@@ -153,6 +153,41 @@
       });
     });
 
+    // Add obstacle vertices as draggable points
+    shapes.forEach((shape, shapeIdx) => {
+      shape.vertices.forEach((vertex, vertexIdx) => {
+        let pointGroup = new Two.Group();
+        pointGroup.id = `obstacle-${shapeIdx}-${vertexIdx}`;
+
+        let pointElem = new Two.Circle(
+          x(vertex.x),
+          y(vertex.y),
+          x(pointRadius)
+        );
+        pointElem.id = `obstacle-${shapeIdx}-${vertexIdx}-background`;
+        pointElem.fill = "#991b1b"; // Match obstacle color
+        pointElem.noStroke();
+
+        let pointText = new Two.Text(
+          `${vertexIdx + 1}`,
+          x(vertex.x),
+          y(vertex.y - 0.15),
+          x(pointRadius)
+        );
+        pointText.id = `obstacle-${shapeIdx}-${vertexIdx}-text`;
+        pointText.size = x(1.55);
+        pointText.leading = 1;
+        pointText.family = "ui-sans-serif, system-ui, sans-serif";
+        pointText.alignment = "center";
+        pointText.baseline = "middle";
+        pointText.fill = "white";
+        pointText.noStroke();
+
+        pointGroup.add(pointElem, pointText);
+        _points.push(pointGroup);
+      });
+    });
+
     return _points;
   })();
 
@@ -268,8 +303,9 @@
         
         let shapeElement = new Two.Path(vertices);
         shapeElement.id = `shape-${idx}`;
-        shapeElement.stroke = "#dc2626"; // Red border
-        shapeElement.fill = "#fca5a5"; // Light red fill
+        shapeElement.stroke = "#991b1b"; // Deeper red border (red-800)
+        shapeElement.fill = "#ef4444"; // Deeper red fill (red-500)
+        shapeElement.opacity = 0.4; // Make it pretty transparent
         shapeElement.linewidth = x(0.8); // Make border more visible
         shapeElement.automatic = false;
         
@@ -409,25 +445,36 @@
     two.renderer.domElement.addEventListener("mousemove", (evt: MouseEvent) => {
       const elem = document.elementFromPoint(evt.clientX, evt.clientY);
       if (isDown && currentElem) {
-        const line = Number(currentElem.split("-")[1]) - 1;
-        const point = Number(currentElem.split("-")[2]);
-
         const { x: xPos, y: yPos } = getMousePos(evt, two.renderer.domElement);
 
-        if (line === -1) {
-          startPoint.x = x.invert(xPos);
-          startPoint.y = y.invert(yPos);
+        if (currentElem.startsWith("obstacle-")) {
+          // Handle obstacle vertex dragging
+          const parts = currentElem.split("-");
+          const shapeIdx = Number(parts[1]);
+          const vertexIdx = Number(parts[2]);
+          
+          shapes[shapeIdx].vertices[vertexIdx].x = x.invert(xPos);
+          shapes[shapeIdx].vertices[vertexIdx].y = y.invert(yPos);
         } else {
-          if (point === 0) {
-            lines[line].endPoint.x = x.invert(xPos);
-            lines[line].endPoint.y = y.invert(yPos);
+          // Handle path point dragging
+          const line = Number(currentElem.split("-")[1]) - 1;
+          const point = Number(currentElem.split("-")[2]);
+
+          if (line === -1) {
+            startPoint.x = x.invert(xPos);
+            startPoint.y = y.invert(yPos);
           } else {
-            lines[line].controlPoints[point - 1].x = x.invert(xPos);
-            lines[line].controlPoints[point - 1].y = y.invert(yPos);
+            if (point === 0) {
+              lines[line].endPoint.x = x.invert(xPos);
+              lines[line].endPoint.y = y.invert(yPos);
+            } else {
+              lines[line].controlPoints[point - 1].x = x.invert(xPos);
+              lines[line].controlPoints[point - 1].y = y.invert(yPos);
+            }
           }
         }
       } else {
-        if (elem?.id.startsWith("point")) {
+        if (elem?.id.startsWith("point") || elem?.id.startsWith("obstacle")) {
           two.renderer.domElement.style.cursor = "pointer";
           currentElem = elem.id;
         } else {
