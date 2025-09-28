@@ -41,6 +41,7 @@ interface FPALine {
   startPoint: Point;
   endPoint: Point;
   controlPoints: ControlPoint[];
+  interpolation: String;
   color: string;
   name?: string;
 }

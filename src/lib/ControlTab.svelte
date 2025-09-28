@@ -12,7 +12,7 @@
   export let robotHeight: number = 16;
   export let robotXY: BasePoint;
   export let robotHeading: number;
-  export let fpa: (arg0: FPALine) => Line;
+  export let fpa: (l: FPALine, s: FPASettings, o: Shape) => Promise<Line>;
   export let x: d3.ScaleLinear<number, number, number>;
   export let y: d3.ScaleLinear<number, number, number>;
   export let settings: FPASettings;
@@ -387,11 +387,18 @@
               title="Optimize"
               name="Optimize"
               on:click={() => {
-                line = fpa({
-                  startPoint: idx === 0 ? startPoint : lines[idx - 1].endPoint,
-                  endPoint: line.endPoint,
-                  controlPoints: line.controlPoints,
-                  color: line.color,
+                fpa(
+                  {
+                    startPoint: idx === 0 ? startPoint : lines[idx - 1].endPoint,
+                    endPoint: line.endPoint,
+                    controlPoints: line.controlPoints,
+                    interpolation: line.endPoint.heading,
+                    color: line.color,
+                  },
+                  settings,
+                  shapes[0] 
+                ).then((optimizedLine) => {
+                  lines = lines.map((l, i) => i === idx ? optimizedLine : l);
                 });
               }}
             >Optimize</button>

@@ -411,13 +411,85 @@
     cancelAnimationFrame(animationFrame);
   }
 
-  function fpa(l: FPALine): Line {
+  async function fpa(l: FPALine, s: FPASettings, o: Shape): Promise<Line> {
+    let status = 'Starting optimization...';
+    let result = null;
+    const obstacle = JSON.stringify(o.vertices.map(p => [p.x, p.y]))
+    const points = JSON.stringify([l.startPoint, ...l.controlPoints, l.endPoint].map(p => [p.x, p.y]));
+    const payload = {
+                waypoints: points,
+                start_heading_degrees: l.startPoint.endDeg,
+                end_heading_degrees: l.endPoint.startDeg,
+                x_velocity: s.xVelocity,
+                y_velocity: s.yVelocity,
+                angular_velocity: s.aVelocity,
+                friction_coefficient: s.kFriction,
+                obstacle: obstacle,
+                robot_width: s.rWidth,
+                robot_height: s.rHeight,
+                min_coord_field: 0,
+                max_coord_field: 144,
+                interpolation: l.interpolation
+    };
+    try {
+      result = await runOptimization(payload);
+      status = 'Optimization Complete!';
+    } catch (e) {
+      status = 'Error: ' + e.message;
+    }
+
+    const k = result.json();
     return {
+      name: l.name,
+      endPoint: { x: k[k.length - 1][0], y: k[k.length - 1][1], heading: l.interpolation, startDeg: l.endPoint.startDeg, endDeg: l.endPoint.endDeg },
+      color: l.color,
+      controlPoints: k.slice(1, k.length - 1).map(p => ({ x: p[0], y: p[1] }))
+    }
+  
+    /*return {
         endPoint: { x: 36, y: 80, heading: "linear", startDeg: 0, endDeg: 0 },
         controlPoints: [],
         color: getRandomColor(),
-      }
+      }*/
   }
+
+
+    function sleep(ms) {
+        return new Promise(res => setTimeout(res, ms));
+    }
+
+    export async function createTask(payload) {
+        const response = await fetch('https://fpa.pedropathing.com/optimize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const data = await response.json();
+        return data.job_id;
+    }
+
+    export async function pollForResult(jobId, pollInterval = 1000, maxTries = 60) {
+        for (let i = 0; i < maxTries; i++) {
+            const response = await fetch(`https://fpa.pedropathing.com/job/${jobId}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            const data = await response.json();
+            if (data.status === 'completed' && data.result) {
+                return data.result;
+            } else if (data.status === 'error') {
+                throw new Error('Optimization failed with error.');
+            }
+            await sleep(pollInterval);
+        }
+        throw new Error('Timeout waiting for job result.');
+    }
+
+    // 3. Run Optimization - creates task, then polls for result and returns it
+    export async function runOptimization(payload, pollInterval = 1000, maxTries = 60) {
+        const jobId = await createTask(payload);
+        const result = await pollForResult(jobId, pollInterval, maxTries);
+        return result;
+    }
 
   onMount(() => {
     two = new Two({
