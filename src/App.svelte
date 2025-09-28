@@ -25,6 +25,7 @@
   let lineWidth = 0.57;
   let robotWidth = 16;
   let robotHeight = 16;
+  let settings: FPASettings;
 
   let percent: number = 0;
 
@@ -308,6 +309,14 @@
     cancelAnimationFrame(animationFrame);
   }
 
+  function fpa(l: FPALine): Line {
+    return {
+        endPoint: { x: 36, y: 80, heading: "linear", startDeg: 0, endDeg: 0 },
+        controlPoints: [],
+        color: getRandomColor(),
+      }
+  }
+
   onMount(() => {
     two = new Two({
       fitted: true,
@@ -502,7 +511,7 @@ hotkeys('s', function(event, handler){
 
 </script>
 
-<Navbar bind:lines bind:startPoint {saveFile} {loadFile} {loadRobot}/>
+<Navbar bind:lines bind:startPoint bind:settings bind:robotWidth bind:robotHeight {saveFile} {loadFile} {loadRobot}/>
 <div
   class="w-screen h-screen pt-20 p-2 flex flex-row justify-center items-center gap-2"
 >
@@ -533,10 +542,12 @@ hotkeys('s', function(event, handler){
     bind:lines
     bind:robotWidth
     bind:robotHeight
+    bind:settings
     bind:percent
     bind:robotXY
     bind:robotHeading
     {x}
     {y}
+    {fpa}
   />
 </div>

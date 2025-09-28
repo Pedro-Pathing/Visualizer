@@ -18,8 +18,13 @@
   let separateLines = false;
   export let startPoint: Point;
   export let lines: Line[];
+  export let robotWidth: number;
+  export let robotHeight: number;
+  export let settings: FPASettings;
+
 
   let dialogOpen = false;
+  let settingsOpen = false;
 
   onMount(() => {
     darkMode.subscribe((val) => {
@@ -133,6 +138,14 @@ ${line.endPoint.reverse ? ".setReversed(true)" : ""}
 
     dialogOpen = true;
   }
+
+  function openSettings() {
+      settingsOpen = true;
+  }
+
+  settings.rHeight = robotHeight;
+  settings.rWidth = robotWidth;
+  console.log(String(settings));
 </script>
 
 <svelte:head>
@@ -257,6 +270,9 @@ ${line.endPoint.reverse ? ".setReversed(true)" : ""}
           d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5"
         />
       </svg>
+    </button>
+    <button title="Open Settings" on:click={openSettings}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
     </button>
     <button
       title="Toggle Dark/Light Mode"
@@ -385,4 +401,79 @@ ${line.endPoint.reverse ? ".setReversed(true)" : ""}
       </div>
     </div>
   </div>
+{/if}
+{#if settingsOpen}
+  <div
+          transition:fade={{ duration: 500, easing: cubicInOut }}
+          class="bg-black bg-opacity-25 flex flex-col justify-center items-center absolute top-0 left-0 w-full h-full z-[1005]"
+  >
+    <div
+            transition:fly={{ duration: 500, easing: cubicInOut, y: 20 }}
+            class="flex flex-col justify-start items-start p-4 bg-white dark:bg-neutral-900 rounded-lg w-full max-w-4xl gap-2.5"
+    >
+      <div class="flex flex-row justify-between items-center w-full">
+        <p class="text-sm font-light text-neutral-700 dark:text-neutral-400">
+          Settings:
+        </p>
+        <button
+                class=""
+                on:click={() => {
+            settingsOpen = false;
+          }}
+        ><svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+                stroke="currentColor"
+                class="size-6 text-neutral-700 dark:text-neutral-400"
+        >
+          <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M6 18 18 6M6 6l12 12"
+          />
+        </svg>
+        </button>
+      </div>
+
+      <div class="relative w-full">
+        <div class="font-extralight">X Velocity (in/s):</div>
+        <input
+                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
+                step="0.1"
+                type="number"
+                min="0"
+                bind:value={settings.xVelocity}
+        />
+      
+        <div class="font-extralight">Y Velocity (in/s):</div>
+        <input
+                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
+                step="0.1"
+                type="number"
+                min="0"
+                bind:value={settings.yVelocity}
+        />
+        
+        <div class="font-extralight">Angular Velocity (rad/s):</div>
+        <input
+                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
+                step="0.1"
+                type="number"
+                min="0"
+                bind:value={settings.aVelocity}
+        />
+          
+        <div class="font-extralight">Friction Coefficient:</div>
+        <input
+                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
+                step="0.1"
+                type="number"
+                min="0"
+                bind:value={settings.kFriction}
+        />
+      </div>
+    </div>
+  </div> 
 {/if}

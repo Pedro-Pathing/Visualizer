@@ -35,3 +35,19 @@ interface Line {
   controlPoints: ControlPoint[];
   color: string;
 }
+
+interface FPALine {
+  startPoint: Point;
+  endPoint: Point;
+  controlPoints: ControlPoint[];
+  color: string;
+}
+
+interface FPASettings {
+    xVelocity: number;
+    yVelocity: number;
+    aVelocity: number
+    kFriction: number;
+    rWidth: number;
+    rHeight: number;
+}
