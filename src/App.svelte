@@ -572,6 +572,7 @@
                 if (response.status === 503) {
                     const errorData = await response.json();
                     if (errorData.error === 'offline') {
+                       console.log('OFFLINE: ' + errorData.message)
                         throw new Error('OFFLINE: ' + errorData.message);
                     }
                 }
@@ -590,6 +591,7 @@
                 await sleep(pollInterval);
             }
         }
+        console.log('Polling timed out after', maxTries, 'attempts.')
         throw new Error('Timeout waiting for job result.');
     }
 
