@@ -539,6 +539,15 @@
             });
             
             console.log('Response status:', response.status);
+            
+            // Handle offline response from service worker
+            if (response.status === 503) {
+                const errorData = await response.json();
+                if (errorData.error === 'offline') {
+                    throw new Error('OFFLINE: ' + errorData.message);
+                }
+            }
+            
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('Server error response:', errorText);
@@ -558,6 +567,15 @@
         for (let i = 0; i < maxTries; i++) {
             try {
                 const response = await fetch(`https://fpa.pedropathing.com/job/${jobId}`);
+                
+                // Handle offline response from service worker
+                if (response.status === 503) {
+                    const errorData = await response.json();
+                    if (errorData.error === 'offline') {
+                        throw new Error('OFFLINE: ' + errorData.message);
+                    }
+                }
+                
                 if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 const data = await response.json();
                 if (data.status === 'completed' && data.result) {

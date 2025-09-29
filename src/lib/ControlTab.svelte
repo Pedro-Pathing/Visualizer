@@ -393,7 +393,7 @@ With tangential heading, the heading follows the direction of the line."
               class="px-2 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm"
               title="Optimize"
               name="Optimize"
-              on:click={async () => {
+              on:click={async () => { 
                 try {
                   const optimizedLine = await fpa(
                     {
@@ -409,7 +409,14 @@ With tangential heading, the heading follows the direction of the line."
                   lines = lines.map((l, i) => i === idx ? optimizedLine : l);
                 } catch (error) {
                   console.error('Optimization failed:', error);
-                  alert(`Optimization failed: ${error.message}`);
+                  
+                  // Check if it's an offline error
+                  if (error.message && error.message.startsWith('OFFLINE:')) {
+                    const offlineMessage = error.message.replace('OFFLINE: ', '');
+                    alert(`🌐 ${offlineMessage}\n\nThe optimization feature requires an internet connection.`);
+                  } else {
+                    alert(`❌ Optimization failed: ${error.message}`);
+                  }
                 }
               }}
             >Optimize</button>
