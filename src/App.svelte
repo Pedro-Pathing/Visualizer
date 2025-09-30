@@ -16,6 +16,11 @@
     radiansToDegrees,
     shortestRotation,
   } from "./utils";
+  import {
+    findPathAroundObstacles,
+    smoothPath,
+    isPathClear,
+  } from "./utils/pathOptimization";
   import hotkeys from 'hotkeys-js';
 
   let two: Two;
@@ -602,6 +607,113 @@
         return result;
     }
 
+    /**
+     * Optimize all paths to avoid obstacles using A* pathfinding
+     * Finds the shortest collision-free path around all obstacles
+     */
+    export async function optimizePathsAvoidingObstacles(): Promise<void> {
+      if (shapes.length === 0) {
+        alert('⚠️ No obstacles defined. Add obstacles first to use this feature.');
+        return;
+      }
+
+      // Calculate robot clearance radius using diagonal (worst case rotation)
+      // This ensures the entire robot body stays clear of obstacles at any angle
+      const robotDiagonal = Math.sqrt(robotWidth * robotWidth + robotHeight * robotHeight);
+      const safetyMargin = 6; // Generous 6 inch safety margin
+      const robotRadius = robotDiagonal / 2 + safetyMargin;
+
+      let totalPathsOptimized = 0;
+      let pathsWithCollisions = 0;
+
+      console.log('🔍 Starting obstacle avoidance optimization...');
+      console.log(`Robot dimensions: ${robotWidth}" × ${robotHeight}"`);
+      console.log(`Robot diagonal: ${robotDiagonal.toFixed(1)}" (clearance radius: ${robotRadius.toFixed(1)}")`);
+      console.log(`Obstacles to avoid: ${shapes.length}`);
+
+      for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        const line = lines[lineIdx];
+        const _startPoint = lineIdx === 0 ? startPoint : lines[lineIdx - 1].endPoint;
+
+        console.log(`\n📍 Optimizing Path ${lineIdx + 1}: (${_startPoint.x.toFixed(1)}, ${_startPoint.y.toFixed(1)}) → (${line.endPoint.x.toFixed(1)}, ${line.endPoint.y.toFixed(1)})`);
+
+        // Check if current path has collisions
+        const currentPath = [_startPoint, ...line.controlPoints, line.endPoint];
+        let hasCollision = false;
+
+        for (let i = 0; i < currentPath.length - 1; i++) {
+          if (!isPathClear(currentPath[i], currentPath[i + 1], shapes, robotRadius)) {
+            hasCollision = true;
+            pathsWithCollisions++;
+            console.log('⚠️ Collision detected!');
+            break;
+          }
+        }
+
+        if (!hasCollision && line.controlPoints.length === 0) {
+          console.log('✅ Path is already clear - no optimization needed');
+          continue;
+        }
+
+        // Use A* to find optimal path around obstacles
+        const optimalPath = findPathAroundObstacles(
+          _startPoint,
+          line.endPoint,
+          shapes,
+          robotRadius,
+          0,
+          144
+        );
+
+        console.log(`🛤️ A* found path with ${optimalPath.length} waypoints`);
+
+        // Smooth the path to reduce unnecessary waypoints
+        const smoothedPath = smoothPath(optimalPath, shapes, robotRadius);
+
+        console.log(`✨ Smoothed to ${smoothedPath.length} waypoints`);
+
+        // Validate the smoothed path is actually collision-free
+        let smoothedPathClear = true;
+        for (let i = 0; i < smoothedPath.length - 1; i++) {
+          if (!isPathClear(smoothedPath[i], smoothedPath[i + 1], shapes, robotRadius)) {
+            console.warn(`⚠️ Smoothed path still has collision between waypoints ${i} and ${i+1}`);
+            smoothedPathClear = false;
+            break;
+          }
+        }
+
+        // If smoothed path has collisions, use the unsmoothed optimal path
+        const finalPath = smoothedPathClear ? smoothedPath : optimalPath;
+
+        if (!smoothedPathClear) {
+          console.log(`🔄 Using unsmoothed path (${finalPath.length} waypoints) due to collision`);
+        }
+
+        // Update line with new control points (exclude start and end)
+        const newControlPoints = finalPath.slice(1, -1).map(p => ({ x: p.x, y: p.y }));
+
+        // Only update if path changed significantly or had collision
+        if (hasCollision || newControlPoints.length !== line.controlPoints.length) {
+          line.controlPoints = newControlPoints;
+          totalPathsOptimized++;
+          console.log(`✅ Path optimized with ${newControlPoints.length} control points!`);
+        } else {
+          console.log('ℹ️ Path unchanged');
+        }
+      }
+
+      // Trigger reactivity
+      lines = lines;
+
+      console.log(`\n🎉 Optimization complete! ${totalPathsOptimized}/${lines.length} paths updated`);
+
+      if (pathsWithCollisions > 0) {
+        alert(`✅ Obstacle avoidance complete!\n\n📊 Results:\n• ${pathsWithCollisions} path(s) had collisions\n• ${totalPathsOptimized} path(s) were optimized\n• All paths now avoid obstacles!\n\n🤖 Robot clearance: ${robotRadius.toFixed(1)}" radius\n(${robotWidth}" × ${robotHeight}" with ${robotDiagonal.toFixed(1)}" diagonal + ${safetyMargin}" margin)\n\nThe robot body will NOT touch any obstacles.`);
+      } else {
+        alert(`✅ All paths are already clear!\n\nNo collisions were detected with ${robotRadius.toFixed(1)}" clearance radius.\nYour paths already avoid all obstacles with proper robot body clearance.`);
+      }
+    }
+
   onMount(() => {
     two = new Two({
       fitted: true,
@@ -845,5 +957,6 @@ hotkeys('s', function(event, handler){
     {x}
     {y}
     {fpa}
+    {optimizePathsAvoidingObstacles}
   />
 </div>

@@ -17,6 +17,7 @@
   export let y: d3.ScaleLinear<number, number, number>;
   export let settings: FPASettings;
   export let shapes: Shape[];
+  export let optimizePathsAvoidingObstacles: () => Promise<void>;
 
   function createTriangle(): Shape {
     return {
@@ -106,8 +107,29 @@
     </div>
 
     <div class="flex flex-col w-full justify-start items-start gap-0.5 text-sm">
-      <div class="font-semibold">Obstacles</div>
-      
+      <div class="flex flex-row w-full justify-between items-center">
+        <div class="font-semibold">Obstacles</div>
+        {#if shapes.length > 0}
+          <button
+            on:click={async () => {
+              try {
+                await optimizePathsAvoidingObstacles();
+              } catch (error) {
+                console.error('Obstacle avoidance optimization failed:', error);
+                alert(`❌ Optimization failed: ${error.message}`);
+              }
+            }}
+            class="px-2 py-1 rounded-md bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold flex flex-row items-center gap-1 transition-colors"
+            title="Automatically adjust all paths to avoid obstacles while maintaining the shortest and most efficient route"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} class="size-3.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+            </svg>
+            Avoid Obstacles
+          </button>
+        {/if}
+      </div>
+
       {#each shapes as shape, shapeIdx}
         <div class="flex flex-col w-full justify-start items-start gap-1 p-2 border rounded-md border-neutral-300 dark:border-neutral-600">
           <div class="flex flex-row w-full justify-between items-center">
