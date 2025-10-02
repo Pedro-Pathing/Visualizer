@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx update-browserslist-db:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
