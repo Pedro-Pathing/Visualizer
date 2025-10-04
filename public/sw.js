@@ -83,8 +83,18 @@ self.addEventListener("fetch", (event) => {
         // Return the cached response if it's available.
         return cachedResponse;
       }
-      // If resource isn't in the cache, return a 404.
-      return new Response(null, { status: 404 });
+      // Try network if not in cache
+      try {
+        const networkResponse = await fetch(event.request);
+        // Cache successful responses for future use
+        if (networkResponse.ok) {
+          cache.put(event.request, networkResponse.clone());
+        }
+        return networkResponse;
+      } catch (error) {
+        // If both cache and network fail, return a 404.
+        return new Response(null, { status: 404 });
+      }
     })(),
   );
 });
