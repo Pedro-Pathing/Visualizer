@@ -1,10 +1,12 @@
 <script lang="ts">
-  import { showRuler, showProtractor, showGrid } from '../stores';
+  import { showRuler, showProtractor, showGrid, protractorLockToRobot } from '../stores';
   import type * as d3 from 'd3';
 
   export let x: d3.ScaleLinear<number, number, number>;
   export let y: d3.ScaleLinear<number, number, number>;
   export let twoElement: HTMLDivElement;
+  export let robotXY: { x: number; y: number };
+  export let robotHeading: number;
 
   let rulerStart = { x: 20, y: 72 };
   let rulerEnd = { x: 80, y: 72 };
@@ -23,12 +25,14 @@
     } else if (type === 'ruler-end') {
       rulerDragging = 'end';
     } else if (type === 'protractor-move') {
-      protractorDragging = 'move';
+      if (!$protractorLockToRobot) {
+        protractorDragging = 'move';
+      }
     } else if (type === 'protractor-rotate') {
       protractorDragging = 'rotate';
       const rect = twoElement.getBoundingClientRect();
-      const centerX = x(protractorPos.x);
-      const centerY = y(protractorPos.y);
+      const centerX = x(actualProtractorPos.x);
+      const centerY = y(actualProtractorPos.y);
       const mouseX = event.clientX - rect.left;
       const mouseY = event.clientY - rect.top;
       protractorRotateStart = Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI) - protractorRadiusAngle;
@@ -51,8 +55,8 @@
     } else if (protractorDragging === 'move') {
       protractorPos = { x: inchX, y: inchY };
     } else if (protractorDragging === 'rotate') {
-      const centerX = x(protractorPos.x);
-      const centerY = y(protractorPos.y);
+      const centerX = x(actualProtractorPos.x);
+      const centerY = y(actualProtractorPos.y);
       const angle = Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI);
       protractorRadiusAngle = angle - protractorRotateStart;
     }
@@ -67,6 +71,11 @@
     Math.pow(rulerEnd.x - rulerStart.x, 2) +
     Math.pow(rulerEnd.y - rulerStart.y, 2)
   );
+
+  // Calculate protractor position - lock to robot if enabled
+  $: actualProtractorPos = $protractorLockToRobot
+    ? { x: x.invert(robotXY.x), y: y.invert(robotXY.y) }
+    : protractorPos;
 </script>
 
 <svelte:window on:mousemove={handleMouseMove} on:mouseup={handleMouseUp} />
@@ -169,7 +178,7 @@
 
 {#if $showProtractor}
   <svg class="absolute top-0 left-0 w-full h-full z-40 pointer-events-none">
-    <g transform="translate({x(protractorPos.x)}, {y(protractorPos.y)})">
+    <g transform="translate({x(actualProtractorPos.x)}, {y(actualProtractorPos.y)})">
       <!-- Full circle protractor -->
       <circle
         cx="0"
@@ -238,20 +247,30 @@
         {Math.round(protractorRadiusAngle < 0 ? 360 + protractorRadiusAngle : protractorRadiusAngle)}°
       </text>
 
-      <!-- Center move handle -->
+      <!-- Center move handle / lock indicator -->
       <circle
         cx="0"
         cy="0"
         r="8"
-        fill="#3b82f6"
-        stroke="#1d4ed8"
+        fill={$protractorLockToRobot ? "#fbbf24" : "#3b82f6"}
+        stroke={$protractorLockToRobot ? "#f59e0b" : "#1d4ed8"}
         stroke-width="2"
-        class="cursor-move pointer-events-auto"
+        class={$protractorLockToRobot ? "cursor-pointer pointer-events-auto" : "cursor-move pointer-events-auto"}
         role="button"
         tabindex="0"
-        aria-label="Drag to move protractor"
-        on:mousedown={(e) => handleMouseDown(e, 'protractor-move')}
+        aria-label={$protractorLockToRobot ? "Click to unlock from robot" : "Drag to move protractor"}
+        on:mousedown={(e) => {
+          if ($protractorLockToRobot) {
+            e.stopPropagation();
+            protractorLockToRobot.set(false);
+          } else {
+            handleMouseDown(e, 'protractor-move');
+          }
+        }}
       />
+      {#if $protractorLockToRobot}
+        <text x="0" y="3" class="fill-white text-[10px] font-bold pointer-events-none" text-anchor="middle">x</text>
+      {/if}
     </g>
   </svg>
 {/if}

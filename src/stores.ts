@@ -18,3 +18,4 @@ export const darkMode = createDarkModeStore();
 export const showRuler = writable(false);
 export const showProtractor = writable(false);
 export const showGrid = writable(false);
+export const protractorLockToRobot = writable(true);
