@@ -6,6 +6,7 @@
   import type { Line as PathLine } from "two.js/src/shapes/line";
   import ControlTab from "./lib/ControlTab.svelte";
   import Navbar from "./lib/Navbar.svelte";
+  import MathTools from "./lib/MathTools.svelte";
   import _ from "lodash";
   import {
     easeInOutQuad,
@@ -822,6 +823,7 @@ hotkeys('s', function(event, handler){
         alt="Field"
         class="absolute top-0 left-0 w-full h-full rounded-lg z-10 pointer-events-none"
       />
+      <MathTools {x} {y} {twoElement} {robotXY} {robotHeading} />
       <img
         src={"/robot.png"}
         alt="Robot"
