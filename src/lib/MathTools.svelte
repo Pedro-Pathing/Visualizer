@@ -184,9 +184,9 @@
       {#each Array(36) as _, i}
         {@const angle = (i * 10) * Math.PI / 180}
         {@const x1 = Math.cos(angle) * 50}
-        {@const y1 = Math.sin(angle) * 50}
+        {@const y1 = -Math.sin(angle) * 50}
         {@const x2 = Math.cos(angle) * 60}
-        {@const y2 = Math.sin(angle) * 60}
+        {@const y2 = -Math.sin(angle) * 60}
         <line
           x1={x1}
           y1={y1}
@@ -198,7 +198,7 @@
         {#if i % 3 === 0}
           <text
             x={Math.cos(angle) * 70}
-            y={Math.sin(angle) * 70 + 4}
+            y={-Math.sin(angle) * 70 + 4}
             class="fill-blue-600 dark:fill-blue-400 text-xs font-semibold"
             text-anchor="middle"
           >
