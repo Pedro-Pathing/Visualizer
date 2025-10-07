@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { showRuler, showProtractor, showGrid, protractorLockToRobot } from '../stores';
+  import { showRuler, showProtractor, showGrid, protractorLockToRobot, gridSize } from '../stores';
   import type * as d3 from 'd3';
 
   export let x: d3.ScaleLinear<number, number, number>;
@@ -76,50 +76,67 @@
   $: actualProtractorPos = $protractorLockToRobot
     ? { x: x.invert(robotXY.x), y: y.invert(robotXY.y) }
     : protractorPos;
+
+  const FIELD_SIZE = 144;
+  let spacing = 12;
+  let gridPositions: number[] = [];
+
+  $: spacing = Math.max(1, $gridSize || 12);
+  $: gridPositions = (() => {
+    const positions: number[] = [];
+    for (let pos = 0; pos <= FIELD_SIZE; pos += spacing) {
+      positions.push(Number(pos.toFixed(6)));
+    }
+    if (positions[positions.length - 1] !== FIELD_SIZE) {
+      positions.push(FIELD_SIZE);
+    }
+    return positions;
+  })();
 </script>
 
 <svelte:window on:mousemove={handleMouseMove} on:mouseup={handleMouseUp} />
 
 {#if $showGrid}
   <svg class="absolute top-0 left-0 w-full h-full pointer-events-none z-20">
-    <!-- Vertical grid lines every 12 inches -->
-    {#each Array(13) as _, i}
+    <!-- Vertical grid lines -->
+    {#each gridPositions as position, i}
       <line
-        x1={x(i * 12)}
+        x1={x(position)}
         y1={y(0)}
-        x2={x(i * 12)}
-        y2={y(144)}
+        x2={x(position)}
+        y2={y(FIELD_SIZE)}
         stroke={i % 2 === 0 ? "#6b7280" : "#9ca3af"}
         stroke-width={i % 2 === 0 ? "1.5" : "0.5"}
         opacity="0.3"
       />
       <text
-        x={x(i * 12)}
+        x={x(position)}
         y={y(0) + 15}
         class="fill-gray-600 dark:fill-gray-400 text-xs"
         text-anchor="middle"
       >
-        {i * 12}"
+        {position}"
       </text>
     {/each}
 
-    <!-- Horizontal grid lines every 12 inches -->
-    {#each Array(13) as _, i}
+    <!-- Horizontal grid lines -->
+    {#each gridPositions as position, i}
       <line
         x1={x(0)}
-        y1={y(i * 12)}
-        x2={x(144)}
-        y2={y(i * 12)}
+        y1={y(position)}
+        x2={x(FIELD_SIZE)}
+        y2={y(position)}
         stroke={i % 2 === 0 ? "#6b7280" : "#9ca3af"}
         stroke-width={i % 2 === 0 ? "1.5" : "0.5"}
         opacity="0.3"
       />
       <text
-        x={x(0) + 5}
-        y={y(i * 12) - 5}
+        x={x(position)}
+        y={y(0) - 5}
         class="fill-gray-600 dark:fill-gray-400 text-xs"
+        text-anchor="middle"
       >
-        {i * 12}"
+        {position}"
       </text>
     {/each}
   </svg>

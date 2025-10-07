@@ -8,7 +8,7 @@
   import codeStyle from "svelte-highlight/styles/androidstudio";
   import { cubicInOut } from "svelte/easing";
   import { fade, fly } from "svelte/transition";
-  import { darkMode, showRuler, showProtractor, showGrid, protractorLockToRobot } from "../stores";
+  import { darkMode, showRuler, showProtractor, showGrid, protractorLockToRobot, gridSize } from "../stores";
   import { getRandomColor, titleCase } from "../utils";
 
   export let saveFile: () => any;
@@ -23,6 +23,8 @@
   export let robotHeight: number;
   export let settings: FPASettings;
 
+  let selectedGridSize = 12;
+  const gridSizeOptions = [12, 24, 36, 48];
 
   let dialogOpen = false;
   let settingsOpen = false;
@@ -31,7 +33,7 @@
   $: angularVelocityDisplay = settings ? settings.aVelocity / Math.PI : 1;
 
   onMount(() => {
-    darkMode.subscribe((val) => {
+    const unsubscribeDarkMode = darkMode.subscribe((val) => {
       if (val === "light") {
         document.documentElement.classList.remove("dark");
       } else {
@@ -39,12 +41,27 @@
       }
     });
 
+    const unsubscribeGridSize = gridSize.subscribe((value) => {
+      selectedGridSize = value;
+    });
+
     window.onbeforeunload = () => {
       return "Are you sure you want to leave?";
+    };
+
+    return () => {
+      unsubscribeDarkMode();
+      unsubscribeGridSize();
     };
   });
 
   let exportedCode = "";
+
+  function handleGridSizeChange(event: Event) {
+    const value = Number((event.target as HTMLSelectElement).value);
+    selectedGridSize = value;
+    gridSize.set(value);
+  }
 
   async function exportToCode() {
     const headingTypeToFunctionName = {
@@ -281,9 +298,25 @@ ${line.endPoint.reverse ? ".setReversed(true)" : ""}
         />
       </svg>
     </button>
-    <button title="Toggle Grid" on:click={() => showGrid.update(v => !v)} class:text-blue-500={$showGrid}>
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
-    </button>
+    <div class="relative flex flex-col items-center justify-center">
+      <button title="Toggle Grid" on:click={() => showGrid.update(v => !v)} class:text-blue-500={$showGrid}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
+      </button>
+      {#if $showGrid}
+        <div class="absolute top-full left-1/2 mt-2 -translate-x-1/2">
+          <select
+            class="px-2 py-1 text-sm rounded-md border border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
+            bind:value={selectedGridSize}
+            on:change={handleGridSizeChange}
+            aria-label="Select grid spacing"
+          >
+            {#each gridSizeOptions as option}
+              <option value={option}>{option}" grid</option>
+            {/each}
+          </select>
+        </div>
+      {/if}
+    </div>
     <button title="Toggle Ruler" on:click={() => showRuler.update(v => !v)} class:text-blue-500={$showRuler}>
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0z"></path><path d="m14.5 12.5 2-2"></path><path d="m11.5 9.5 2-2"></path><path d="m8.5 6.5 2-2"></path><path d="m17.5 15.5 2-2"></path></svg>
     </button>

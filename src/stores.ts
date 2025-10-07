@@ -19,3 +19,4 @@ export const showRuler = writable(false);
 export const showProtractor = writable(false);
 export const showGrid = writable(false);
 export const protractorLockToRobot = writable(true);
+export const gridSize = writable(12);
