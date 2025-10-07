@@ -12,6 +12,7 @@
 
   let protractorPos = { x: 72, y: 72 };
   let protractorRotation = 0;
+  let protractorRadiusAngle = 0;
   let protractorDragging: 'move' | 'rotate' | null = null;
   let protractorRotateStart = 0;
 
@@ -30,7 +31,7 @@
       const centerY = y(protractorPos.y);
       const mouseX = event.clientX - rect.left;
       const mouseY = event.clientY - rect.top;
-      protractorRotateStart = Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI) - protractorRotation;
+      protractorRotateStart = Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI) - protractorRadiusAngle;
     }
   }
 
@@ -53,7 +54,7 @@
       const centerX = x(protractorPos.x);
       const centerY = y(protractorPos.y);
       const angle = Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI);
-      protractorRotation = angle - protractorRotateStart;
+      protractorRadiusAngle = angle - protractorRotateStart;
     }
   }
 
@@ -168,7 +169,7 @@
 
 {#if $showProtractor}
   <svg class="absolute top-0 left-0 w-full h-full z-40 pointer-events-none">
-    <g transform="translate({x(protractorPos.x)}, {y(protractorPos.y)}) rotate({protractorRotation})">
+    <g transform="translate({x(protractorPos.x)}, {y(protractorPos.y)})">
       <!-- Full circle protractor -->
       <circle
         cx="0"
@@ -207,25 +208,35 @@
         {/if}
       {/each}
 
-      <!-- Cardinal direction lines -->
-      <line x1="0" y1="0" x2="65" y2="0" stroke="#ef4444" stroke-width="3" />
-      <text x="75" y="4" class="fill-red-600 dark:fill-red-400 text-sm font-bold" text-anchor="middle">0°</text>
+      <!-- Cardinal direction line (0°) - fixed -->
+      <line x1="0" y1="0" x2="65" y2="0" stroke="#d1d5db" stroke-width="2" opacity="0.5" />
+      <text x="75" y="4" class="fill-gray-400 dark:fill-gray-500 text-sm font-bold" text-anchor="middle">0°</text>
 
-      <!-- Rotation handle on edge -->
-      <circle
-        cx="60"
-        cy="0"
-        r="10"
-        fill="#10b981"
-        stroke="#059669"
-        stroke-width="2"
-        class="cursor-grab pointer-events-auto"
-        role="button"
-        tabindex="0"
-        aria-label="Drag to rotate protractor"
-        on:mousedown={(e) => handleMouseDown(e, 'protractor-rotate')}
-      />
-      <text x="60" y="4" class="fill-white text-xs font-bold pointer-events-none" text-anchor="middle">↻</text>
+      <!-- Rotating radius line -->
+      <g transform="rotate({protractorRadiusAngle})">
+        <line x1="0" y1="0" x2="65" y2="0" stroke="#ef4444" stroke-width="3" />
+
+        <!-- Rotation handle on edge -->
+        <circle
+          cx="60"
+          cy="0"
+          r="10"
+          fill="#10b981"
+          stroke="#059669"
+          stroke-width="2"
+          class="cursor-grab pointer-events-auto"
+          role="button"
+          tabindex="0"
+          aria-label="Drag to rotate radius line"
+          on:mousedown={(e) => handleMouseDown(e, 'protractor-rotate')}
+        />
+        <text x="60" y="4" class="fill-white text-xs font-bold pointer-events-none" text-anchor="middle">↻</text>
+      </g>
+
+      <!-- Angle display -->
+      <text x="0" y="-75" class="fill-red-600 dark:fill-red-400 text-sm font-bold" text-anchor="middle">
+        {Math.round(protractorRadiusAngle < 0 ? 360 + protractorRadiusAngle : protractorRadiusAngle)}°
+      </text>
 
       <!-- Center move handle -->
       <circle
