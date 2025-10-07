@@ -13,10 +13,23 @@
   let rulerDragging: 'start' | 'end' | null = null;
 
   let protractorPos = { x: 72, y: 72 };
-  let protractorRotation = 0;
   let protractorRadiusAngle = 0;
-  let protractorDragging: 'move' | 'rotate' | null = null;
+  let protractorDragging: 'move' | 'rotate' | 'resize' | null = null;
   let protractorRotateStart = 0;
+  let protractorRadius = 60;
+  let protractorResizeAngle = -60;
+
+  const MIN_PROTRACTOR_RADIUS = 30;
+  const MAX_PROTRACTOR_RADIUS = 150;
+
+  $: normalizedProtractorAngle = Math.round(
+    protractorRadiusAngle < 0 ? 360 + protractorRadiusAngle : protractorRadiusAngle
+  );
+  $: resizeHandleRadians = (protractorResizeAngle * Math.PI) / 180;
+  $: resizeHandlePosition = {
+    x: Math.cos(resizeHandleRadians) * protractorRadius,
+    y: -Math.sin(resizeHandleRadians) * protractorRadius
+  };
 
   function handleMouseDown(event: MouseEvent, type: string) {
     event.stopPropagation();
@@ -36,6 +49,8 @@
       const mouseX = event.clientX - rect.left;
       const mouseY = event.clientY - rect.top;
       protractorRotateStart = Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI) - protractorRadiusAngle;
+    } else if (type === 'protractor-resize') {
+      protractorDragging = 'resize';
     }
   }
 
@@ -59,6 +74,16 @@
       const centerY = y(actualProtractorPos.y);
       const angle = Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI);
       protractorRadiusAngle = angle - protractorRotateStart;
+    } else if (protractorDragging === 'resize') {
+      const centerX = x(actualProtractorPos.x);
+      const centerY = y(actualProtractorPos.y);
+      const dx = mouseX - centerX;
+      const dy = mouseY - centerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const clampedRadius = Math.min(MAX_PROTRACTOR_RADIUS, Math.max(MIN_PROTRACTOR_RADIUS, distance));
+      protractorRadius = clampedRadius;
+      const angleRadians = Math.atan2(centerY - mouseY, mouseX - centerX);
+      protractorResizeAngle = angleRadians * (180 / Math.PI);
     }
   }
 
@@ -200,7 +225,7 @@
       <circle
         cx="0"
         cy="0"
-        r="60"
+        r={protractorRadius}
         fill="rgba(59, 130, 246, 0.15)"
         stroke="#3b82f6"
         stroke-width="2"
@@ -210,10 +235,12 @@
       <!-- Degree marks every 10 degrees -->
       {#each Array(36) as _, i}
         {@const angle = (i * 10) * Math.PI / 180}
-        {@const x1 = Math.cos(angle) * 50}
-        {@const y1 = -Math.sin(angle) * 50}
-        {@const x2 = Math.cos(angle) * 60}
-        {@const y2 = -Math.sin(angle) * 60}
+        {@const r1 = protractorRadius - 10}
+        {@const r2 = protractorRadius}
+        {@const x1 = Math.cos(angle) * r1}
+        {@const y1 = -Math.sin(angle) * r1}
+        {@const x2 = Math.cos(angle) * r2}
+        {@const y2 = -Math.sin(angle) * r2}
         <line
           x1={x1}
           y1={y1}
@@ -223,9 +250,10 @@
           stroke-width={i % 3 === 0 ? "2" : "1"}
         />
         {#if i % 3 === 0}
+          {@const r3 = protractorRadius + 10}
           <text
-            x={Math.cos(angle) * 70}
-            y={-Math.sin(angle) * 70 + 4}
+            x={Math.cos(angle) * r3}
+            y={-Math.sin(angle) * r3 + 4}
             class="fill-blue-600 dark:fill-blue-400 text-xs font-semibold"
             text-anchor="middle"
           >
@@ -235,16 +263,16 @@
       {/each}
 
       <!-- Cardinal direction line (0°) - fixed -->
-      <line x1="0" y1="0" x2="65" y2="0" stroke="#d1d5db" stroke-width="2" opacity="0.5" />
-      <text x="75" y="4" class="fill-gray-400 dark:fill-gray-500 text-sm font-bold" text-anchor="middle">0°</text>
+      <line x1="0" y1="0" x2={protractorRadius + 5} y2="0" stroke="#d1d5db" stroke-width="2" opacity="0.5" />
+      <text x={protractorRadius + 15} y="4" class="fill-gray-400 dark:fill-gray-500 text-sm font-bold" text-anchor="middle">0°</text>
 
       <!-- Rotating radius line -->
       <g transform="rotate({protractorRadiusAngle})">
-        <line x1="0" y1="0" x2="65" y2="0" stroke="#ef4444" stroke-width="3" />
+        <line x1="0" y1="0" x2={protractorRadius + 5} y2="0" stroke="#ef4444" stroke-width="3" />
 
         <!-- Rotation handle on edge -->
         <circle
-          cx="60"
+          cx={protractorRadius}
           cy="0"
           r="10"
           fill="#10b981"
@@ -256,13 +284,38 @@
           aria-label="Drag to rotate radius line"
           on:mousedown={(e) => handleMouseDown(e, 'protractor-rotate')}
         />
-        <text x="60" y="4" class="fill-white text-xs font-bold pointer-events-none" text-anchor="middle">↻</text>
+        <text x={protractorRadius} y="4" class="fill-white text-xs font-bold pointer-events-none" text-anchor="middle">↻</text>
       </g>
 
       <!-- Angle display -->
-      <text x="0" y="-75" class="fill-red-600 dark:fill-red-400 text-sm font-bold" text-anchor="middle">
-        {Math.round(protractorRadiusAngle < 0 ? 360 + protractorRadiusAngle : protractorRadiusAngle)}°
+      <text x="0" y={-protractorRadius - 15} class="fill-red-600 dark:fill-red-400 text-sm font-bold" text-anchor="middle">
+        {normalizedProtractorAngle}°
       </text>
+
+      <!-- Resize Handle -->
+      <g>
+        <circle
+          cx={resizeHandlePosition.x}
+          cy={resizeHandlePosition.y}
+          r="10"
+          fill="#f97316"
+          stroke="#ea580c"
+          stroke-width="2"
+          class="cursor-nwse-resize pointer-events-auto"
+          role="button"
+          tabindex="0"
+          aria-label="Drag to resize protractor"
+          on:mousedown={(e) => handleMouseDown(e, 'protractor-resize')}
+        />
+        <text 
+          x={resizeHandlePosition.x} 
+          y={resizeHandlePosition.y + 4} 
+          class="fill-white text-xs font-bold pointer-events-none" 
+          text-anchor="middle"
+        >
+          ↔
+        </text>
+      </g>
 
       <!-- Center move handle / lock indicator -->
       <circle
