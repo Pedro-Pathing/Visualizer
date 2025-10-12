@@ -78,7 +78,7 @@
     <div class="flex flex-col w-full justify-start items-start gap-0.5 text-sm">
       <div class="font-semibold">Canvas Options</div>
       <div class="flex flex-row justify-start items-center gap-2">
-        <div class="font-extralight">Robot Width:</div>
+        <div class="font-extralight">Robot Length:</div>
         <input
           bind:value={robotWidth}
           on:change={() => {
@@ -90,7 +90,7 @@
           class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-16"
           step="1"
         />
-        <div class="font-extralight">Robot Height:</div>
+        <div class="font-extralight">Robot Width:</div>
         <input
           bind:value={robotHeight}
           on:change={() => {
