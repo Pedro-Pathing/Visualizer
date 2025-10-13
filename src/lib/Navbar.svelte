@@ -15,7 +15,7 @@
   export let loadFile: (evt: any) => any;
   export let loadRobot: (evt: any) => any;
 
-  let separateLines = false;
+  let exportFullCode = false;
   export let startPoint: Point;
   export let lines: Line[];
   export let shapes: Shape[];
@@ -70,86 +70,108 @@
       tangential: "setTangentHeadingInterpolation",
     };
 
-    let file = ``;
-
-    if(separateLines) {
-      file = `
-    public class GeneratedPaths {
-
-    public static PathBuilder builder = new PathBuilder();
-
-${lines
-              .map(
-                      (line, idx) => {
-                        const variableName = line.name ? line.name.replace(/[^a-zA-Z0-9]/g, '') : `line${idx + 1}`;
-                        return `public static PathChain ${variableName} = builder
-.addPath(
-  ${line.controlPoints.length === 0 ? `new BezierLine` : `new BezierCurve`}(
-    ${
-                              idx === 0
-                                      ? `new Pose(${startPoint.x.toFixed(3)}, ${startPoint.y.toFixed(3)}),`
-                                      : `new Pose(${lines[idx - 1].endPoint.x.toFixed(3)}, ${lines[idx - 1].endPoint.y.toFixed(3)}),`
-                      }
-    ${
-                              line.controlPoints.length > 0
-                                      ? `${line.controlPoints
-                                              .map(
-                                                      (point) =>
-                                                              `new Pose(${point.x.toFixed(3)}, ${point.y.toFixed(3)})`
-                                              )
-                                              .join(",\n")},`
-                                      : ""
-                      }
-    new Pose(${line.endPoint.x.toFixed(3)}, ${line.endPoint.y.toFixed(3)})
-  )
-).${headingTypeToFunctionName[line.endPoint.heading]}(${line.endPoint.heading === "constant" ? `Math.toRadians(${line.endPoint.degrees})` : line.endPoint.heading === "linear" ? `Math.toRadians(${line.endPoint.startDeg}), Math.toRadians(${line.endPoint.endDeg})` : ""})
-${line.endPoint.reverse ? ".setReversed(true)" : ""}
-.build();`
-                      }
-              )
-              .join("\n\n")};
-
+    let pathsClass = `
+    public static class Paths {
+      ${lines.map((line, idx) => {
+          const variableName = line.name ? line.name.replace(/[^a-zA-Z0-9]/g, '') : `line${idx + 1}`;
+          return `public PathChain ${variableName};`
+                              }
+                      ).join("\n")
+      }
+      public Paths(Follower follower) {
+        ${lines.map((line, idx) => {
+          const variableName = line.name ? line.name.replace(/[^a-zA-Z0-9]/g, '') : `line${idx + 1}`;
+          return `${variableName} = follower.pathBuilder().addPath(
+          ${line.controlPoints.length === 0 ? `new BezierLine` : `new BezierCurve`}(
+            ${
+                                      idx === 0
+                                              ? `new Pose(${startPoint.x.toFixed(3)}, ${startPoint.y.toFixed(3)}),`
+                                              : `new Pose(${lines[idx - 1].endPoint.x.toFixed(3)}, ${lines[idx - 1].endPoint.y.toFixed(3)}),`
+                              }
+            ${
+                                      line.controlPoints.length > 0
+                                              ? `${line.controlPoints
+                                                      .map(
+                                                              (point) =>
+                                                                      `new Pose(${point.x.toFixed(3)}, ${point.y.toFixed(3)})`
+                                                      )
+                                                      .join(",\n")},`
+                                              : ""
+                              }
+            new Pose(${line.endPoint.x.toFixed(3)}, ${line.endPoint.y.toFixed(3)})
+          )
+        ).${headingTypeToFunctionName[line.endPoint.heading]}(${line.endPoint.heading === "constant" ? `Math.toRadians(${line.endPoint.degrees})` : line.endPoint.heading === "linear" ? `Math.toRadians(${line.endPoint.startDeg}), Math.toRadians(${line.endPoint.endDeg})` : ""})
+        ${line.endPoint.reverse ? ".setReversed(true)" : ""}
+        .build();`
+                              }
+                      )
+                      .join("\n\n")};
+      }
     }
     `;
+
+    let file = '';
+    if (!exportFullCode) {
+      file = pathsClass;
     } else {
       file = `
-    public class GeneratedPath {
+      package org.firstinspires.ftc.teamcode;
+      import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+      import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+      import com.bylazar.configurables.annotations.Configurable;
+      import com.bylazar.telemetry.TelemetryManager;
+      import com.bylazar.telemetry.PanelsTelemetry;
+      import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
+      import com.pedropathing.geometry.BezierCurve;
+      import com.pedropathing.geometry.BezierLine;
+      import com.pedropathing.follower.Follower;
+      import com.pedropathing.paths.PathChain;
+      import com.pedropathing.geometry.Pose;
+      @Autonomous(name = "Pedro Pathing Autonomous", group = "Autonomous")
+      @Configurable // Panels
+      public class PedroAutonomous extends OpMode {
+        private TelemetryManager panelsTelemetry; // Panels Telemetry instance
+        public Follower follower; // Pedro Pathing follower instance
+        private int pathState; // Current autonomous path state (state machine)
+        private Paths paths; // Paths defined in the Paths class
+        @Override
+        public void init() {
+          panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
-      public static PathBuilder builder = new PathBuilder();
+          follower = Constants.createFollower(hardwareMap);
+          follower.setStartingPose(new Pose(72, 8, Math.toRadians(90)));
 
-        public static PathChain paths = builder${lines
-              .map(
-                      (line, idx) => {
-                        const lineName = line.name || `Path ${idx + 1}`;
-                        return `.addPath(  // ${lineName}
-              ${line.controlPoints.length === 0 ? `new BezierLine` : `new BezierCurve`}(
-                ${
-                              idx === 0
-                                      ? `new Pose(${startPoint.x.toFixed(3)}, ${startPoint.y.toFixed(3)}),`
-                                      : `new Pose(${lines[idx - 1].endPoint.x.toFixed(3)}, ${lines[idx - 1].endPoint.y.toFixed(3)}),`
-                      }
-                ${
-                              line.controlPoints.length > 0
-                                      ? `${line.controlPoints
-                                              .map(
-                                                      (point) =>
-                                                              `new Pose(${point.x.toFixed(3)}, ${point.y.toFixed(3)})`
-                                              )
-                                              .join(",\n")},`
-                                      : ""
-                      }
-                new Pose(${line.endPoint.x.toFixed(3)}, ${line.endPoint.y.toFixed(3)})
-              )
-            ).${headingTypeToFunctionName[line.endPoint.heading]}(${line.endPoint.heading === "constant" ? `Math.toRadians(${line.endPoint.degrees})` : line.endPoint.heading === "linear" ? `Math.toRadians(${line.endPoint.startDeg}), Math.toRadians(${line.endPoint.endDeg})` : ""})
-            ${line.endPoint.reverse ? ".setReversed(true)" : ""}`;
-                      }
-              )
-              .join("\n")}
-          .build();
+          paths = new Paths(follower); // Build paths
 
+          panelsTelemetry.debug("Status", "Initialized");
+          panelsTelemetry.update(telemetry);
+        }
+        @Override
+        public void loop() {
+          follower.update(); // Update Pedro Pathing
+          pathState = autonomousPathUpdate(); // Update autonomous state machine
+
+          // Log values to Panels and Driver Station
+          panelsTelemetry.debug("Path State", pathState);
+          panelsTelemetry.debug("X", follower.getPose().getX());
+          panelsTelemetry.debug("Y", follower.getPose().getY());
+          panelsTelemetry.debug("Heading", follower.getPose().getHeading());
+          panelsTelemetry.update(telemetry);
+        }
+
+        ${pathsClass}
+
+        public int autonomousPathUpdate() {
+            // Add your state machine Here
+            // Access paths with paths.pathName
+            // Refer to the Pedro Pathing Docs (Auto Example) for an example state machine
+            return pathState;
+        }
+      }
+      `
     }
-    `;
-    }
+
+    console.log(file);
 
     await prettier
       .format(file, {
@@ -415,11 +437,11 @@ ${line.endPoint.reverse ? ".setReversed(true)" : ""}
           Here is the generated code for this path:
         </p>
         <div class="flex items-center gap-2">
-          <label for="separate-lines" class="text-sm font-light text-neutral-700 dark:text-neutral-400">Separate Lines</label>
+          <label for="full-code-export" class="text-sm font-light text-neutral-700 dark:text-neutral-400">Export Full Code</label>
           <input
-                  id="separate-lines"
+                  id="export-full-code"
                   type="checkbox"
-                  bind:checked={separateLines}
+                  bind:checked={exportFullCode}
                   on:change={exportToCode}
                   class="cursor-pointer"
           />
