@@ -72,7 +72,6 @@
 
     let pathsClass = `
     public static class Paths {
-      public PathBuilder builder;
       ${lines.map((line, idx) => {
           const variableName = line.name ? line.name.replace(/[^a-zA-Z0-9]/g, '') : `line${idx + 1}`;
           return `public PathChain ${variableName};`
@@ -117,7 +116,7 @@
     } else {
       file = `
       package org.firstinspires.ftc.teamcode;
-      import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+      import com.qualcomm.robotcore.eventloop.opmode.OpMode;
       import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
       import com.bylazar.configurables.annotations.Configurable;
       import com.bylazar.telemetry.TelemetryManager;
@@ -127,17 +126,17 @@
       import com.pedropathing.geometry.BezierLine;
       import com.pedropathing.follower.Follower;
       import com.pedropathing.paths.PathChain;
-      import com.pedropathing.paths.PathBuilder;
       import com.pedropathing.geometry.Pose;
       @Autonomous(name = "Pedro Pathing Autonomous", group = "Autonomous")
       @Configurable // Panels
-      public class PedroAutonomous extends LinearOpMode {
+      public class PedroAutonomous extends OpMode {
+        private TelemetryManager panelsTelemetry; // Panels Telemetry instance
         public Follower follower; // Pedro Pathing follower instance
         private int pathState; // Current autonomous path state (state machine)
         private Paths paths; // Paths defined in the Paths class
         @Override
-        public void runOpMode() {
-          TelemetryManager panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
+        public void init() {
+          panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
           follower = Constants.createFollower(hardwareMap);
           follower.setStartingPose(new Pose(72, 8, Math.toRadians(90)));
@@ -146,19 +145,18 @@
 
           panelsTelemetry.debug("Status", "Initialized");
           panelsTelemetry.update(telemetry);
-          waitForStart(); // Wait for driver to press start
+        }
+        @Override
+        public void loop() {
+          follower.update(); // Update Pedro Pathing
+          pathState = autonomousPathUpdate(); // Update autonomous state machine
 
-          while (opModeIsActive()) {
-            follower.update(); // Update Pedro Pathing
-            pathState = autonomousPathUpdate(); // Update autonomous state machine
-
-            // Log values to Panels and Driver Station
-            panelsTelemetry.debug("Path State", pathState);
-            panelsTelemetry.debug("X", follower.getPose().getX());
-            panelsTelemetry.debug("Y", follower.getPose().getY());
-            panelsTelemetry.debug("Heading", follower.getPose().getHeading());
-            panelsTelemetry.update(telemetry);
-          }
+          // Log values to Panels and Driver Station
+          panelsTelemetry.debug("Path State", pathState);
+          panelsTelemetry.debug("X", follower.getPose().getX());
+          panelsTelemetry.debug("Y", follower.getPose().getY());
+          panelsTelemetry.debug("Heading", follower.getPose().getHeading());
+          panelsTelemetry.update(telemetry);
         }
 
         ${pathsClass}
