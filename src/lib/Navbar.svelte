@@ -80,10 +80,9 @@
                       ).join("\n")
       }
       public Paths(Follower follower) {
-        builder = follower.pathBuilder();
         ${lines.map((line, idx) => {
           const variableName = line.name ? line.name.replace(/[^a-zA-Z0-9]/g, '') : `line${idx + 1}`;
-          return `${variableName} = builder.addPath(
+          return `${variableName} = follower.pathBuilder().addPath(
           ${line.controlPoints.length === 0 ? `new BezierLine` : `new BezierCurve`}(
             ${
                                       idx === 0
