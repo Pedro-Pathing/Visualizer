@@ -810,7 +810,6 @@ hotkeys('s', function(event, handler){
 
 </script>
 
-<Analytics/>
 <Navbar bind:lines bind:startPoint bind:shapes bind:settings bind:robotWidth bind:robotHeight {saveFile} {loadFile} {loadRobot}/>
 <div
   class="w-screen h-screen pt-20 p-2 flex flex-row justify-center items-center gap-2"
