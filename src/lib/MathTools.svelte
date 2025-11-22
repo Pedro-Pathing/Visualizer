@@ -289,7 +289,7 @@
 
       <!-- Angle display -->
       <text x="0" y={-protractorRadius - 15} class="fill-red-600 dark:fill-red-400 text-sm font-bold" text-anchor="middle">
-        {normalizedProtractorAngle}°
+        {360 - normalizedProtractorAngle}°
       </text>
 
       <!-- Resize Handle -->
