@@ -12,63 +12,10 @@
   export let robotHeight: number = 16;
   export let robotXY: BasePoint;
   export let robotHeading: number;
-  export let fpa: (l: FPALine, s: FPASettings, o: Shape) => Promise<Line>;
+  export let fpa: (l: FPALine, s: FPASettings) => Promise<Line>;
   export let x: d3.ScaleLinear<number, number, number>;
   export let y: d3.ScaleLinear<number, number, number>;
   export let settings: FPASettings;
-  export let shapes: Shape[];
-
-  function createTriangle(): Shape {
-    return {
-      id: `triangle-${shapes.length + 1}`,
-      name: "", // Empty name to show placeholder
-      vertices: [
-        { x: 60, y: 60 },
-        { x: 84, y: 60 },
-        { x: 72, y: 84 }
-      ],
-      color: "#dc2626",
-      fillColor: "#fca5a5"
-    };
-  }
-
-  function createRectangle(): Shape {
-    return {
-      id: `rectangle-${shapes.length + 1}`,
-      name: `Obstacle ${shapes.length + 1}`,
-      vertices: [
-        { x: 30, y: 30 },
-        { x: 60, y: 30 },
-        { x: 60, y: 50 },
-        { x: 30, y: 50 }
-      ],
-      color: "#dc2626",
-      fillColor: "#fca5a5"
-    };
-  }
-
-  function createNGon(sides: number): Shape {
-    const centerX = 45;
-    const centerY = 45;
-    const radius = 15;
-    const vertices = [];
-    
-    for (let i = 0; i < sides; i++) {
-      const angle = (i * 2 * Math.PI) / sides;
-      vertices.push({
-        x: centerX + radius * Math.cos(angle),
-        y: centerY + radius * Math.sin(angle)
-      });
-    }
-    
-    return {
-      id: `${sides}-gon-${shapes.length + 1}`,
-      name: `Obstacle ${shapes.length + 1}`,
-      vertices,
-      color: "#dc2626",
-      fillColor: "#fca5a5"
-    };
-  }
 </script>
 
 <div class="flex-1 flex flex-col justify-start items-center gap-2 h-full">
@@ -103,112 +50,6 @@
           step="1"
         />
       </div>
-    </div>
-
-    <div class="flex flex-col w-full justify-start items-start gap-0.5 text-sm">
-      <div class="font-semibold">Obstacles</div>
-      
-      {#each shapes as shape, shapeIdx}
-        <div class="flex flex-col w-full justify-start items-start gap-1 p-2 border rounded-md border-neutral-300 dark:border-neutral-600">
-          <div class="flex flex-row w-full justify-between items-center">
-            <div class="font-medium text-sm flex flex-row items-center gap-2">
-              <input
-                bind:value={shape.name}
-                placeholder="Obstacle {shapeIdx + 1}"
-                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm font-medium"
-              />
-              <div class="size-2 rounded-full bg-red-600"></div>
-            </div>
-            <div class="flex flex-row gap-1">
-              <button
-                title="Add Vertex"
-                on:click={() => {
-                  shape.vertices = [...shape.vertices, { x: 50, y: 50 }];
-                }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} class="size-4 stroke-green-500">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-              </button>
-              {#if shapes.length > 0}
-                <button
-                  title="Remove Shape"
-                  on:click={() => {
-                    shapes.splice(shapeIdx, 1);
-                    shapes = shapes;
-                  }}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} class="size-4 stroke-red-500">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                  </svg>
-                </button>
-              {/if}
-            </div>
-          </div>
-          
-          {#each shape.vertices as vertex, vertexIdx}
-            <div class="flex flex-row justify-start items-center gap-2">
-              <div class="font-bold text-sm">{vertexIdx + 1}:</div>
-              <div class="font-extralight text-sm">X:</div>
-              <input
-                bind:value={vertex.x}
-                type="number"
-                min="0"
-                max="144"
-                step="0.1"
-                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-24 text-sm"
-              />
-              <div class="font-extralight text-sm">Y:</div>
-              <input
-                bind:value={vertex.y}
-                type="number"
-                min="0"
-                max="144"
-                step="0.1"
-                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-24 text-sm"
-              />
-              {#if shape.vertices.length > 3}
-                <button
-                  title="Remove Vertex"
-                  on:click={() => {
-                    shape.vertices.splice(vertexIdx, 1);
-                    shape.vertices = shape.vertices;
-                  }}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} class="size-4 stroke-red-500">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                  </svg>
-                </button>
-              {/if}
-            </div>
-          {/each}
-        </div>
-      {/each}
-      
-      {#if shapes.length === 0}
-        <button
-          on:click={() => {
-            shapes = [...shapes, createTriangle()];
-          }}
-          class="font-semibold text-red-500 text-sm flex flex-row justify-start items-center gap-1"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width={2}
-            stroke="currentColor"
-            class="size-5"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M12 4.5v15m7.5-7.5h-15"
-            />
-          </svg>
-          <p>Add Obstacle</p>
-        </button>
-      {/if}
     </div>
 
     <div class="flex flex-col w-full justify-start items-start gap-0.5 text-sm">
@@ -403,8 +244,7 @@ With tangential heading, the heading follows the direction of the line."
                       interpolation: line.endPoint.heading,
                       color: line.color,
                     },
-                    settings,
-                    shapes.length > 0 ? shapes[0] : { name: "", vertices: [] }
+                    settings
                   );
                   lines = lines.map((l, i) => i === idx ? optimizedLine : l);
                 } catch (error) {

@@ -18,7 +18,6 @@
   let exportFullCode = false;
   export let startPoint: Point;
   export let lines: Line[];
-  export let shapes: Shape[];
   export let robotWidth: number;
   export let robotHeight: number;
   export let settings: FPASettings;
@@ -326,7 +325,6 @@
         color: getRandomColor(),
       },
     ];
-    shapes = [];
         }}
       >
         <svg

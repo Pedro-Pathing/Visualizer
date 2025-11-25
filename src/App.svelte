@@ -40,9 +40,6 @@
 
   let percent: number = 0;
 
-  // Initialize default shapes - start with no obstacles
-  let shapes: Shape[] = [];
-
 
 
   /**
@@ -142,42 +139,7 @@
         }
       });
     });
-
-    // Add obstacle vertices as draggable points
-    shapes.forEach((shape, shapeIdx) => {
-      shape.vertices.forEach((vertex, vertexIdx) => {
-        let pointGroup = new Two.Group();
-        pointGroup.id = `obstacle-${shapeIdx}-${vertexIdx}`;
-
-        let pointElem = new Two.Circle(
-          x(vertex.x),
-          y(vertex.y),
-          x(pointRadius)
-        );
-        pointElem.id = `obstacle-${shapeIdx}-${vertexIdx}-background`;
-        pointElem.fill = "#991b1b"; // Match obstacle color
-        pointElem.noStroke();
-
-        let pointText = new Two.Text(
-          `${vertexIdx + 1}`,
-          x(vertex.x),
-          y(vertex.y - 0.15),
-          x(pointRadius)
-        );
-        pointText.id = `obstacle-${shapeIdx}-${vertexIdx}-text`;
-        pointText.size = x(1.55);
-        pointText.leading = 1;
-        pointText.family = "ui-sans-serif, system-ui, sans-serif";
-        pointText.alignment = "center";
-        pointText.baseline = "middle";
-        pointText.fill = "white";
-        pointText.noStroke();
-
-        pointGroup.add(pointElem, pointText);
-        _points.push(pointGroup);
-      });
-    });
-
+    
     return _points;
   })();
 
@@ -255,57 +217,6 @@
     return _path;
   })();
 
-  $: shapeElements = (() => {
-    let _shapes: Path[] = [];
-
-    shapes.forEach((shape, idx) => {
-      if (shape.vertices.length >= 3) {
-        // Create polygon from vertices - properly format for Two.js
-        let vertices = [];
-        
-        // Start with move command for first vertex
-        vertices.push(new Two.Anchor(
-          x(shape.vertices[0].x), 
-          y(shape.vertices[0].y), 
-          0, 0, 0, 0, 
-          Two.Commands.move
-        ));
-        
-        // Add line commands for remaining vertices
-        for (let i = 1; i < shape.vertices.length; i++) {
-          vertices.push(new Two.Anchor(
-            x(shape.vertices[i].x), 
-            y(shape.vertices[i].y), 
-            0, 0, 0, 0, 
-            Two.Commands.line
-          ));
-        }
-        
-        // Close the shape
-        vertices.push(new Two.Anchor(
-          x(shape.vertices[0].x), 
-          y(shape.vertices[0].y), 
-          0, 0, 0, 0, 
-          Two.Commands.close
-        ));
-        
-        vertices.forEach((point) => (point.relative = false));
-        
-        let shapeElement = new Two.Path(vertices);
-        shapeElement.id = `shape-${idx}`;
-        shapeElement.stroke = "#991b1b"; // Deeper red border (red-800)
-        shapeElement.fill = "#ef4444"; // Deeper red fill (red-500)
-        shapeElement.opacity = 0.4; // Make it pretty transparent
-        shapeElement.linewidth = x(0.8); // Make border more visible
-        shapeElement.automatic = false;
-        
-        _shapes.push(shapeElement);
-      }
-    });
-
-    return _shapes;
-  })();
-
   let robotXY: BasePoint = { x: 0, y: 0 };
   let robotHeading: number = 0;
 
@@ -364,7 +275,6 @@
 
     two.clear();
 
-    two.add(...shapeElements);
     two.add(...path);
     two.add(...points);
 
@@ -413,15 +323,11 @@
     cancelAnimationFrame(animationFrame);
   }
 
-  async function fpa(l: FPALine, s: FPASettings, o: Shape): Promise<Line> {
+  async function fpa(l: FPALine, s: FPASettings): Promise<Line> {
     let status = 'Starting optimization...';
     let result = null;
     // Convert to arrays, not JSON strings - this was the main issue!
     // If no obstacle vertices, create a small default obstacle outside the field
-    const obstacle = o.vertices.length >= 3 ? 
-      o.vertices.map(p => [p.x, p.y]) : 
-      [[-10, -10], [-10, -5], [-5, -5], [-5, -10]]; // Small rectangle outside field
-      
     const inputWaypoints = [l.startPoint, ...l.controlPoints, l.endPoint].map(p => [p.x, p.y]);
     
     // Extract heading degrees based on Point type
@@ -442,7 +348,6 @@
     
     console.log('FPA Optimization Parameters:');
     console.log('Waypoints:', inputWaypoints);
-    console.log('Obstacle:', obstacle);
     console.log('Start heading:', startHeadingDeg);
     console.log('End heading:', endHeadingDeg);
     console.log('Settings:', s);
@@ -455,7 +360,6 @@
                 y_velocity: s.yVelocity,
                 angular_velocity: s.aVelocity,
                 friction_coefficient: s.kFriction,
-                obstacle: obstacle,
                 robot_width: s.rWidth,
                 robot_height: s.rHeight,
                 min_coord_field: 0,
@@ -619,16 +523,6 @@
       const elem = document.elementFromPoint(evt.clientX, evt.clientY);
       if (isDown && currentElem) {
         const { x: xPos, y: yPos } = getMousePos(evt, two.renderer.domElement);
-
-        if (currentElem.startsWith("obstacle-")) {
-          // Handle obstacle vertex dragging
-          const parts = currentElem.split("-");
-          const shapeIdx = Number(parts[1]);
-          const vertexIdx = Number(parts[2]);
-          
-          shapes[shapeIdx].vertices[vertexIdx].x = x.invert(xPos);
-          shapes[shapeIdx].vertices[vertexIdx].y = y.invert(yPos);
-        } else {
           // Handle path point dragging
           const line = Number(currentElem.split("-")[1]) - 1;
           const point = Number(currentElem.split("-")[2]);
@@ -645,7 +539,6 @@
               lines[line].controlPoints[point - 1].y = y.invert(yPos);
             }
           }
-        }
       } else {
         if (elem?.id.startsWith("point") || elem?.id.startsWith("obstacle")) {
           two.renderer.domElement.style.cursor = "pointer";
@@ -675,7 +568,7 @@
   });
 
   function saveFile() {
-    const jsonString = JSON.stringify({ startPoint, lines, shapes });
+    const jsonString = JSON.stringify({ startPoint, lines});
 
     const blob = new Blob([jsonString], { type: "application/json" });
 
@@ -714,9 +607,6 @@
 
           startPoint = jsonObj.startPoint;
           lines = jsonObj.lines;
-          if (jsonObj.shapes) {
-            shapes = jsonObj.shapes;
-          }
         } catch (err) {
           console.error(err);
         }
@@ -810,7 +700,7 @@ hotkeys('s', function(event, handler){
 
 </script>
 
-<Navbar bind:lines bind:startPoint bind:shapes bind:settings bind:robotWidth bind:robotHeight {saveFile} {loadFile} {loadRobot}/>
+<Navbar bind:lines bind:startPoint bind:settings bind:robotWidth bind:robotHeight {saveFile} {loadFile} {loadRobot}/>
 <div
   class="w-screen h-screen pt-20 p-2 flex flex-row justify-center items-center gap-2"
 >
@@ -844,7 +734,6 @@ hotkeys('s', function(event, handler){
     bind:percent
     bind:robotXY
     bind:robotHeading
-    bind:shapes
     {x}
     {y}
     {fpa}
