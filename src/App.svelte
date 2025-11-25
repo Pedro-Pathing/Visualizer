@@ -8,7 +8,6 @@
   import Navbar from "./lib/Navbar.svelte";
   import MathTools from "./lib/MathTools.svelte";
   import _ from "lodash";
-  import { Analytics } from "@vercel/analytics/next"
   import {
     easeInOutQuad,
     getCurvePoint,
@@ -139,7 +138,7 @@
         }
       });
     });
-    
+
     return _points;
   })();
 
