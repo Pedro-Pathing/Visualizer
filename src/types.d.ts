@@ -11,6 +11,8 @@ type Point = BasePoint &
         endDeg: number;
         degrees?: never;
         reverse?: never;
+        facingPointX: never;
+        facingPointY: never;
       }
     | {
         heading: "constant";
@@ -18,6 +20,8 @@ type Point = BasePoint &
         startDeg?: never;
         endDeg?: never;
         reverse?: never;
+        facingPointX: never;
+        facingPointY: never;
       }
     | {
         heading: "tangential";
@@ -25,6 +29,17 @@ type Point = BasePoint &
         startDeg?: never;
         endDeg?: never;
         reverse: boolean;
+        facingPointX: never;
+        facingPointY: never;
+      }
+    | {
+        heading: "facing_point";
+        startDeg?: never;
+        endDeg?: never;
+        degrees?: never;
+        reverse?: never;
+        facingPointX: number;
+        facingPointY: number;
       }
   );
 
@@ -41,7 +56,7 @@ interface FPALine {
   startPoint: Point;
   endPoint: Point;
   controlPoints: ControlPoint[];
-  interpolation: String;
+  interpolation: Point["heading"];
   color: string;
   name?: string;
 }

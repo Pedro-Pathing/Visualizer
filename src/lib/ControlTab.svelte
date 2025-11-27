@@ -190,11 +190,13 @@
               title="The heading style of the robot. 
 With constant heading, the robot maintains the same heading throughout the line. 
 With linear heading, heading changes linearly between given start and end angles. 
-With tangential heading, the heading follows the direction of the line."
+With tangential heading, the heading follows the direction of the line.
+With facing point heading, the robot points to a specified coordinate."
             >
               <option value="constant">Constant</option>
               <option value="linear">Linear</option>
               <option value="tangential">Tangential</option>
+              <option value="facing_point">Facing Point</option>
             </select>
 
             {#if line.endPoint.heading === "linear"}
@@ -229,6 +231,27 @@ With tangential heading, the heading follows the direction of the line."
             {:else if line.endPoint.heading === "tangential"}
               <p class="text-sm font-extralight">Reverse:</p>
               <input type="checkbox" bind:checked={line.endPoint.reverse} title="Reverse the direction the robot faces along the tangential path" />
+            {:else if line.endPoint.heading === "facing_point"}
+              <div class="flex flex-row items-center gap-2">
+                <input
+                  class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-20"
+                  step="0.1"
+                  type="number"
+                  min="0"
+                  max="144"
+                  bind:value={line.endPoint.facingPointX}
+                  title="The X coordinate (in inches) the robot should face while following this line"
+                />
+                <input
+                  class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-20"
+                  step="0.1"
+                  type="number"
+                  min="0"
+                  max="144"
+                  bind:value={line.endPoint.facingPointY}
+                  title="The Y coordinate (in inches) the robot should face while following this line"
+                />
+              </div>
             {/if}
             <button
               class="px-2 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm"

@@ -67,6 +67,7 @@
       constant: "setConstantHeadingInterpolation",
       linear: "setLinearHeadingInterpolation",
       tangential: "setTangentHeadingInterpolation",
+      facing_point: "setHeadingInterpolation",
     };
 
     let pathsClass = `
@@ -99,7 +100,18 @@
                               }
             new Pose(${line.endPoint.x.toFixed(3)}, ${line.endPoint.y.toFixed(3)})
           )
-        ).${headingTypeToFunctionName[line.endPoint.heading]}(${line.endPoint.heading === "constant" ? `Math.toRadians(${line.endPoint.degrees})` : line.endPoint.heading === "linear" ? `Math.toRadians(${line.endPoint.startDeg}), Math.toRadians(${line.endPoint.endDeg})` : ""})
+        ).${headingTypeToFunctionName[line.endPoint.heading]}(${(() => {
+          if (line.endPoint.heading === "constant") {
+            return `Math.toRadians(${line.endPoint.degrees})`;
+          } else if (line.endPoint.heading === "linear") {
+            return `Math.toRadians(${line.endPoint.startDeg}), Math.toRadians(${line.endPoint.endDeg})`;
+          } else if (line.endPoint.heading === "facing_point") {
+            const faceX = line.endPoint.facingPointX ?? line.endPoint.x;
+            const faceY = line.endPoint.facingPointY ?? line.endPoint.y;
+            return `HeadingInterpolator.facingPoint(${faceX.toFixed(3)}, ${faceY.toFixed(3)})`;
+          }
+          return "";
+        })()})
         ${line.endPoint.reverse ? ".setReversed(true)" : ""}
         .build();`
                               }

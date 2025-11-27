@@ -257,6 +257,20 @@
         }
 
         break;
+      case "facing_point":
+        const facingPoint = {
+          x: x(currentLine.endPoint.facingPointX ?? currentLine.endPoint.x),
+          y: y(currentLine.endPoint.facingPointY ?? currentLine.endPoint.y)
+        };
+
+        const fdx = facingPoint.x - robotXY.x;
+        const fdy = facingPoint.y - robotXY.y;
+
+        if (fdx !== 0 || fdy !== 0) {
+          robotHeading = radiansToDegrees(Math.atan2(fdy, fdx));
+        }
+
+        break;
     }
   }
 
