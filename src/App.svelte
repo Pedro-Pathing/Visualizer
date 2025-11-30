@@ -523,7 +523,7 @@
           const point = Number(currentElem.split("-")[2]);
 
           if (line === -1) {
-            startPoint.x = x.invert(xPos);
+            startPoint.x = x.invert((xPos));
             startPoint.y = y.invert(yPos);
           } else {
             if (point === 0) {
@@ -561,21 +561,23 @@
       }
     }
 
-    const observer = new ResizeObserver(entries => {
-        for (const entry of entries) {
-          x = d3
-            .scaleLinear()
-            .domain([0, 144])
-            .range([0, twoElement?.clientWidth ?? 144]);
+    const updateScale = () => {
+        x = d3
+          .scaleLinear()
+          .domain([0, 144])
+          .range([0, twoElement?.clientWidth ?? 144]);
 
-          y = d3
-            .scaleLinear()
-            .domain([0, 144])
-            .range([twoElement?.clientHeight ?? 144, 0]);
-        }
+        y = d3
+          .scaleLinear()
+          .domain([0, 144])
+          .range([twoElement?.clientHeight ?? 144, 0]);
+      };
+
+      const observer = new ResizeObserver(() => {
+        updateScale();
       });
 
-    if(twoElement) observer.observe(twoElement);
+      observer.observe(twoElement);
   });
 
   function saveFile() {
@@ -718,7 +720,7 @@ hotkeys('s', function(event, handler){
   <div class="flex h-full justify-center items-center">
     <div
       bind:this={twoElement}
-      class="h-full aspect-square rounded-lg shadow-md bg-neutral-50 dark:bg-neutral-900 relative overflow-clip"
+      class="flex-shrink-0 min-w-600 m h-full aspect-square rounded-lg shadow-md bg-neutral-50 dark:bg-neutral-900 relative overflow-visible"
     >
       <img
         src="/fields/decode.webp"

@@ -18,7 +18,7 @@
   export let settings: FPASettings;
 </script>
 
-<div class="flex-1 flex flex-col justify-start items-center gap-2 h-full">
+<div class="flex-1 flex flex-shrink-0 flex-col justify-start items-center gap-2 h-full overflow-y-auto">
   <div
     class="flex flex-col justify-start items-start w-full rounded-lg bg-neutral-50 dark:bg-neutral-900 shadow-md p-4 overflow-y-scroll overflow-x-hidden h-full gap-6"
   >
@@ -187,9 +187,9 @@
             <select
               bind:value={line.endPoint.heading}
               class=" rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28 text-sm"
-              title="The heading style of the robot. 
-With constant heading, the robot maintains the same heading throughout the line. 
-With linear heading, heading changes linearly between given start and end angles. 
+              title="The heading style of the robot.
+With constant heading, the robot maintains the same heading throughout the line.
+With linear heading, heading changes linearly between given start and end angles.
 With tangential heading, the heading follows the direction of the line."
             >
               <option value="constant">Constant</option>
@@ -234,7 +234,7 @@ With tangential heading, the heading follows the direction of the line."
               class="px-2 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm"
               title="Optimize"
               name="Optimize"
-              on:click={async () => { 
+              on:click={async () => {
                 try {
                   const optimizedLine = await fpa(
                     {
@@ -249,7 +249,7 @@ With tangential heading, the heading follows the direction of the line."
                   lines = lines.map((l, i) => i === idx ? optimizedLine : l);
                 } catch (error) {
                   console.error('Optimization failed:', error);
-                  
+
                   // Check if it's an offline error
                   if (error.message && error.message.startsWith('OFFLINE:')) {
                     const offlineMessage = error.message.replace('OFFLINE: ', '');
