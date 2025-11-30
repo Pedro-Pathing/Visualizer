@@ -35,11 +35,7 @@
     rHeight: robotHeight
   };
 
-  let x
-
   let percent: number = 0;
-
-
 
   /**
    * Converter for X axis from inches to pixels.
@@ -328,29 +324,29 @@
     // Convert to arrays, not JSON strings - this was the main issue!
     // If no obstacle vertices, create a small default obstacle outside the field
     const inputWaypoints = [l.startPoint, ...l.controlPoints, l.endPoint].map(p => [p.x, p.y]);
-    
+
     // Extract heading degrees based on Point type
     let startHeadingDeg = 0;
     let endHeadingDeg = 0;
-    
+
     if (l.startPoint.heading === "linear") {
       startHeadingDeg = l.startPoint.startDeg ?? 0;
     } else if (l.startPoint.heading === "constant") {
       startHeadingDeg = (l.startPoint as any).degrees ?? 0;
     }
-    
+
     if (l.endPoint.heading === "linear") {
       endHeadingDeg = l.endPoint.endDeg ?? 0;
     } else if (l.endPoint.heading === "constant") {
       endHeadingDeg = (l.endPoint as any).degrees ?? 0;
     }
-    
+
     console.log('FPA Optimization Parameters:');
     console.log('Waypoints:', inputWaypoints);
     console.log('Start heading:', startHeadingDeg);
     console.log('End heading:', endHeadingDeg);
     console.log('Settings:', s);
-    
+
     const payload = {
                 waypoints: inputWaypoints,
                 start_heading_degrees: startHeadingDeg,
@@ -375,7 +371,7 @@
 
     // result is already parsed JSON data, no need to call .json()
     const resultData = result;
-    
+
     // Handle the new API format that returns optimized_waypoints
     let optimizedWaypoints;
     if (resultData.optimized_waypoints) {
@@ -386,42 +382,42 @@
     } else {
       throw new Error('Unexpected result format from optimization API');
     }
-    
+
     // Handle the different Point types based on heading
     let endPoint: Point;
-    
+
     if (l.interpolation === "tangential") {
       endPoint = {
-        x: optimizedWaypoints[optimizedWaypoints.length - 1][0], 
-        y: optimizedWaypoints[optimizedWaypoints.length - 1][1], 
+        x: optimizedWaypoints[optimizedWaypoints.length - 1][0],
+        y: optimizedWaypoints[optimizedWaypoints.length - 1][1],
         heading: "tangential",
         reverse: l.endPoint.reverse ?? false
       };
     } else if (l.interpolation === "constant") {
       endPoint = {
-        x: optimizedWaypoints[optimizedWaypoints.length - 1][0], 
-        y: optimizedWaypoints[optimizedWaypoints.length - 1][1], 
+        x: optimizedWaypoints[optimizedWaypoints.length - 1][0],
+        y: optimizedWaypoints[optimizedWaypoints.length - 1][1],
         heading: "constant",
         degrees: (l.endPoint as any).degrees ?? 0
       };
     } else {
       // linear
       endPoint = {
-        x: optimizedWaypoints[optimizedWaypoints.length - 1][0], 
-        y: optimizedWaypoints[optimizedWaypoints.length - 1][1], 
+        x: optimizedWaypoints[optimizedWaypoints.length - 1][0],
+        y: optimizedWaypoints[optimizedWaypoints.length - 1][1],
         heading: "linear",
         startDeg: l.endPoint.startDeg ?? 0,
         endDeg: l.endPoint.endDeg ?? 0
       };
     }
-    
+
     return {
       name: l.name,
       endPoint,
       color: l.color,
       controlPoints: optimizedWaypoints.slice(1, optimizedWaypoints.length - 1).map((p: number[]) => ({ x: p[0], y: p[1] }))
     }
-  
+
     /*return {
         endPoint: { x: 36, y: 80, heading: "linear", startDeg: 0, endDeg: 0 },
         controlPoints: [],
@@ -442,9 +438,9 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            
+
             console.log('Response status:', response.status);
-            
+
             // Handle offline response from service worker
             if (response.status === 503) {
                 const errorData = await response.json();
@@ -452,13 +448,13 @@
                     throw new Error('OFFLINE: ' + errorData.message);
                 }
             }
-            
+
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('Server error response:', errorText);
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-            
+
             const data = await response.json();
             console.log('Job created with ID:', data.job_id);
             return data.job_id;
@@ -472,7 +468,7 @@
         for (let i = 0; i < maxTries; i++) {
             try {
                 const response = await fetch(`https://fpa.pedropathing.com/job/${jobId}`);
-                
+
                 // Handle offline response from service worker
                 if (response.status === 503) {
                     const errorData = await response.json();
@@ -481,7 +477,7 @@
                         throw new Error('OFFLINE: ' + errorData.message);
                     }
                 }
-                
+
                 if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 const data = await response.json();
                 if (data.status === 'completed' && data.result) {
@@ -564,6 +560,22 @@
         play();
       }
     }
+
+    const observer = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          x = d3
+            .scaleLinear()
+            .domain([0, 144])
+            .range([0, twoElement?.clientWidth ?? 144]);
+
+          y = d3
+            .scaleLinear()
+            .domain([0, 144])
+            .range([twoElement?.clientHeight ?? 144, 0]);
+        }
+      });
+
+    if(twoElement) observer.observe(twoElement);
   });
 
   function saveFile() {
