@@ -523,7 +523,7 @@
           const point = Number(currentElem.split("-")[2]);
 
           if (line === -1) {
-            startPoint.x = x.invert((xPos));
+            startPoint.x = x.invert(xPos);
             startPoint.y = y.invert(yPos);
           } else {
             if (point === 0) {
