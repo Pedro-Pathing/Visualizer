@@ -230,36 +230,38 @@ With tangential heading, the heading follows the direction of the line."
               <p class="text-sm font-extralight">Reverse:</p>
               <input type="checkbox" bind:checked={line.endPoint.reverse} title="Reverse the direction the robot faces along the tangential path" />
             {/if}
-            <button
-              class="px-2 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm"
-              title="Optimize"
-              name="Optimize"
-              on:click={async () => {
-                try {
-                  const optimizedLine = await fpa(
-                    {
-                      startPoint: idx === 0 ? startPoint : lines[idx - 1].endPoint,
-                      endPoint: line.endPoint,
-                      controlPoints: line.controlPoints,
-                      interpolation: line.endPoint.heading,
-                      color: line.color,
-                    },
-                    settings
-                  );
-                  lines = lines.map((l, i) => i === idx ? optimizedLine : l);
-                } catch (error) {
-                  console.error('Optimization failed:', error);
+            <!--
+                  <button
+                    class="px-2 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm"
+                    title="Optimize"
+                    name="Optimize"
+                    on:click={async () => {
+                    try {
+                      const optimizedLine = await fpa(
+                      {
+                        startPoint: idx === 0 ? startPoint : lines[idx - 1].endPoint,
+                        endPoint: line.endPoint,
+                        controlPoints: line.controlPoints,
+                        interpolation: line.endPoint.heading,
+                        color: line.color,
+                      },
+                      settings
+                      );
+                      lines = lines.map((l, i) => i === idx ? optimizedLine : l);
+                    } catch (error) {
+                      console.error('Optimization failed:', error);
 
-                  // Check if it's an offline error
-                  if (error.message && error.message.startsWith('OFFLINE:')) {
-                    const offlineMessage = error.message.replace('OFFLINE: ', '');
-                    alert(`🌐 ${offlineMessage}\n\nThe optimization feature requires an internet connection.`);
-                  } else {
-                    alert(`❌ Optimization failed: ${error.message}`);
-                  }
-                }
-              }}
-            >Optimize</button>
+                      // Check if it's an offline error
+                      if (error.message && error.message.startsWith('OFFLINE:')) {
+                      const offlineMessage = error.message.replace('OFFLINE: ', '');
+                      alert(`🌐 ${offlineMessage}\n\nThe optimization feature requires an internet connection.`);
+                      } else {
+                      alert(`❌ Optimization failed: ${error.message}`);
+                      }
+                    }
+                    }}
+                  >Optimize</button>
+            -->
           </div>
         </div>
         {#each line.controlPoints as point, idx1}
