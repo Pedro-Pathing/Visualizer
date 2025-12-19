@@ -3,16 +3,33 @@
 @import "tailwindcss/utilities";
 
 .slider {
-  @apply dark:bg-neutral-900
+  @apply dark:bg-neutral-950
   [&::-webkit-slider-runnable-track]:rounded-full 
   [&::-webkit-slider-runnable-track]:bg-black/10 
-  [&::-webkit-slider-runnable-track]:dark:bg-neutral-700
+  [&::-webkit-slider-runnable-track]:dark:bg-neutral-800
   [&::-webkit-slider-runnable-track]:shadow-inner
   [&::-webkit-slider-thumb]:appearance-none 
   [&::-webkit-slider-thumb]:h-5 
   [&::-webkit-slider-thumb]:w-5 
   [&::-webkit-slider-thumb]:rounded-full 
   [&::-webkit-slider-thumb]:bg-green-500;
+}
+
+.slider-speed {
+  @apply 
+  [&::-webkit-slider-runnable-track]:rounded-full 
+  [&::-webkit-slider-runnable-track]:bg-neutral-300
+  [&::-webkit-slider-runnable-track]:dark:bg-neutral-700
+  [&::-webkit-slider-runnable-track]:h-2
+  [&::-webkit-slider-thumb]:appearance-none 
+  [&::-webkit-slider-thumb]:h-4 
+  [&::-webkit-slider-thumb]:w-4 
+  [&::-webkit-slider-thumb]:rounded-full 
+  [&::-webkit-slider-thumb]:bg-blue-500
+  [&::-webkit-slider-thumb]:dark:bg-blue-400
+  [&::-webkit-slider-thumb]:shadow-md
+  [&::-webkit-slider-thumb]:cursor-pointer
+  [&::-webkit-slider-thumb]:mt-[-3px];
 }
 
 code.hljs {
@@ -42,3 +59,38 @@ code.hljs {
   src: url('/fonts/Poppins-SemiBold.ttf') format('truetype');
   font-weight: 600;
 }
+
+/* UI shrink helper: scale down and tighten spacing for non-field UI
+   Applies to headers, controls, settings modals, etc., without affecting the field canvas.
+*/
+.ui-shrink {
+  --ui-scale: 0.94;
+  transform-origin: 0 0;
+  transform: scale(var(--ui-scale));
+}
+
+/* Slightly reduce default spacing for buttons/inputs inside the ui-shrink area */
+.ui-shrink button,
+.ui-shrink input,
+.ui-shrink select,
+.ui-shrink textarea {
+  font-size: 0.92rem;
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+}
+
+.ui-shrink .size-6 {
+  width: 18px !important;
+  height: 18px !important;
+}
+
+.ui-shrink .px-3 { padding-left: 0.55rem !important; padding-right: 0.55rem !important; }
+.ui-shrink .py-1 { padding-top: 0.28rem !important; padding-bottom: 0.28rem !important; }
+.ui-shrink .p-1 { padding: 0.28rem !important; }
+.ui-shrink .gap-4 { gap: 0.5rem !important; }
+.ui-shrink .gap-3 { gap: 0.35rem !important; }
+
+/* Reduce modal paddings slightly */
+.ui-shrink .p-6 { padding: 0.9rem !important; }
+.ui-shrink .p-4 { padding: 0.6rem !important; }
+

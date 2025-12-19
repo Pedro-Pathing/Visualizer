@@ -1,6 +1,7 @@
 interface BasePoint {
   x: number;
   y: number;
+  color?: string;
 }
 
 type Point = BasePoint &
@@ -35,6 +36,7 @@ interface Line {
   controlPoints: ControlPoint[];
   color: string;
   name?: string;
+  waitTime?: number; // Wait time in seconds after reaching this point
 }
 
 interface FPALine {
@@ -61,4 +63,16 @@ interface Shape {
     vertices: BasePoint[];
     color: string;
     fillColor: string;
+}
+
+// Multi-path support for path comparison
+interface RobotPath {
+    id: string;
+    name: string;
+    color: string;
+    startPoint: Point;
+    lines: Line[];
+    visible: boolean;
+  robotWidth?: number;
+  robotHeight?: number;
 }

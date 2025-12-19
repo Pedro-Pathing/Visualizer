@@ -7,12 +7,15 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-check --tsconfig ./tsconfig.json && tsc -p tsconfig.node.json"
+    "check": "svelte-check --tsconfig ./tsconfig.json && tsc -p tsconfig.node.json",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^3.1.1",
     "@tsconfig/svelte": "^5.0.4",
     "autoprefixer": "^10.4.20",
+    "gh-pages": "^6.3.0",
     "hotkeys-js": "^3.13.9",
     "postcss": "^8.4.41",
     "svelte": "^4.2.19",
@@ -26,7 +29,9 @@
     "@types/d3": "^7.4.3",
     "@types/lodash": "^4.17.7",
     "d3": "^7.9.0",
+    "gif.js": "^0.2.0",
     "hotkeys-js": "^3.13.9",
+    "html2canvas": "^1.4.1",
     "lodash": "^4.17.21",
     "prettier": "^3.3.3",
     "prettier-plugin-java": "^2.6.4",

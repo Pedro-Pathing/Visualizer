@@ -1,4 +1,6 @@
+// ...existing code...
 <script lang="ts">
+  import { showAllCollisions } from '../stores';
   import prettier from "prettier";
   import prettierJavaPlugin from "prettier-plugin-java";
   import { onMount } from "svelte";
@@ -8,12 +10,20 @@
   import codeStyle from "svelte-highlight/styles/androidstudio";
   import { cubicInOut } from "svelte/easing";
   import { fade, fly } from "svelte/transition";
-  import { darkMode, showRuler, showProtractor, showGrid, protractorLockToRobot, gridSize } from "../stores";
+  import { darkMode, showRuler, showProtractor, showGrid, protractorLockToRobot, gridSize, clickToPlaceMode, centerLineWarningEnabled, showCollisionPath, collisionNextSegmentOnly, showRobotLiveCoordinates, showRobotOriginToCornerLines, showRobotColliderEdges, collisionBoxColor, robotCollisionColor } from "../stores";
   import { getRandomColor, titleCase } from "../utils";
+  import html2canvas from "html2canvas";
+  import GIF from "gif.js";
 
   export let saveFile: () => any;
   export let loadFile: (evt: any) => any;
   export let loadRobot: (evt: any) => any;
+  export let undo: () => void;
+  export let redo: () => void;
+  export let canUndo: boolean = false;
+  export let canRedo: boolean = false;
+  export const fieldElement: HTMLElement | null = null;
+  export let captureGif: () => Promise<void>;
 
   let exportFullCode = false;
   export let startPoint: Point;
@@ -21,12 +31,44 @@
   export let robotWidth: number;
   export let robotHeight: number;
   export let settings: FPASettings;
+  export let percent: number = 0;
+  export let gifFps: number = 30;
+  
+  let isRecording = false;
+  let recordingProgress = 0;
+
+  // Calculate total path duration based on animation speed
+  // Animation: percent += (0.65 / lines.length) * (deltaTime * 0.1)
+  // To go from 0 to 100: 100 = (0.65 / lines.length) * (totalTime * 0.1)
+  // totalTime = 100 * lines.length / (0.65 * 0.1) = 100 * lines.length / 0.065
+  $: basePathDuration = (100 * lines.length) / (0.65 * 0.1 * 1000); // in seconds (movement only)
+  $: totalWaitTime = lines.reduce((sum, line) => sum + (line.waitTime || 0), 0); // sum of all wait times
+  $: totalPathDuration = basePathDuration + totalWaitTime; // total including waits
+  $: currentTime = (percent / 100) * totalPathDuration; // percent 0-100 maps to total duration
+  $: isOverTime = totalPathDuration > 30;
+
+  function formatTime(seconds: number): string {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toFixed(1).padStart(4, '0')}`;
+  }
 
   let selectedGridSize = 12;
   const gridSizeOptions = [12, 24, 36, 48];
 
   let dialogOpen = false;
   let settingsOpen = false;
+
+  // Handlers moved out of the template to avoid Svelte preprocessor errors
+  function onCollisionBoxColorInput(e: Event) {
+    const v = (e.target as HTMLInputElement).value;
+    collisionBoxColor.set(v);
+  }
+
+  function onRobotCollisionColorInput(e: Event) {
+    const v = (e.target as HTMLInputElement).value;
+    robotCollisionColor.set(v);
+  }
 
   // Display value for angular velocity (user inputs this, gets multiplied by PI)
   $: angularVelocityDisplay = settings ? settings.aVelocity / Math.PI : 1;
@@ -101,7 +143,7 @@
           )
         ).${headingTypeToFunctionName[line.endPoint.heading]}(${line.endPoint.heading === "constant" ? `Math.toRadians(${line.endPoint.degrees})` : line.endPoint.heading === "linear" ? `Math.toRadians(${line.endPoint.startDeg}), Math.toRadians(${line.endPoint.endDeg})` : ""})
         ${line.endPoint.reverse ? ".setReversed(true)" : ""}
-        .build();`
+        .build(); ${line.waitTime && line.waitTime > 0 ? `// WAIT: ${line.waitTime} seconds after this path` : ''}`
                               }
                       )
                       .join("\n\n")};
@@ -191,6 +233,74 @@
       settingsOpen = true;
   }
 
+  function mirrorPathsHorizontal() {
+    // Mirror all points horizontally across the center of the field (x = 72)
+    const centerX = 72;
+    startPoint.x = 2 * centerX - startPoint.x;
+    // Clamp after mirroring
+    startPoint.x = Math.max(1, Math.min(143, startPoint.x));
+    if (typeof startPoint.heading === 'number') {
+      startPoint.heading = 180 - startPoint.heading;
+    }
+    if (typeof startPoint.startDeg === 'number') {
+      startPoint.startDeg = 180 - startPoint.startDeg;
+    }
+    if (typeof startPoint.endDeg === 'number') {
+      startPoint.endDeg = 180 - startPoint.endDeg;
+    }
+    lines = lines.map(line => ({
+      ...line,
+      endPoint: {
+        ...line.endPoint,
+        x: 2 * centerX - line.endPoint.x,
+        ...(typeof line.endPoint.heading === 'number' ? { heading: 180 - line.endPoint.heading } : {}),
+        ...(typeof line.endPoint.startDeg === 'number' ? { startDeg: 180 - line.endPoint.startDeg } : {}),
+        ...(typeof line.endPoint.endDeg === 'number' ? { endDeg: 180 - line.endPoint.endDeg } : {}),
+      },
+      controlPoints: line.controlPoints.map(cp => ({
+        ...cp,
+        x: 2 * centerX - cp.x,
+        ...(typeof cp.heading === 'number' ? { heading: 180 - cp.heading } : {}),
+        ...(typeof cp.startDeg === 'number' ? { startDeg: 180 - cp.startDeg } : {}),
+        ...(typeof cp.endDeg === 'number' ? { endDeg: 180 - cp.endDeg } : {}),
+      }))
+    }));
+  }
+
+  function mirrorPathsVertical() {
+    // Mirror all points vertically across the center of the field (y = 72)
+    const centerY = 72;
+    startPoint.y = 2 * centerY - startPoint.y;
+    // Clamp after mirroring
+    startPoint.y = Math.max(3, Math.min(143, startPoint.y));
+    if (typeof startPoint.heading === 'number') {
+      startPoint.heading = -startPoint.heading;
+    }
+    if (typeof startPoint.startDeg === 'number') {
+      startPoint.startDeg = -startPoint.startDeg;
+    }
+    if (typeof startPoint.endDeg === 'number') {
+      startPoint.endDeg = -startPoint.endDeg;
+    }
+    lines = lines.map(line => ({
+      ...line,
+      endPoint: {
+        ...line.endPoint,
+        y: 2 * centerY - line.endPoint.y,
+        ...(typeof line.endPoint.heading === 'number' ? { heading: -line.endPoint.heading } : {}),
+        ...(typeof line.endPoint.startDeg === 'number' ? { startDeg: -line.endPoint.startDeg } : {}),
+        ...(typeof line.endPoint.endDeg === 'number' ? { endDeg: -line.endDeg } : {}),
+      },
+      controlPoints: line.controlPoints.map(cp => ({
+        ...cp,
+        y: 2 * centerY - cp.y,
+        ...(typeof cp.heading === 'number' ? { heading: -cp.heading } : {}),
+        ...(typeof cp.startDeg === 'number' ? { startDeg: -cp.startDeg } : {}),
+        ...(typeof cp.endDeg === 'number' ? { endDeg: -cp.endDeg } : {}),
+      }))
+    }));
+  }
+
   $: if (settings) {
     settings.rHeight = robotHeight;
     settings.rWidth = robotWidth;
@@ -202,7 +312,7 @@
 </svelte:head>
 
 <div
-  class="absolute top-0 left-0 w-full bg-neutral-50 dark:bg-neutral-900 shadow-md flex flex-row justify-between items-center px-6 py-4 border-b-[0.75px] border-[#b300e6]"
+  class="absolute top-0 left-0 w-full bg-neutral-100 dark:bg-neutral-950 shadow-md flex flex-row justify-between items-center px-6 py-4 border-b-[0.75px] border-[#b300e6]"
 >
   <div class="font-semibold flex flex-row justify-start items-start">
     <div>Pedro Pathing Visualizer</div>
@@ -227,6 +337,106 @@
 
   </div>
   <div class="flex flex-row justify-end items-center gap-4">
+    <!-- Stopwatch Display -->
+    <div 
+      class="flex items-center gap-2 px-3 py-1.5 rounded-lg font-mono text-sm transition-all duration-300"
+      class:bg-red-500={isOverTime}
+      class:bg-neutral-200={!isOverTime}
+      class:dark:bg-neutral-800={!isOverTime}
+      class:text-white={isOverTime}
+      class:shadow-red-500={isOverTime}
+      class:shadow-lg={isOverTime}
+      class:animate-pulse={isOverTime}
+      title={isOverTime ? "Path exceeds 30 second limit!" : "Path duration"}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+      </svg>
+      <span class="tabular-nums">{formatTime(currentTime)}</span>
+      <span class="text-xs opacity-70">/</span>
+      <span class="tabular-nums">{formatTime(totalPathDuration)}</span>
+    </div>
+
+    <div class="h-6 border-l border-neutral-300 dark:border-neutral-700" aria-hidden="true"></div>
+
+    <!-- Record GIF Button with FPS selector -->
+    <div class="flex items-center gap-1">
+      <select
+        bind:value={gifFps}
+        disabled={isRecording}
+        class="text-xs px-1 py-1 rounded border border-neutral-300 dark:border-neutral-600 bg-neutral-100 dark:bg-neutral-800 focus:outline-none disabled:opacity-50"
+        title="GIF frame rate"
+      >
+        <option value={15}>15fps</option>
+        <option value={24}>24fps</option>
+        <option value={30}>30fps</option>
+        <option value={60}>60fps</option>
+      </select>
+      <button
+        title={isRecording ? `Recording... ${recordingProgress}%` : "Record GIF"}
+        on:click={async () => {
+          if (!isRecording && captureGif) {
+            isRecording = true;
+            recordingProgress = 0;
+            try {
+              await captureGif();
+            } finally {
+              isRecording = false;
+              recordingProgress = 0;
+            }
+          }
+        }}
+        disabled={isRecording}
+        class="p-1.5 rounded transition-colors relative"
+        class:bg-red-500={isRecording}
+        class:text-white={isRecording}
+        class:animate-pulse={isRecording}
+        class:hover:bg-neutral-200={!isRecording}
+        class:dark:hover:bg-neutral-700={!isRecording}
+      >
+        {#if isRecording}
+          <div class="absolute inset-0 flex items-center justify-center text-xs font-bold">
+            {recordingProgress}%
+          </div>
+        {:else}
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+          </svg>
+        {/if}
+      </button>
+    </div>
+
+    <div class="h-6 border-l border-neutral-300 dark:border-neutral-700" aria-hidden="true"></div>
+
+    <!-- Undo/Redo Buttons -->
+    <div class="flex items-center gap-1">
+      <button 
+        title="Undo (Ctrl+Z)" 
+        on:click={undo}
+        disabled={!canUndo}
+        class="p-1.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7v6h6"></path>
+          <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
+        </svg>
+      </button>
+      <button 
+        title="Redo (Ctrl+Y)" 
+        on:click={redo}
+        disabled={!canRedo}
+        class="p-1.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 7v6h-6"></path>
+          <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="h-6 border-l border-neutral-300 dark:border-neutral-700" aria-hidden="true"></div>
+
     <div class="flex items-center gap-3">
       <div class="relative flex flex-col items-center justify-center">
         <button title="Toggle Grid" on:click={() => showGrid.update(v => !v)} class:text-blue-500={$showGrid}>
@@ -262,6 +472,65 @@
           {/if}
         </button>
       {/if}
+      
+      
+    </div>
+
+    <!-- Path Editing Tools - Distinct Section -->
+    <div class="h-6 border-l-2 border-purple-500 dark:border-purple-400 mx-2" aria-hidden="true"></div>
+    
+    <div class="flex items-center gap-2 px-2 py-1 rounded-lg bg-purple-100 dark:bg-purple-900/30 border border-purple-300 dark:border-purple-700">
+      <!-- Click to Place Mode Toggle -->
+      <button 
+        title={$clickToPlaceMode ? "Click-to-Place Mode: ON (Click field to add points)" : "Click-to-Place Mode: OFF"} 
+        on:click={() => clickToPlaceMode.update(v => !v)} 
+        class="p-1 rounded transition-colors"
+        class:bg-purple-500={$clickToPlaceMode}
+        class:text-white={$clickToPlaceMode}
+        class:hover:bg-purple-200={!$clickToPlaceMode}
+        class:dark:hover:bg-purple-800={!$clickToPlaceMode}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M12 2v4"></path>
+          <path d="M12 18v4"></path>
+          <path d="M2 12h4"></path>
+          <path d="M18 12h4"></path>
+        </svg>
+      </button>
+
+      <div class="w-px h-5 bg-purple-300 dark:bg-purple-600" aria-hidden="true"></div>
+
+      <!-- Mirror Horizontal -->
+      <button 
+        title="Mirror Path Horizontally (flip left/right)" 
+        on:click={mirrorPathsHorizontal}
+        class="p-1 rounded hover:bg-purple-200 dark:hover:bg-purple-800 transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3"></path>
+          <path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3"></path>
+          <path d="M12 20v2"></path>
+          <path d="M12 14v2"></path>
+          <path d="M12 8v2"></path>
+          <path d="M12 2v2"></path>
+        </svg>
+      </button>
+
+      <!-- Mirror Vertical -->
+      <button 
+        title="Mirror Path Vertically (flip up/down)" 
+        on:click={mirrorPathsVertical}
+        class="p-1 rounded hover:bg-purple-200 dark:hover:bg-purple-800 transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 8V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3"></path>
+          <path d="M3 16v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"></path>
+          <path d="M2 12h4"></path>
+          <path d="M10 12h4"></path>
+          <path d="M18 12h4"></path>
+        </svg>
+      </button>
     </div>
 
     <div class="h-6 border-l border-neutral-300 dark:border-neutral-700 mx-4" aria-hidden="true"></div>
@@ -411,7 +680,7 @@
       <input
         id="robot-input"
         type="file"
-        accept="image/png"
+        accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
         on:change={loadRobot}
         class="hidden"
       />
@@ -582,6 +851,169 @@
               bind:value={settings.kFriction}
             />
           </div>
+
+          <div class="w-full h-px bg-neutral-200 dark:bg-neutral-700 my-2"></div>
+          
+          <div class="font-semibold text-lg">Warnings</div>
+
+          <div class="flex flex-row justify-between items-center w-full">
+            <div class="flex flex-col">
+              <div class="font-light">Center Line Warning</div>
+              <div class="text-xs text-neutral-500 dark:text-neutral-400">Warn when path crosses to opponent's side</div>
+            </div>
+            <button 
+              on:click={() => centerLineWarningEnabled.update(v => !v)}
+              class="relative w-12 h-6 rounded-full transition-colors duration-200"
+              class:bg-green-500={$centerLineWarningEnabled}
+              class:bg-neutral-300={!$centerLineWarningEnabled}
+              class:dark:bg-neutral-600={!$centerLineWarningEnabled}
+            >
+              <div 
+                class="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200"
+                class:translate-x-1={!$centerLineWarningEnabled}
+                class:translate-x-7={$centerLineWarningEnabled}
+              ></div>
+            </button>
+          </div>
+
+
+          <div class="flex flex-col gap-2 w-full">
+            <div class="font-light">Collision Visualization</div>
+            <div class="flex flex-row gap-2">
+              <button
+                class="px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200"
+                class:bg-green-500={$showAllCollisions}
+                class:bg-neutral-300={!$showAllCollisions}
+                class:dark:bg-neutral-600={!$showAllCollisions}
+                on:click={() => { showAllCollisions.set(true); collisionNextSegmentOnly.set(false); }}
+              >All Points</button>
+              <button
+                class="px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200"
+                class:bg-green-500={$collisionNextSegmentOnly}
+                class:bg-neutral-300={!$collisionNextSegmentOnly}
+                class:dark:bg-neutral-600={!$collisionNextSegmentOnly}
+                on:click={() => { collisionNextSegmentOnly.set(true); showAllCollisions.set(false); }}
+              >Current Segment</button>
+              <button
+                class="px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200"
+                class:bg-red-500={!$showAllCollisions && !$collisionNextSegmentOnly}
+                class:bg-neutral-300={$showAllCollisions || $collisionNextSegmentOnly}
+                class:dark:bg-neutral-600={$showAllCollisions || $collisionNextSegmentOnly}
+                on:click={() => { showAllCollisions.set(false); collisionNextSegmentOnly.set(false); }}
+              >Off</button>
+            </div>
+            <div class="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+              Choose how to visualize robot collision points. "Off" disables all collision overlays.
+            </div>
+          </div>
+
+            <div class="w-full h-px bg-neutral-200 dark:bg-neutral-700 my-2"></div>
+
+            <div class="font-semibold text-lg">Robot Overlays</div>
+            <div class="flex flex-col gap-3 w-full">
+              <div class="flex flex-row justify-between items-center w-full">
+                <div class="flex flex-col">
+                  <div class="font-light">Live Coordinates</div>
+                  <div class="text-xs text-neutral-500 dark:text-neutral-400">Show robot position and heading text near robot</div>
+                </div>
+                <button 
+                  on:click={() => { showRobotLiveCoordinates.set(!$showRobotLiveCoordinates); console.log('showRobotLiveCoordinates ->', !$showRobotLiveCoordinates); }}
+                  class="relative w-12 h-6 rounded-full transition-colors duration-200"
+                  class:bg-green-500={$showRobotLiveCoordinates}
+                  class:bg-neutral-300={!$showRobotLiveCoordinates}
+                  class:dark:bg-neutral-600={!$showRobotLiveCoordinates}
+                >
+                  <div 
+                    class="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200"
+                    class:translate-x-1={!$showRobotLiveCoordinates}
+                    class:translate-x-7={$showRobotLiveCoordinates}
+                  ></div>
+                </button>
+              </div>
+
+              <div class="flex flex-row justify-between items-center w-full">
+                <div class="flex flex-col">
+                  <div class="font-light">Origin → Corner Lines</div>
+                  <div class="text-xs text-neutral-500 dark:text-neutral-400">Draw pink lines from robot origin to each corner</div>
+                </div>
+                <button 
+                  on:click={() => { showRobotOriginToCornerLines.set(!$showRobotOriginToCornerLines); console.log('showRobotOriginToCornerLines ->', !$showRobotOriginToCornerLines); }}
+                  class="relative w-12 h-6 rounded-full transition-colors duration-200"
+                  class:bg-pink-500={$showRobotOriginToCornerLines}
+                  class:bg-neutral-300={!$showRobotOriginToCornerLines}
+                  class:dark:bg-neutral-600={!$showRobotOriginToCornerLines}
+                >
+                  <div 
+                    class="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200"
+                    class:translate-x-1={!$showRobotOriginToCornerLines}
+                    class:translate-x-7={$showRobotOriginToCornerLines}
+                  ></div>
+                </button>
+              </div>
+
+              <div class="flex flex-row justify-between items-center w-full">
+                <div class="flex flex-col">
+                  <div class="font-light">Collider Edges</div>
+                  <div class="text-xs text-neutral-500 dark:text-neutral-400">Draw lines between corners (collider)</div>
+                </div>
+                <button 
+                  on:click={() => { showRobotColliderEdges.set(!$showRobotColliderEdges); console.log('showRobotColliderEdges ->', !$showRobotColliderEdges); }}
+                  class="relative w-12 h-6 rounded-full transition-colors duration-200"
+                  class:bg-green-500={$showRobotColliderEdges}
+                  class:bg-neutral-300={!$showRobotColliderEdges}
+                  class:dark:bg-neutral-600={!$showRobotColliderEdges}
+                >
+                  <div 
+                    class="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200"
+                    class:translate-x-1={!$showRobotColliderEdges}
+                    class:translate-x-7={$showRobotColliderEdges}
+                  ></div>
+                </button>
+              </div>
+            </div>
+
+            <div class="w-full h-px bg-neutral-200 dark:bg-neutral-700 my-2"></div>
+
+            <div class="font-semibold text-lg">Collision Colors</div>
+            <div class="flex flex-col gap-3 w-full">
+              <div class="flex flex-row justify-between items-center w-full">
+                <div class="flex flex-col">
+                  <div class="font-light">Collision Box Color</div>
+                  <div class="text-xs text-neutral-500 dark:text-neutral-400">Color used for collider edges/boxes</div>
+                </div>
+                <input type="color" class="w-10 h-8 p-0 border-0 bg-transparent" value={$collisionBoxColor} on:input={onCollisionBoxColorInput} />
+              </div>
+
+              <div class="flex flex-row justify-between items-center w-full">
+                <div class="flex flex-col">
+                  <div class="font-light">Robot Collision Color</div>
+                  <div class="text-xs text-neutral-500 dark:text-neutral-400">Color used for robot-origin overlays and origin dot</div>
+                </div>
+                <input type="color" class="w-10 h-8 p-0 border-0 bg-transparent" value={$robotCollisionColor} on:input={onRobotCollisionColorInput} />
+              </div>
+            </div>
+
+          {#if $showCollisionPath}
+          <div class="flex flex-row justify-between items-center w-full pl-4">
+            <div class="flex flex-col">
+              <div class="font-light">Current Segment Only</div>
+              <div class="text-xs text-neutral-500 dark:text-neutral-400">Only show collision for current segment</div>
+            </div>
+            <button 
+              on:click={() => collisionNextSegmentOnly.update(v => !v)}
+              class="relative w-12 h-6 rounded-full transition-colors duration-200"
+              class:bg-green-500={$collisionNextSegmentOnly}
+              class:bg-neutral-300={!$collisionNextSegmentOnly}
+              class:dark:bg-neutral-600={!$collisionNextSegmentOnly}
+            >
+              <div 
+                class="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200"
+                class:translate-x-1={!$collisionNextSegmentOnly}
+                class:translate-x-7={$collisionNextSegmentOnly}
+              ></div>
+            </button>
+          </div>
+          {/if}
         </div>
       </div>
     </div>

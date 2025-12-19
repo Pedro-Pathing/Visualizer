@@ -177,5 +177,8 @@ Maintainers
 - FTC Team 18127 — All Hands on Tech
 
 --
+<<<<<<< HEAD
+=======
 
 If you'd like a shorter README or targeted documentation (developer setup, GIF export internals, analytics opt-in flow, or a changelog), tell me which section to expand and I'll add it.
+>>>>>>> 16c9120 (chore: build at 2025-12-17T04:31:06Z)

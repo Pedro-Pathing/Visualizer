@@ -1,6 +1,31 @@
 <script lang="ts">
+    // Helper to create a valid 'linear' Point
+    function makeLinearPoint(
+      x: number,
+      y: number,
+      startDeg: number,
+      endDeg: number
+    ): BasePoint & { heading: "linear"; startDeg: number; endDeg: number; degrees?: never; reverse?: never } {
+      return {
+        x,
+        y,
+        heading: 'linear',
+        startDeg,
+        endDeg
+      };
+    }
+    function makeTangentialPoint(x: number, y: number, reverse: boolean = false): Point {
+      return {
+        x,
+        y,
+        heading: "tangential",
+        reverse,
+      };
+    }
+  // Collision settings have been moved to Navbar.svelte
   import _ from "lodash";
   import { getRandomColor } from "../utils";
+  // ...existing code...
 
   export let percent: number;
   export let playing: boolean;
@@ -12,15 +37,68 @@
   export let robotHeight: number = 16;
   export let robotXY: BasePoint;
   export let robotHeading: number;
-  export let fpa: (l: FPALine, s: FPASettings) => Promise<Line>;
+  export let playbackSpeed: number = 1;
   export let x: d3.ScaleLinear<number, number, number>;
   export let y: d3.ScaleLinear<number, number, number>;
   export let settings: FPASettings;
+
+  import { getRobotPercentAndWait } from '../utils';
+  // Input handlers to avoid inline TypeScript casts in templates
+  function handleStartPointXInput(e: Event) {
+    const t = e.target as HTMLInputElement | null;
+    if (!t) return;
+    startPoint.x = Number(t.value);
+  }
+  function handleStartPointYInput(e: Event) {
+    const t = e.target as HTMLInputElement | null;
+    if (!t) return;
+    startPoint.y = Number(t.value);
+  }
+  function handleLineEndXInput(e: Event, lineIdx: number) {
+    const t = e.target as HTMLInputElement | null;
+    if (!t) return;
+    lines[lineIdx].endPoint.x = Number(t.value);
+    lines = lines;
+  }
+  function handleLineEndYInput(e: Event, lineIdx: number) {
+    const t = e.target as HTMLInputElement | null;
+    if (!t) return;
+    lines[lineIdx].endPoint.y = Number(t.value);
+    lines = lines;
+  }
+  function handleControlPointXInput(e: Event, lineIdx: number, ptIdx: number) {
+    const t = e.target as HTMLInputElement | null;
+    if (!t) return;
+    lines[lineIdx].controlPoints[ptIdx].x = Number(t.value);
+    lines = lines;
+  }
+  function handleControlPointYInput(e: Event, lineIdx: number, ptIdx: number) {
+    const t = e.target as HTMLInputElement | null;
+    if (!t) return;
+    lines[lineIdx].controlPoints[ptIdx].y = Number(t.value);
+    lines = lines;
+  }
+  // Precompute playbar percent for each segment end, accounting for waits
+  $: markerPercents = lines.map((line, idx) => {
+    let lo = 0, hi = 100, target = ((idx+1)/lines.length)*100, found = 100;
+    for (let iter = 0; iter < 16; ++iter) {
+      let mid = (lo + hi) / 2;
+      let { robotPercent } = getRobotPercentAndWait(mid, lines);
+      if (robotPercent < target) {
+        lo = mid;
+      } else {
+        found = mid;
+        hi = mid;
+      }
+    }
+    found = Math.max(0, Math.min(100, found));
+    return found;
+  });
 </script>
 
 <div class="flex-1 flex flex-shrink-0 flex-col justify-start items-center gap-2 h-full overflow-y-auto">
   <div
-    class="flex flex-col justify-start items-start w-full rounded-lg bg-neutral-50 dark:bg-neutral-900 shadow-md p-4 overflow-y-scroll overflow-x-hidden h-full gap-6"
+    class="flex flex-col justify-start items-start w-full rounded-lg bg-neutral-100 dark:bg-neutral-950 shadow-md p-4 overflow-y-scroll overflow-x-hidden h-full gap-6"
   >
     <div class="flex flex-col w-full justify-start items-start gap-0.5 text-sm">
       <div class="font-semibold">Canvas Options</div>
@@ -29,11 +107,15 @@
         <input
           bind:value={robotWidth}
           on:change={() => {
+            if (robotWidth < 12) robotWidth = 12;
+            if (robotWidth > 18) robotWidth = 18;
             if (settings) {
               settings.rWidth = robotWidth;
             }
           }}
           type="number"
+          min="12"
+          max="18"
           class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-16"
           step="1"
         />
@@ -41,15 +123,21 @@
         <input
           bind:value={robotHeight}
           on:change={() => {
+            if (robotHeight < 12) robotHeight = 12;
+            if (robotHeight > 18) robotHeight = 18;
             if (settings) {
               settings.rHeight = robotHeight;
             }
           }}
           type="number"
+          min="12"
+          max="18"
           class="pl-1.5 rounded-md bg-neutral-100 border-[0.5px] focus:outline-none w-16 dark:bg-neutral-950 dark:border-neutral-700"
           step="1"
         />
       </div>
+        <!-- Collision settings moved to Navbar.svelte -->
+      <div class="text-xs text-neutral-500 dark:text-neutral-400">Size must be between 12" and 18"</div>
     </div>
 
     <div class="flex flex-col w-full justify-start items-start gap-0.5 text-sm">
@@ -74,20 +162,24 @@
         <div class="font-extralight">X:</div>
         <input
           bind:value={startPoint.x}
-          min="0"
-          max="144"
+          min="1"
+          max="143"
           type="number"
           class="pl-1.5 rounded-md bg-neutral-100 border-[0.5px] focus:outline-none w-28 dark:bg-neutral-950 dark:border-neutral-700"
           step="0.1"
+          on:input={(e) => handleStartPointXInput(e)}
+          on:change={() => { startPoint.x = Math.max(1, Math.min(143, Number(startPoint.x))); }}
         />
         <div class="font-extralight">Y:</div>
         <input
           bind:value={startPoint.y}
-          min="0"
-          max="144"
+          min="3"
+          max="143"
           type="number"
           class="pl-1.5 rounded-md bg-neutral-100 border-[0.5px] focus:outline-none w-28 dark:bg-neutral-950 dark:border-neutral-700"
           step="0.1"
+          on:input={(e) => handleStartPointYInput(e)}
+          on:change={() => { startPoint.y = Math.max(3, Math.min(143, Number(startPoint.y))); }}
         />
       </div>
     </div>
@@ -107,16 +199,23 @@
               class="size-2.5 rounded-full shadow-md"
               style={`background: ${line.color}`}
             />
+            <input
+              type="color"
+              bind:value={line.color}
+              title="Line color"
+              class="w-6 h-6 p-0 border-0 bg-transparent"
+            />
           </div>
           <div class="flex flex-row justify-end items-center gap-1">
             <button
               title="Add Control Point"
-              on:click={() => {
+                on:click={() => {
                 line.controlPoints = [
                   ...line.controlPoints,
                   {
                     x: _.random(36, 108),
                     y: _.random(36, 108),
+                    color: line.color,
                   },
                 ];
               }}
@@ -132,6 +231,60 @@
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   d="M12 4.5v15m7.5-7.5h-15"
+                />
+              </svg>
+            </button>
+            <button
+              title="Insert Line After This Path"
+              on:click={() => {
+                // Get the current endpoint as the start of the new segment
+                const currentEnd = line.endPoint;
+                // Create a new line that starts from current endpoint
+                // and ends at a point between current end and next line's end (or random if last)
+                const newEndX = idx < lines.length - 1 
+                  ? (currentEnd.x + lines[idx + 1].endPoint.x) / 2 
+                  : _.random(1, 143);
+                const newEndY = idx < lines.length - 1 
+                  ? (currentEnd.y + lines[idx + 1].endPoint.y) / 2 
+                  : _.random(3, 143);
+
+
+                // Prefill angles from previous endpoint
+                let prevEndDeg = (currentEnd.heading === 'linear' ? currentEnd.endDeg : currentEnd.heading === 'constant' ? currentEnd.degrees : 0) || 0;
+                const newEndPoint = makeLinearPoint(newEndX, newEndY, prevEndDeg, prevEndDeg);
+                const newLine = {
+                  name: `Path ${idx + 2}`,
+                  endPoint: newEndPoint,
+                  controlPoints: [],
+                  color: getRandomColor(),
+                };
+
+                // Insert the new line after the current one
+
+                lines.splice(idx + 1, 0, newLine);
+
+                // Update names for subsequent paths
+
+                for (let i = idx + 2; i < lines.length; i++) {
+                  if (lines[i] && typeof lines[i].name === 'string' && lines[i].name.startsWith('Path ')) {
+                    lines[i].name = `Path ${i + 1}`;
+                  }
+                }
+
+                lines = lines; // Trigger reactivity
+              }}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width={2}
+                class="size-5 stroke-blue-500"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
                 />
               </svg>
             </button>
@@ -170,18 +323,30 @@
               class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
               step="0.1"
               type="number"
-              min="0"
-              max="144"
+              min="1"
+              max="143"
               bind:value={line.endPoint.x}
+              on:input={(e) => handleLineEndXInput(e, idx)}
+              on:change={() => { line.endPoint.x = Math.max(1, Math.min(143, Number(line.endPoint.x))); }}
             />
             <div class="font-extralight">Y:</div>
             <input
               class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
               step="0.1"
-              min="0"
-              max="144"
+              min="3"
+              max="143"
               type="number"
               bind:value={line.endPoint.y}
+              on:input={(e) => handleLineEndYInput(e, idx)}
+              on:change={() => { line.endPoint.y = Math.max(3, Math.min(143, Number(line.endPoint.y))); }}
+            />
+
+            <input
+              type="color"
+              bind:value={line.endPoint.color}
+              on:input={() => { if (!line.endPoint.color) line.endPoint.color = line.color }}
+              title="End point color"
+              class="w-6 h-6 p-0 border-0 bg-transparent"
             />
 
             <select
@@ -230,38 +395,19 @@ With tangential heading, the heading follows the direction of the line."
               <p class="text-sm font-extralight">Reverse:</p>
               <input type="checkbox" bind:checked={line.endPoint.reverse} title="Reverse the direction the robot faces along the tangential path" />
             {/if}
-            <!--
-                  <button
-                    class="px-2 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm"
-                    title="Optimize"
-                    name="Optimize"
-                    on:click={async () => {
-                    try {
-                      const optimizedLine = await fpa(
-                      {
-                        startPoint: idx === 0 ? startPoint : lines[idx - 1].endPoint,
-                        endPoint: line.endPoint,
-                        controlPoints: line.controlPoints,
-                        interpolation: line.endPoint.heading,
-                        color: line.color,
-                      },
-                      settings
-                      );
-                      lines = lines.map((l, i) => i === idx ? optimizedLine : l);
-                    } catch (error) {
-                      console.error('Optimization failed:', error);
-
-                      // Check if it's an offline error
-                      if (error.message && error.message.startsWith('OFFLINE:')) {
-                      const offlineMessage = error.message.replace('OFFLINE: ', '');
-                      alert(`🌐 ${offlineMessage}\n\nThe optimization feature requires an internet connection.`);
-                      } else {
-                      alert(`❌ Optimization failed: ${error.message}`);
-                      }
-                    }
-                    }}
-                  >Optimize</button>
-            -->
+          </div>
+          <div class="flex flex-row justify-start items-center gap-2 mt-1">
+            <div class="font-extralight">Wait:</div>
+            <input
+              class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-16"
+              step="0.1"
+              type="number"
+              min="0"
+              bind:value={line.waitTime}
+              placeholder="0"
+              title="Time in seconds to wait after reaching this point"
+            />
+            <div class="font-extralight text-xs">sec</div>
           </div>
         </div>
         {#each line.controlPoints as point, idx1}
@@ -274,8 +420,10 @@ With tangential heading, the heading follows the direction of the line."
                 step="0.1"
                 type="number"
                 bind:value={point.x}
-                min="0"
-                max="144"
+                min="1"
+                max="143"
+                on:input={(e) => handleControlPointXInput(e, idx, idx1)}
+                on:change={() => { point.x = Math.max(1, Math.min(143, Number(point.x))); }}
               />
               <div class="font-extralight">Y:</div>
               <input
@@ -283,8 +431,10 @@ With tangential heading, the heading follows the direction of the line."
                 step="0.1"
                 type="number"
                 bind:value={point.y}
-                min="0"
-                max="144"
+                min="3"
+                max="143"
+                on:input={(e) => handleControlPointYInput(e, idx, idx1)}
+                on:change={() => { point.y = Math.max(3, Math.min(143, Number(point.y))); }}
               />
               <button
                 title="Remove Control Point"
@@ -309,6 +459,13 @@ With tangential heading, the heading follows the direction of the line."
                 </svg>
               </button>
             </div>
+              <input
+                type="color"
+                bind:value={point.color}
+                on:input={() => { if (!point.color) point.color = line.color }}
+                title="Control point color"
+                class="w-6 h-6 p-0 border-0 bg-transparent"
+              />
           </div>
         {/each}
       </div>
@@ -320,8 +477,8 @@ With tangential heading, the heading follows the direction of the line."
           {
             name: `Path ${lines.length + 1}`,
             endPoint: {
-              x: _.random(0, 144),
-              y: _.random(0, 144),
+              x: _.random(1, 143),
+              y: _.random(3, 143),
               heading: "tangential",
               reverse: false,
             },
@@ -350,57 +507,115 @@ With tangential heading, the heading follows the direction of the line."
     </button>
   </div>
   <div
-    class="w-full bg-neutral-50 dark:bg-neutral-900 rounded-lg p-3 flex flex-row justify-start items-center gap-3 shadow-lg"
+    class="w-full bg-neutral-100 dark:bg-neutral-950 rounded-lg p-3 flex flex-col justify-start items-center gap-3 shadow-lg"
   >
-    <button
-      title="Play/Pause"
-      on:click={() => {
-        if (playing) {
-          pause();
-        } else {
-          play();
-        }
-      }}
-    >
-      {#if !playing}
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke-width="2"
-          stroke="currentColor"
-          class="size-6 stroke-green-500"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"
+    <!-- Speed Control - Above playbar -->
+    <div class="flex items-center gap-3 w-full">
+      <span class="text-xs font-medium text-neutral-600 dark:text-neutral-400">Speed</span>
+      <input
+        bind:value={playbackSpeed}
+        type="range"
+        min="0.25"
+        max="3"
+        step="0.25"
+        class="flex-1 h-2 appearance-none rounded-full bg-neutral-300 dark:bg-neutral-700 cursor-pointer slider-speed focus:outline-none"
+        title="Playback speed: {playbackSpeed}x"
+      />
+      <span class="text-xs font-bold text-blue-500 dark:text-blue-400 min-w-[2.5rem] text-right">{playbackSpeed}x</span>
+    </div>
+    
+    <!-- Playbar -->
+    <div class="flex flex-row w-full justify-start items-center gap-3">
+      <button
+        title="Play/Pause"
+        on:click={() => {
+          if (playing) {
+            pause();
+          } else {
+            play();
+          }
+        }}
+      >
+        {#if !playing}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+            stroke="currentColor"
+            class="size-6 stroke-green-500"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"
+            />
+          </svg>
+        {:else}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+            stroke="currentColor"
+            class="size-6 stroke-green-500"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M15.75 5.25v13.5m-7.5-13.5v13.5"
+            />
+          </svg>
+        {/if}
+      </button>
+      <div class="relative w-full h-5 flex items-center">
+        <input
+          bind:value={percent}
+          type="range"
+          min="0"
+          max="100"
+          step="0.000001"
+          class="w-full appearance-none slider focus:outline-none absolute inset-0"
+        />
+        <!-- Waypoint markers -->
+        <!-- Compute playbar percent for each segment end, accounting for waits -->
+        {#if lines.length > 0}
+          <button
+            class="absolute w-3 h-3 rounded-full transform -translate-x-1/2 z-10 hover:scale-125 transition-transform border-2 border-white dark:border-neutral-800 shadow-sm"
+            style="left: 0%; background: {lines[0].color};"
+            title={`Start Point (${startPoint.x.toFixed(1)}, ${startPoint.y.toFixed(1)})`}
+            on:click={() => { percent = 0; }}
           />
-        </svg>
-      {:else}
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke-width="2"
-          stroke="currentColor"
-          class="size-6 stroke-green-500"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M15.75 5.25v13.5m-7.5-13.5v13.5"
-          />
-        </svg>
-      {/if}
-    </button>
-    <input
-      bind:value={percent}
-      type="range"
-      min="0"
-      max="100"
-      step="0.000001"
-      class="w-full appearance-none slider focus:outline-none"
-    />
+          {#each markerPercents as found, idx}
+            <button
+              class="absolute w-3 h-3 rounded-full transform -translate-x-1/2 z-10 hover:scale-125 transition-transform border-2 border-white dark:border-neutral-800 shadow-sm"
+              style={`left: ${found}%; background: ${lines[idx].color};`}
+              title={`${lines[idx].name || `Path ${idx + 1}`} End (${lines[idx].endPoint.x.toFixed(1)}, ${lines[idx].endPoint.y.toFixed(1)})`}
+              on:click={() => { percent = found - 0.000001; }}
+            />
+          {/each}
+        {/if}
+      <script lang="ts">
+        // ...existing code...
+
+        // Precompute playbar percent for each segment end, accounting for waits
+        $: markerPercents = lines.map((line, idx) => {
+          let lo = 0, hi = 100, target = ((idx+1)/lines.length)*100, found = 100;
+          for (let iter = 0; iter < 16; ++iter) {
+            let mid = (lo + hi) / 2;
+            let { robotPercent } = getRobotPercentAndWait(mid);
+            if (robotPercent < target) {
+              lo = mid;
+            } else {
+              found = mid;
+              hi = mid;
+            }
+          }
+          found = Math.max(0, Math.min(100, found));
+          return found;
+        });
+      </script>
+      </div>
+    </div>
   </div>
 </div>

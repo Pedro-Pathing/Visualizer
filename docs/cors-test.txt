@@ -1,0 +1,10 @@
+CORS test file. If you can fetch this file from the browser and read its contents in JavaScript, CORS is working for static assets.
+
+Try running this in your browser console:
+
+fetch('/fields/decode.webp', {mode: 'cors'})
+  .then(r => r.blob())
+  .then(b => console.log('CORS fetch success', b))
+  .catch(e => console.error('CORS fetch failed', e));
+
+If you see a CORS error, your dev server is not serving with the right headers.
