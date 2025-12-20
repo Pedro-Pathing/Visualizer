@@ -225,6 +225,47 @@
     let robotInchesXY = getCurvePoint(linePercent, [_startPoint, ...currentLine.controlPoints, currentLine.endPoint]);
     robotXY = { x: x(robotInchesXY.x), y: y(robotInchesXY.y) };
 
+    // If this line is a wait, compute heading from the previous non-wait line's end heading
+    if ((currentLine as any).waitMs !== undefined) {
+      let prevIdx = currentLineIdx - 1;
+      while (prevIdx >= 0 && (lines[prevIdx] as any).waitMs !== undefined) {
+        prevIdx -= 1;
+      }
+
+      if (prevIdx >= 0) {
+        const prevLine = lines[prevIdx];
+        const prevStart = prevIdx === 0 ? startPoint : lines[prevIdx - 1].endPoint;
+        // determine heading at end of prevLine (t = 1)
+        switch (prevLine.endPoint.heading) {
+          case "linear":
+            robotHeading = -shortestRotation(
+              prevLine.endPoint.startDeg,
+              prevLine.endPoint.endDeg,
+              1
+            );
+            break;
+          case "constant":
+            robotHeading = -prevLine.endPoint.degrees;
+            break;
+          case "tangential": {
+            const pBefore = getCurvePoint(0.99, [prevStart, ...prevLine.controlPoints, prevLine.endPoint]);
+            const pEnd = getCurvePoint(1, [prevStart, ...prevLine.controlPoints, prevLine.endPoint]);
+            const pBeforePx = { x: x(pBefore.x), y: y(pBefore.y) };
+            const pEndPx = { x: x(pEnd.x), y: y(pEnd.y) };
+            const dx = pEndPx.x - pBeforePx.x;
+            const dy = pEndPx.y - pBeforePx.y;
+            if (dx !== 0 || dy !== 0) {
+              robotHeading = radiansToDegrees(Math.atan2(dy, dx));
+            }
+            break;
+          }
+        }
+      } else {
+        // no previous line, fall back to startPoint heading if available
+        if (startPoint.heading === "constant") robotHeading = -((startPoint as any).degrees ?? 0);
+        else if (startPoint.heading === "linear") robotHeading = -shortestRotation(startPoint.startDeg, startPoint.endDeg, 1);
+      }
+    } else {
     switch (currentLine.endPoint.heading) {
       case "linear":
         robotHeading = -shortestRotation(
@@ -253,6 +294,7 @@
         }
 
         break;
+    }
     }
   }
 
