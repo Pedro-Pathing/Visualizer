@@ -25,7 +25,7 @@
 
 <div class="flex-1 flex flex-shrink-0 flex-col justify-start items-center gap-2 h-full overflow-y-auto">
   <div
-    class="flex flex-col justify-start items-start w-full rounded-lg bg-neutral-50 dark:bg-neutral-900 shadow-md p-4 overflow-y-scroll overflow-x-hidden h-full gap-6"
+    class="flex flex-col justify-start items-start w-full rounded-lg bg-neutral-50 dark:bg-neutral-900 shadow-md p-4 overflow-y-scroll overflow-x-hidden h-full gap-3"
   >
     <div class="flex flex-col w-full justify-start items-start gap-0.5 text-sm">
       <div class="font-semibold">Canvas Options</div>
@@ -168,7 +168,7 @@
         </div>
         <div class={`h-[0.75px] w-full`} style={`background: ${line.color}`} />
         {#if line.waitMs === undefined}
-        <div class="flex flex-col justify-start items-start min-h-28">
+        <div class="flex flex-col justify-start items-start">
           <div class="font-light">End Point:</div>
           <div class="flex flex-row justify-start items-center gap-2">
             <div class="font-extralight">X:</div>
@@ -239,7 +239,7 @@ With tangential heading, the heading follows the direction of the line."
           </div>
         </div>
         {:else}
-        <div class="flex flex-col justify-start items-start min-h-28">
+        <div class="flex flex-col justify-start items-start">
           <div class="font-light">Wait</div>
           <div class="flex flex-row justify-start items-center gap-2">
             <div class="font-extralight">Duration (ms):</div>
