@@ -276,47 +276,154 @@
     two.update();
   })();
 
-  let playing = false;
+let playing = false;
 
-  let animationFrame: number;
-  let startTime: number | null = null;
-  let previousTime: number | null = null;
+let animationFrame: number;
+let startTime: number | null = null;
+let previousTime: number | null = null;
 
-  function animate(timestamp: number) {
-    if (!startTime) {
-      startTime = timestamp;
-    }
+let waiting = false;
+let waitTimerRemaining = 0;
+let lastHandledLineIdx = -1;
+let waitEndTimestamp: number | null = null;
+let prevPercent = 0;
+let cycleTimerRunning = false;
+// Playback elapsed timer (ms) — resets when `play()` starts
+let playElapsedMs = 0;
 
-    if (previousTime !== null) {
-      const deltaTime = timestamp - previousTime;
+function normalizeWaitMs(value: any): number {
+  const n = Number(value) || 0;
+  return n <= 0 ? 0 : n; // treat value as milliseconds directly
+}
 
-      if (percent >= 100) {
-        percent = 0;
+function animate(timestamp: number) {
+  // First frame init
+  if (previousTime === null) {
+    previousTime = timestamp;
+    animationFrame = requestAnimationFrame(animate);
+    return;
+  }
+
+  // Calculate elapsed ms since last frame
+  const deltaTime = timestamp - previousTime;
+  // Move previousTime forward now (keeps delta strictly the time spent since last frame)
+  previousTime = timestamp;
+
+  // compute playback elapsed deterministically from `percent` and waits
+  function computeElapsedFromPercent(p: number) {
+    if (!lines || lines.length === 0) return 0;
+    const clamped = Math.max(0, Math.min(100, p));
+    const totalLineProgress = (lines.length * clamped) / 100;
+    let idx = Math.min(Math.trunc(totalLineProgress), Math.max(0, lines.length - 1));
+    const frac = totalLineProgress - Math.floor(totalLineProgress);
+
+    // motion time per non-wait line (derived from existing speed formula)
+    const motionMsPerLine = 100 / 0.065; // ~=1538.461538ms
+
+    let sum = 0;
+    for (let j = 0; j < idx; j++) {
+      const l = lines[j] as any;
+      if (l && l.waitMs !== undefined) {
+        sum += Number(l.waitMs) || 0;
       } else {
-        percent += (0.65 / lines.length) * (deltaTime * 0.1);
+        sum += motionMsPerLine;
       }
     }
 
-    previousTime = timestamp;
+    // current line partial
+    const cur = lines[idx] as any;
+    if (cur) {
+      if (cur.waitMs !== undefined) {
+        sum += (Number(cur.waitMs) || 0) * frac;
+      } else {
+        sum += motionMsPerLine * frac;
+      }
+    }
 
-    if (playing) {
-      requestAnimationFrame(animate);
+    return sum;
+  }
+
+  playElapsedMs = computeElapsedFromPercent(percent);
+
+  // Detect current line based on percent
+  const totalLineProgress = (lines.length * Math.min(percent, 99.999999)) / 100;
+  const currentLineIdx = Math.min(Math.trunc(totalLineProgress), Math.max(0, lines.length - 1));
+  const currentLine = lines[currentLineIdx];
+
+  // If we just entered a line that has a wait, start the wait timer (only once per line)
+  if (currentLine && (currentLine as any).waitMs !== undefined && lastHandledLineIdx !== currentLineIdx) {
+    waiting = true;
+    const ms = normalizeWaitMs((currentLine as any).waitMs);
+    // set an absolute end timestamp for the wait based on current frame timestamp
+    waitEndTimestamp = timestamp + ms;
+    waitTimerRemaining = ms;
+    lastHandledLineIdx = currentLineIdx;
+    console.log(`Entering wait on line ${currentLineIdx}: raw waitMs=${(currentLine as any).waitMs} normalized=${ms}ms, will end at ${waitEndTimestamp}`);
+  }
+
+  // HANDLE WAIT: subtract elapsed time (ms). Do not advance percent while waiting.
+  if (waiting) {
+    // compute remaining based on absolute end timestamp if set
+    if (waitEndTimestamp !== null) {
+      const remaining = Math.max(0, waitEndTimestamp - timestamp);
+      waitTimerRemaining = remaining;
+      if (timestamp >= waitEndTimestamp) {
+        // wait finished
+        waiting = false;
+        waitTimerRemaining = 0;
+        waitEndTimestamp = null;
+        // reset previousTime so the next frame's delta doesn't include the time that passed during the wait
+        previousTime = timestamp;
+        console.log(`Wait finished on line ${currentLineIdx}`);
+      }
+    }
+
+    // keep animating loop but do not advance percent while waiting
+    animationFrame = requestAnimationFrame(animate);
+    return;
+  }
+
+  // NORMAL PROGRESS
+  if (percent >= 100) {
+    percent = 0;
+    lastHandledLineIdx = -1; // allow waits to re-trigger on next loop
+    // cycle finished — stop cycle timer so it will restart on the next run
+    cycleTimerRunning = false;
+  } else {
+    // Your original motion formula — kept similar, but uses real ms deltaTime
+    const speed = 0.65 / Math.max(1, lines.length);
+    percent += speed * deltaTime * 0.1; // you can tune this multiplier if you want motion faster/slower
+    // If we transitioned from 0 -> >0, this is the very first path beginning — reset cycle timer
+    if (!cycleTimerRunning && prevPercent === 0 && percent > 0) {
+      playElapsedMs = 0;
+      cycleTimerRunning = true;
+      console.log('Cycle timer started (first path began)');
     }
   }
 
-  function play() {
-    if (!playing) {
-      playing = true;
-      startTime = null;
-      previousTime = null;
-      animationFrame = requestAnimationFrame(animate);
-    }
-  }
+  animationFrame = requestAnimationFrame(animate);
+  // remember percent for next frame to detect 0->>0 transitions
+  prevPercent = percent;
+}
 
-  function pause() {
-    playing = false;
-    cancelAnimationFrame(animationFrame);
+function play() {
+  if (!playing) {
+    playing = true;
+    // If we're starting from the very beginning (never played), reset elapsed timer.
+    // If we're resuming (percent > 0 or waits already handled), don't reset timers or progress.
+    startTime = null;
+    previousTime = null; // force animate to initialize timing on next frame (prevents big delta)
+    if (percent === 0 && lastHandledLineIdx === -1) {
+      playElapsedMs = 0;
+    }
+    animationFrame = requestAnimationFrame(animate);
   }
+}
+
+function pause() {
+  playing = false;
+  cancelAnimationFrame(animationFrame);
+}
 
   async function fpa(l: FPALine, s: FPASettings): Promise<Line> {
     let status = 'Starting optimization...';
@@ -749,6 +856,6 @@ hotkeys('s', function(event, handler){
     bind:robotHeading
     {x}
     {y}
-    {fpa}
+    {playElapsedMs}
   />
 </div>

@@ -12,10 +12,15 @@
   export let robotHeight: number = 16;
   export let robotXY: BasePoint;
   export let robotHeading: number;
-  export let fpa: (l: FPALine, s: FPASettings) => Promise<Line>;
   export let x: d3.ScaleLinear<number, number, number>;
   export let y: d3.ScaleLinear<number, number, number>;
   export let settings: FPASettings;
+  export let playElapsedMs: number = 0;
+  function formatMs(ms: number) {
+    const s = Math.floor(ms / 1000);
+    const rem = Math.floor(ms % 1000);
+    return `${s}.${String(rem).padStart(3, '0')}s`;
+  }
 </script>
 
 <div class="flex-1 flex flex-shrink-0 flex-col justify-start items-center gap-2 h-full overflow-y-auto">
@@ -162,7 +167,8 @@
           </div>
         </div>
         <div class={`h-[0.75px] w-full`} style={`background: ${line.color}`} />
-        <div class="flex flex-col justify-start items-start">
+        {#if line.waitMs === undefined}
+        <div class="flex flex-col justify-start items-start min-h-28">
           <div class="font-light">End Point:</div>
           <div class="flex flex-row justify-start items-center gap-2">
             <div class="font-extralight">X:</div>
@@ -230,40 +236,25 @@ With tangential heading, the heading follows the direction of the line."
               <p class="text-sm font-extralight">Reverse:</p>
               <input type="checkbox" bind:checked={line.endPoint.reverse} title="Reverse the direction the robot faces along the tangential path" />
             {/if}
-            <!--
-                  <button
-                    class="px-2 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm"
-                    title="Optimize"
-                    name="Optimize"
-                    on:click={async () => {
-                    try {
-                      const optimizedLine = await fpa(
-                      {
-                        startPoint: idx === 0 ? startPoint : lines[idx - 1].endPoint,
-                        endPoint: line.endPoint,
-                        controlPoints: line.controlPoints,
-                        interpolation: line.endPoint.heading,
-                        color: line.color,
-                      },
-                      settings
-                      );
-                      lines = lines.map((l, i) => i === idx ? optimizedLine : l);
-                    } catch (error) {
-                      console.error('Optimization failed:', error);
-
-                      // Check if it's an offline error
-                      if (error.message && error.message.startsWith('OFFLINE:')) {
-                      const offlineMessage = error.message.replace('OFFLINE: ', '');
-                      alert(`🌐 ${offlineMessage}\n\nThe optimization feature requires an internet connection.`);
-                      } else {
-                      alert(`❌ Optimization failed: ${error.message}`);
-                      }
-                    }
-                    }}
-                  >Optimize</button>
-            -->
           </div>
         </div>
+        {:else}
+        <div class="flex flex-col justify-start items-start min-h-28">
+          <div class="font-light">Wait</div>
+          <div class="flex flex-row justify-start items-center gap-2">
+            <div class="font-extralight">Duration (ms):</div>
+            <input
+              class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
+              step="10"
+              type="number"
+              min="0"
+              bind:value={line.waitMs}
+              on:change={() => { line.waitMs = Number(line.waitMs) || 0 }}
+            />
+            <div class="font-extralight">(Robot pauses at previous point)</div>
+          </div>
+        </div>
+        {/if}
         {#each line.controlPoints as point, idx1}
           <div class="flex flex-col justify-start items-start">
             <div class="font-light">Control Point {idx1 + 1}:</div>
@@ -313,6 +304,7 @@ With tangential heading, the heading follows the direction of the line."
         {/each}
       </div>
     {/each}
+    <div class="flex flex-row gap-2">
     <button
       on:click={() => {
         lines = [
@@ -330,7 +322,7 @@ With tangential heading, the heading follows the direction of the line."
           },
         ];
       }}
-      class="font-semibold text-green-500 text-sm flex flex-row justify-start items-center gap-1"
+      class="font-semibold text-green-500 text-sm flex flex-row justify-center items-center gap-1 h-8 px-3"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -348,6 +340,29 @@ With tangential heading, the heading follows the direction of the line."
       </svg>
       <p>Add Line</p>
     </button>
+    <button
+      on:click={() => {
+        // Add a wait entry: keep endPoint equal to last end point (or startPoint)
+        const lastEnd = lines.length > 0 ? lines[lines.length - 1].endPoint : startPoint;
+        lines = [
+          ...lines,
+          {
+            name: `Wait ${lines.length + 1}`,
+            endPoint: { x: lastEnd.x, y: lastEnd.y, heading: "constant", degrees: 0 },
+            controlPoints: [],
+            color: '#888888',
+            waitMs: 1000,
+          },
+        ];
+      }}
+      class="font-semibold text-yellow-500 text-sm flex flex-row justify-center items-center gap-1 h-8 px-3"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12M6 12h12" />
+      </svg>
+      <p>Add Wait</p>
+    </button>
+    </div>
   </div>
   <div
     class="w-full bg-neutral-50 dark:bg-neutral-900 rounded-lg p-3 flex flex-row justify-start items-center gap-3 shadow-lg"
@@ -402,5 +417,12 @@ With tangential heading, the heading follows the direction of the line."
       step="0.000001"
       class="w-full appearance-none slider focus:outline-none"
     />
+    <div class="text-sm font-extralight ml-2">
+      {#if playElapsedMs}
+        {formatMs(playElapsedMs)}
+      {:else}
+        0.000s
+      {/if}
+    </div>
   </div>
 </div>
