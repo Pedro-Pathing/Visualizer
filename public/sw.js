@@ -1,7 +1,7 @@
 const VERSION = "v3";
 const CACHE_NAME = `pedro-visualizer-${VERSION}`;
 
-const BASE = '/Visualizer';
+const BASE = '/';
 const APP_STATIC_RESOURCES = [
   `${BASE}/`,
   `${BASE}/favicon.ico`,

@@ -3,8 +3,8 @@ import {svelte} from '@sveltejs/vite-plugin-svelte'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-    // Use repository name as base path for deployments that serve under a subpath
-    base: '/Visualizer/',
+    // Build base URL. Use root ('/') for typical Vercel deployments.
+    base: '/',
     plugins: [svelte()],
     build: {
         rollupOptions: {
