@@ -135,6 +135,9 @@ function addNewPath() {
   import html2canvas from "html2canvas";
   import GIF from "gif.js";
 
+  // Vite base URL for static assets (falls back to root)
+  const viteBase = import.meta.env.BASE_URL || '/';
+
   let two: Two;
   let twoElement: HTMLDivElement;
   let fieldContainer: HTMLDivElement;
@@ -1608,7 +1611,7 @@ if (!Array.isArray(lines)) lines = [];
 
     // Preload the field image and robot image before starting the export loop
     // Try multiple field images for debugging (webp and fallback)
-    const viteBase = import.meta.env.BASE_URL || '/Pedro-Visualzier-18127/';
+    const viteBase = import.meta.env.BASE_URL || '/';
     const fieldImagePaths = [
       `${viteBase}fields/decode.webp`,
       `${viteBase}fields/centerstage.webp`,
@@ -2545,7 +2548,7 @@ $: canRedo = redoStack.length > 0;
     <div bind:this={fieldContainer} class="h-full w-full relative">
       <div bind:this={twoElement} class="w-full h-full bg-transparent relative overflow-visible">
         <img
-          src="/Pedro-Visualzier-18127/fields/decode.webp"
+          src={viteBase + 'fields/decode.webp'}
           alt="Field"
           class="absolute top-0 left-0 w-full h-full z-10 pointer-events-none"
         />
