@@ -35,6 +35,9 @@ interface Line {
   controlPoints: ControlPoint[];
   color: string;
   name?: string;
+  // Optional wait duration (milliseconds). If present, this line represents a pause
+  // at the previous/this end point for the specified milliseconds.
+  waitMs?: number;
 }
 
 interface FPALine {
