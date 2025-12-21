@@ -312,7 +312,9 @@
 </svelte:head>
 
 <div
-  class="absolute top-0 left-0 w-full bg-neutral-100 dark:bg-neutral-950 shadow-md flex flex-row justify-between items-center px-6 py-4 border-b-[0.75px] border-[#b300e6]"
+  class="absolute top-0 left-0 w-full bg-neutral-100 dark:bg-neutral-950 shadow-md flex flex-row justify-between items-center px-6 h-16 border-b-[0.75px] border-[#b300e6]"
+  role="banner"
+  aria-label="Main navigation"
 >
   <div class="font-semibold flex flex-row justify-start items-start">
     <div>Pedro Pathing Visualizer</div>
