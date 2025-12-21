@@ -21,6 +21,32 @@
     const rem = Math.floor(ms % 1000);
     return `${s}.${String(rem).padStart(3, '0')}s`;
   }
+
+  // Ensure each wait line's endPoint matches the previous non-wait path's endPoint (or startPoint)
+  function updateWaitPositions() {
+    if (!lines) return;
+    const newLines = lines.map((l) => ({
+      ...l,
+      // shallow-copy objects to avoid mutating original references
+      endPoint: { ...l.endPoint },
+      controlPoints: l.controlPoints ? l.controlPoints.map((p) => ({ ...p })) : [],
+    }));
+
+    for (let i = 0; i < newLines.length; i++) {
+      const l = newLines[i] as any;
+      if (l && l.waitMs !== undefined) {
+        // find previous non-wait line
+        let j = i - 1;
+        while (j >= 0 && (newLines[j] as any).waitMs !== undefined) j--;
+        const source = j >= 0 ? (newLines[j] as any).endPoint : startPoint;
+        if (source) {
+          l.endPoint = { ...source };
+        }
+      }
+    }
+
+    lines = newLines;
+  }
 </script>
 
 <div class="flex-1 flex flex-shrink-0 flex-col justify-start items-center gap-2 h-full overflow-y-auto">
@@ -145,8 +171,10 @@
                 title="Remove Line"
                 on:click={() => {
                   let _lns = lines;
-                  lines.splice(idx, 1);
+                  _lns.splice(idx, 1);
                   lines = _lns;
+                  // ensure waits still reference the correct preceding path
+                  updateWaitPositions();
                 }}
               >
                 <svg
@@ -164,6 +192,38 @@
                 </svg>
               </button>
             {/if}
+            <button
+              title="Move Up"
+              on:click={() => {
+                if (idx <= 0) return;
+                const _lns = lines.slice();
+                const tmp = _lns[idx - 1];
+                _lns[idx - 1] = _lns[idx];
+                _lns[idx] = tmp;
+                lines = _lns;
+                updateWaitPositions();
+              }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} class="size-5 stroke-yellow-400">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+              </svg>
+            </button>
+            <button
+              title="Move Down"
+              on:click={() => {
+                if (idx >= lines.length - 1) return;
+                const _lns = lines.slice();
+                const tmp = _lns[idx + 1];
+                _lns[idx + 1] = _lns[idx];
+                _lns[idx] = tmp;
+                lines = _lns;
+                updateWaitPositions();
+              }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} class="size-5 stroke-yellow-400">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
           </div>
         </div>
         <div class={`h-[0.75px] w-full`} style={`background: ${line.color}`} />

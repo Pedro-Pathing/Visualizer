@@ -73,14 +73,19 @@
     public static class Paths {
       ${lines.map((line, idx) => {
           const variableName = line.name ? line.name.replace(/[^a-zA-Z0-9]/g, '') : `line${idx + 1}`;
-          return `public PathChain ${variableName};`
+          // declare waits as doubles, paths as PathChain
+          return line.waitMs !== undefined ? `public double ${variableName};` : `public PathChain ${variableName};`;
                               }
                       ).join("\n")
       }
       public Paths(Follower follower) {
         ${lines.map((line, idx) => {
           const variableName = line.name ? line.name.replace(/[^a-zA-Z0-9]/g, '') : `line${idx + 1}`;
-          return `${variableName} = follower.pathBuilder().addPath(
+          if (line.waitMs !== undefined) {
+            // assign wait duration (ms) to double
+            return `${variableName} = ${Number(line.waitMs)};`;
+          } else {
+            return `${variableName} = follower.pathBuilder().addPath(
           ${line.controlPoints.length === 0 ? `new BezierLine` : `new BezierCurve`}(
             ${
                                       idx === 0
@@ -101,7 +106,8 @@
           )
         ).${headingTypeToFunctionName[line.endPoint.heading]}(${line.endPoint.heading === "constant" ? `Math.toRadians(${line.endPoint.degrees})` : line.endPoint.heading === "linear" ? `Math.toRadians(${line.endPoint.startDeg}), Math.toRadians(${line.endPoint.endDeg})` : ""})
         ${line.endPoint.reverse ? ".setReversed(true)" : ""}
-        .build();`
+        .build();`;
+          }
                               }
                       )
                       .join("\n\n")};
