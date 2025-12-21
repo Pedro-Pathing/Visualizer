@@ -2542,9 +2542,9 @@ $: canRedo = redoStack.length > 0;
   </div>
 {/if}
 
-<div class="w-screen h-screen pt-16 pb-2 px-0 flex flex-row items-stretch overflow-hidden">
+<div class="app-root w-screen h-screen pt-16 pb-0 px-0 flex flex-row items-stretch overflow-hidden">
   <!-- LEFT: Field — flush to left, square sized by viewport height -->
-  <div class="flex-shrink-0" style="height:calc(100vh - 4rem); width:calc(100vh - 4rem);">
+  <div class="flex-shrink-0" style="height:calc(100vh - 4rem - 6px); width:calc(100vh - 4rem - 6px);">
     <div bind:this={fieldContainer} class="h-full w-full relative">
       <div bind:this={twoElement} class="w-full h-full bg-transparent relative overflow-visible">
         <img
