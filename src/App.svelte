@@ -56,6 +56,7 @@
   } from "./config";
   import { loadSettings, saveSettings } from "./utils/settingsPersistence";
   import { exportPathToGif } from "./utils/exportGif";
+  import * as browserFileStore from "./utils/browserFileStore";
   import { onMount, tick } from "svelte";
   import { debounce } from "lodash";
   import { createHistory, type AppState } from "./utils/history";
@@ -1180,12 +1181,8 @@
       // Cache the uploaded file into the browser-backed store for later access
       try {
         const content = JSON.stringify(data);
-        const mod = await import("./utils/browserFileStore");
-        const store = (mod as any).default;
-        const created = await store.create(file.name, content);
-        console.log("Cached uploaded path into browser store:", created);
-        // Update current file path to the new stored id
-        currentFilePath.set(created.id);
+        await browserFileStore.writeFile(file.name, content);
+        currentFilePath.set(file.name);
       } catch (err) {
         console.warn("Failed to cache uploaded file to store:", err);
       }
