@@ -1,153 +1,76 @@
-// Simple IndexedDB-backed file store for browser uploads.
-// Provides basic CRUD for named text files (path files) with metadata.
+// src/utils/browserFileStore.ts
+// Browser file store for .pp files using localStorage (simple fallback for IndexedDB)
 
-const DB_NAME = "ppv-files-db";
-const STORE_NAME = "files";
-const DB_VERSION = 1;
-
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: "id" });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function promisifyRequest<T = any>(req: IDBRequest<T> | IDBTransaction) {
-  return new Promise<T>((resolve, reject) => {
-    if ((req as IDBRequest).onsuccess !== undefined) {
-      (req as IDBRequest).onsuccess = (ev: any) => resolve(ev.target.result);
-      (req as IDBRequest).onerror = (ev: any) => reject((ev.target as any).error);
-    } else {
-      const tx = req as IDBTransaction;
-      tx.oncomplete = () => resolve(undefined as any);
-      tx.onerror = (ev: any) => reject((ev.target as any).error);
-      tx.onabort = (ev: any) => reject((ev.target as any).error);
-    }
-  });
-}
-
-export interface StoredFile {
-  id: string; // generated id
-  name: string; // filename with extension
-  content: string; // text content
+export interface FileInfo {
+  name: string;
+  path: string;
   size: number;
-  modified: string; // ISO date
+  modified: number;
 }
 
-async function list(): Promise<StoredFile[]> {
-  const db = await openDB();
-  const tx = db.transaction(STORE_NAME, "readonly");
-  const store = tx.objectStore(STORE_NAME);
-  const req = store.getAll();
-  const result = await promisifyRequest<StoredFile[]>(req);
-  tx.commit?.();
-  return result || [];
+const STORAGE_KEY = 'pp_files';
+
+function getFiles(): Record<string, { content: string; modified: number }> {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  return raw ? JSON.parse(raw) : {};
 }
 
-async function read(id: string): Promise<string> {
-  const db = await openDB();
-  const tx = db.transaction(STORE_NAME, "readonly");
-  const store = tx.objectStore(STORE_NAME);
-  const req = store.get(id);
-  const res = await promisifyRequest<StoredFile | undefined>(req);
-  if (!res) throw new Error("File not found");
-  return res.content;
+function saveFiles(files: Record<string, { content: string; modified: number }>) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(files));
 }
 
-function genId(name: string) {
-  return `local:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}:${name}`;
-}
-
-async function create(name: string, content: string): Promise<StoredFile> {
-  const id = genId(name);
-  const file: StoredFile = {
-    id,
+export async function listFiles(): Promise<FileInfo[]> {
+  const files = getFiles();
+  return Object.entries(files).map(([name, { content, modified }]) => ({
     name,
-    content,
-    size: new Blob([content]).size,
-    modified: new Date().toISOString(),
+    path: name,
+    size: content.length,
+    modified,
+  }));
+}
+
+export async function readFile(path: string): Promise<string> {
+  const files = getFiles();
+  if (!(path in files)) throw new Error('File not found');
+  return files[path].content;
+}
+
+export async function writeFile(path: string, content: string): Promise<boolean> {
+  const files = getFiles();
+  files[path] = { content, modified: Date.now() };
+  saveFiles(files);
+  return true;
+}
+
+export async function deleteFile(path: string): Promise<boolean> {
+  const files = getFiles();
+  if (!(path in files)) return false;
+  delete files[path];
+  saveFiles(files);
+  return true;
+}
+
+export async function fileExists(path: string): Promise<boolean> {
+  const files = getFiles();
+  return path in files;
+}
+
+export async function renameFile(oldPath: string, newPath: string): Promise<{ success: boolean; newPath: string }> {
+  const files = getFiles();
+  if (!(oldPath in files)) return { success: false, newPath: oldPath };
+  if (newPath in files) return { success: false, newPath };
+  files[newPath] = { ...files[oldPath], modified: Date.now() };
+  delete files[oldPath];
+  saveFiles(files);
+  return { success: true, newPath };
+}
+
+export async function getDirectoryStats(): Promise<{ totalFiles: number; totalSize: number; lastModified: number }> {
+  const files = getFiles();
+  const all = Object.values(files);
+  return {
+    totalFiles: all.length,
+    totalSize: all.reduce((sum, f) => sum + f.content.length, 0),
+    lastModified: all.reduce((max, f) => Math.max(max, f.modified), 0),
   };
-  // Enforce max of 3 files: if adding would exceed, remove the oldest file
-  const existing = await list();
-  if (existing.length >= 3) {
-    // find oldest by modified
-    const sorted = existing.slice().sort((a, b) => new Date(a.modified).getTime() - new Date(b.modified).getTime());
-    const oldest = sorted[0];
-    if (oldest) {
-      await del(oldest.id);
-    }
-  }
-  const db = await openDB();
-  const tx = db.transaction(STORE_NAME, "readwrite");
-  tx.objectStore(STORE_NAME).add(file);
-  await promisifyRequest(tx);
-  return file;
 }
-
-async function update(id: string, content: string): Promise<StoredFile> {
-  const db = await openDB();
-  const tx = db.transaction(STORE_NAME, "readwrite");
-  const store = tx.objectStore(STORE_NAME);
-  const existing = await promisifyRequest<StoredFile | undefined>(store.get(id));
-  if (!existing) throw new Error("File not found");
-  existing.content = content;
-  existing.size = new Blob([content]).size;
-  existing.modified = new Date().toISOString();
-  store.put(existing);
-  await promisifyRequest(tx);
-  return existing;
-}
-
-async function del(id: string): Promise<void> {
-  const db = await openDB();
-  const tx = db.transaction(STORE_NAME, "readwrite");
-  tx.objectStore(STORE_NAME).delete(id);
-  await promisifyRequest(tx);
-}
-
-async function exists(name: string): Promise<boolean> {
-  const all = await list();
-  return all.some((f) => f.name === name);
-}
-
-async function rename(id: string, newName: string): Promise<StoredFile> {
-  const db = await openDB();
-  const tx = db.transaction(STORE_NAME, "readwrite");
-  const store = tx.objectStore(STORE_NAME);
-  const rec = await promisifyRequest<StoredFile | undefined>(store.get(id));
-  if (!rec) throw new Error("File not found");
-  rec.name = newName;
-  rec.modified = new Date().toISOString();
-  store.put(rec);
-  await promisifyRequest(tx);
-  return rec;
-}
-
-async function stats(): Promise<{ totalFiles: number; totalSize: number; lastModified: Date }> {
-  const all = await list();
-  const totalFiles = all.length;
-  const totalSize = all.reduce((s, f) => s + (f.size || 0), 0);
-  const lastModified = all.reduce((d, f) => {
-    const m = new Date(f.modified);
-    return m > d ? m : d;
-  }, new Date(0));
-  return { totalFiles, totalSize, lastModified };
-}
-
-export default {
-  list,
-  read,
-  create,
-  update,
-  delete: del,
-  exists,
-  rename,
-  stats,
-};

@@ -1,4 +1,6 @@
-<!-- Removed Electron preload typings; browser-only file store is used instead -->
+<script lang="ts" context="module">
+
+</script>
 
 <script lang="ts">
   import { onMount, afterUpdate, onDestroy } from "svelte";
@@ -6,8 +8,13 @@
   import { cubicInOut } from "svelte/easing";
   import { fade, fly } from "svelte/transition";
   import type { FileInfo, Point, Line, Shape, SequenceItem } from "../types";
+  import * as browserFileStore from "../utils/browserFileStore";
   import { currentFilePath, isUnsaved } from "../stores";
   import { getRandomColor } from "../utils";
+  import {
+    saveAutoPathsDirectory,
+    getSavedAutoPathsDirectory,
+  } from "../utils/directorySettings";
 
   export let isOpen = false;
   export let startPoint: Point;
@@ -35,10 +42,7 @@
   // Add file type filtering
   const supportedFileTypes = [".pp"];
 
-  import fileStore from "../utils/browserFileStore";
 
-  // Use browser file store for uploads/persistence instead of Electron FS
-  const store = fileStore;
 
   // Helper to get error message from unknown error type
   function getErrorMessage(error: unknown): string {
@@ -78,16 +82,14 @@
   }
 
   // Debug logging
-  console.log("[FileManager] Component initialized (browser file store)");
+  console.log("[FileManager] Component initialized");
 
-  // Loads files from browser store
   async function loadDirectory() {
     loading = true;
     errorMessage = "";
     try {
       await refreshDirectory();
     } catch (error) {
-      console.error("Error loading files:", error);
       errorMessage = `Failed to load files: ${getErrorMessage(error)}`;
     } finally {
       loading = false;
@@ -96,32 +98,47 @@
 
   async function refreshDirectory() {
     try {
-      const stats = await store.stats();
+      // Get directory stats
+      const stats = await browserFileStore.getDirectoryStats();
       if (stats) {
-        directoryStats = stats;
+        directoryStats = {
+          totalFiles: stats.totalFiles,
+          totalSize: stats.totalSize,
+          lastModified: new Date(stats.lastModified),
+        };
       }
 
-      const allFiles = await store.list();
+      // List files
+      const allFiles = await browserFileStore.listFiles();
+
+      // Filter for supported file types and add error handling
       files = allFiles
-        .map((f) => ({
-          name: f.name,
-          path: f.id,
-          size: f.size,
-          modified: new Date(f.modified),
-        }))
-        .filter((file) => supportedFileTypes.includes(path.extname(file.name).toLowerCase()));
+        .map((file) => {
+          const fileExt = path.extname(file.name).toLowerCase();
+          const isSupported = supportedFileTypes.includes(fileExt);
+
+          return {
+            name: file.name,
+            path: file.path,
+            size: file.size,
+            modified: new Date((file as any).modified),
+            error: isSupported ? undefined : `Unsupported file type: ${fileExt}`,
+          } as FileInfo;
+        })
+        .filter((file) =>
+          supportedFileTypes.includes(path.extname(file.name).toLowerCase()),
+        );
 
       errorMessage = "";
     } catch (error) {
-      console.error("Error refreshing files:", error);
-      errorMessage = `Error reading files: ${getErrorMessage(error)}`;
+      errorMessage = `Error accessing files: ${getErrorMessage(error)}`;
       files = [];
     }
   }
 
-  // No-op: directory selection removed for browser builds
-  async function changeDirectory() {
-    showToast("Directory selection not supported in browser. Use Upload.", "info");
+  // Directory logic is not needed in browser mode
+  function changeDirectory() {
+    showToast("Directory selection is not available in browser mode.", "info");
   }
 
   // NEW: Start renaming a file
@@ -151,7 +168,7 @@
     const newFilePath = newFileName;
 
     // Don't rename if same name
-    if (newFileName === renamingFile.name) {
+    if (newFilePath === renamingFile.path) {
       cancelRename();
       return;
     }
@@ -167,26 +184,34 @@
 
     try {
       // Check if new file already exists
-      const exists = await store.exists(newFileName);
+      const exists = await browserFileStore.fileExists(newFilePath);
       if (exists) {
         showToast(`File "${newFileName}" already exists`, "error");
         return;
       }
-      // Perform the rename (keeps same id)
-      const updated = await store.rename(renamingFile.path, newFileName);
-      if (selectedFile && selectedFile.path === renamingFile.path) {
-        selectedFile = {
-          ...selectedFile,
-          name: updated.name,
-        };
-        currentFilePath.set(selectedFile.path);
-      }
 
-      showToast(`Renamed to: ${newFileName}`, "success");
-      await refreshDirectory();
-      cancelRename();
+      // Perform the rename
+      const result = await browserFileStore.renameFile(
+        renamingFile.path,
+        newFilePath,
+      );
+
+      if (result.success) {
+        // Update selected file if it was the renamed one
+        if (selectedFile && selectedFile.path === renamingFile.path) {
+          selectedFile = {
+            ...selectedFile,
+            name: newFileName,
+            path: newFilePath,
+          };
+          currentFilePath.set(newFilePath);
+        }
+
+        showToast(`Renamed to: ${newFileName}`, "success");
+        await refreshDirectory();
+        cancelRename();
+      }
     } catch (error) {
-      console.error("Error renaming file:", error);
       showToast(`Failed to rename: ${getErrorMessage(error)}`, "error");
     }
   }
@@ -198,7 +223,7 @@
     }
 
     try {
-      const content = await store.read(file.path);
+      const content = await browserFileStore.readFile(file.path);
       const data = JSON.parse(content);
 
       // Validate the loaded data
@@ -221,7 +246,6 @@
 
       showToast(`Loaded: ${file.name}`, "success");
     } catch (error) {
-      console.error("Error loading file:", error);
       const errMsg = getErrorMessage(error);
       const message = errMsg.includes("Invalid file format")
         ? "Invalid file format. This may not be a valid path file."
@@ -248,14 +272,12 @@
         timestamp: new Date().toISOString(),
       });
 
-      // Update existing stored file
-      await store.update(selectedFile.path, content);
+      await browserFileStore.writeFile(selectedFile.path, content);
       await refreshDirectory();
 
       isUnsaved.set(false);
       showToast(`Saved: ${selectedFile.name}`, "success");
     } catch (error) {
-      console.error("Error saving file:", error);
       errorMessage = `Failed to save file: ${getErrorMessage(error)}`;
       showToast("Failed to save file", "error");
     }
@@ -270,7 +292,7 @@
     const fileName = newFileName.endsWith(".pp")
       ? newFileName
       : newFileName + ".pp";
-    const filePath = path.join(currentDirectory, fileName);
+    const filePath = fileName;
 
     // Validate file name
     if (!/^[a-zA-Z0-9_\-. ]+\.pp$/.test(fileName)) {
@@ -283,32 +305,9 @@
 
     try {
       // Check if file exists
-      const exists = await store.exists(fileName);
+      const exists = await browserFileStore.fileExists(filePath);
       if (exists) {
         if (!confirm(`File "${fileName}" already exists. Overwrite?`)) {
-          return;
-        }
-        // Find existing file record and update instead of creating a duplicate
-        const all = await store.list();
-        const existing = all.find((f: any) => f.name === fileName);
-        if (existing) {
-          await store.update(existing.id, JSON.stringify({
-            startPoint,
-            lines: normalizeLines(lines),
-            shapes,
-            sequence,
-            version: "1.2.1",
-            timestamp: new Date().toISOString(),
-          }));
-          creatingNewFile = false;
-          newFileName = "";
-          await refreshDirectory();
-          selectedFile = files.find((f) => f.path === existing.id) || null;
-          if (selectedFile) {
-            currentFilePath.set(selectedFile.path);
-            isUnsaved.set(false);
-            showToast(`Overwrote: ${fileName}`, "success");
-          }
           return;
         }
       }
@@ -323,13 +322,14 @@
         timestamp: new Date().toISOString(),
       });
 
-      const created = await store.create(fileName, content);
+      await browserFileStore.writeFile(filePath, content);
+
       creatingNewFile = false;
       newFileName = "";
       await refreshDirectory();
 
-      // Select the new file
-      selectedFile = files.find((f) => f.path === created.id) || null;
+      // Automatically "load" the new file into state
+      selectedFile = files.find((f) => f.name === fileName) || null;
       if (selectedFile) {
         currentFilePath.set(selectedFile.path);
         isUnsaved.set(false);
@@ -342,39 +342,6 @@
     }
   }
 
-  // Handle file uploads from user (import .pp files)
-  async function handleUpload(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (!input || !input.files) return;
-    const fileList = Array.from(input.files);
-    for (const file of fileList) {
-      try {
-        const text = await file.text();
-        const name = file.name;
-        if (!supportedFileTypes.includes(path.extname(name).toLowerCase())) {
-          showToast(`Skipped unsupported file: ${name}`, "warning");
-          continue;
-        }
-        // Save to store (if exists, append suffix)
-        let targetName = name;
-        let counter = 1;
-        while (await store.exists(targetName)) {
-          const base = name.replace(/\.pp$/i, "");
-          targetName = `${base}_${counter}.pp`;
-          counter++;
-        }
-        await store.create(targetName, text);
-        showToast(`Imported: ${targetName}`, "success");
-      } catch (err) {
-        console.error("Upload failed:", err);
-        showToast(`Failed to import ${file.name}`, "error");
-      }
-    }
-    // Clear input
-    input.value = "";
-    await refreshDirectory();
-  }
-
   async function deleteFile(file: FileInfo) {
     if (
       !confirm(
@@ -385,7 +352,7 @@
     }
 
     try {
-      await store.delete(file.path);
+      await browserFileStore.deleteFile(file.path);
 
       if (selectedFile?.path === file.path) {
         selectedFile = null;
@@ -408,7 +375,7 @@
     }
 
     try {
-      const content = await store.read(selectedFile.path);
+      const content = await browserFileStore.readFile(selectedFile.path);
       const data = JSON.parse(content);
 
       // Add "Copy" suffix to the name in the data
@@ -421,14 +388,19 @@
       let counter = 1;
 
       // Find a unique name
-      while (await store.exists(newFileName)) {
+      while (
+        await browserFileStore.fileExists(newFileName)
+      ) {
         newFileName = `${baseName}_copy${counter}.pp`;
         counter++;
       }
+
+      const newFilePath = newFileName;
+
       const normalizedLines = normalizeLines(data.lines || []);
       const sequenceData = deriveSequence(data, normalizedLines);
-      const created = await store.create(
-        newFileName,
+      await browserFileStore.writeFile(
+        newFilePath,
         JSON.stringify(
           {
             ...data,
@@ -442,7 +414,7 @@
       await refreshDirectory();
 
       // Select the new file
-      const newFile = files.find((f) => f.path === created.id);
+      const newFile = files.find((f) => f.name === newFileName);
       if (newFile) {
         selectedFile = newFile;
         currentFilePath.set(newFile.path);
@@ -464,7 +436,7 @@
     }
 
     try {
-      const content = await store.read(selectedFile.path);
+      const content = await browserFileStore.readFile(selectedFile.path);
       const data = JSON.parse(content);
 
       // Mirror the path data
@@ -477,15 +449,22 @@
       let counter = 1;
 
       // Find a unique name
-      while (await store.exists(newFileName)) {
+      while (
+        await browserFileStore.fileExists(newFileName)
+      ) {
         newFileName = `${baseName}_mirrored${counter}.pp`;
         counter++;
       }
-      const created = await store.create(newFileName, JSON.stringify(mirroredData, null, 2));
+
+      const newFilePath = newFileName;
+      await browserFileStore.writeFile(
+        newFilePath,
+        JSON.stringify(mirroredData, null, 2),
+      );
       await refreshDirectory();
 
       // Select the new file
-      const newFile = files.find((f) => f.path === created.id);
+      const newFile = files.find((f) => f.name === newFileName);
       if (newFile) {
         selectedFile = newFile;
         currentFilePath.set(newFile.path);
@@ -636,15 +615,8 @@
   }
 
   onMount(() => {
-    console.log("[FileManager] onMount called");
-    try {
-      loadDirectory();
-      // Add keyboard listener for renaming
-      window.addEventListener("keydown", handleKeyDown);
-      console.log("[FileManager] onMount completed successfully");
-    } catch (error) {
-      console.error("[FileManager] Error in onMount:", error);
-    }
+    loadDirectory();
+    window.addEventListener("keydown", handleKeyDown);
   });
 
   // Clean up event listener
@@ -673,6 +645,14 @@
       transition:fade={{ duration: 300 }}
       class="fixed inset-0 bg-black bg-opacity-50"
       on:click={() => (isOpen = false)}
+      role="button"
+      tabindex="0"
+      aria-label="Close file manager backdrop"
+      on:keydown={(e) => {
+        if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
+          isOpen = false;
+        }
+      }}
     />
   {/if}
 
@@ -715,36 +695,16 @@
       <!-- Directory Info with Stats -->
       <div class="mb-4">
         <div class="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
-          <div class="font-medium mb-1">Storage:</div>
-            <div class="font-mono text-xs bg-neutral-100 dark:bg-neutral-800 p-2 rounded">
-              Browser (IndexedDB)
-            </div>
-        </div>
-      </div>
-
-      <!-- Upload Button -->
-      <div class="mb-3">
-        <label class="w-full flex items-center gap-2">
-          <input
-            type="file"
-            accept=".pp,application/json"
-            multiple
-            on:change={(e) => handleUpload(e)}
-            class="hidden"
-            id="pp-upload"
-          />
-          <button
-            on:click={() => {
-              const uploadInput = document.getElementById('pp-upload');
-              if (uploadInput instanceof HTMLInputElement) {
-                uploadInput.click();
-              }
-            }}
-            class="w-full px-3 py-2 text-sm bg-indigo-500 hover:bg-indigo-600 text-white rounded-md transition-colors flex items-center justify-center gap-2"
+          <div class="font-medium mb-1">Current Directory:</div>
+          <div
+            class="font-mono text-xs bg-neutral-100 dark:bg-neutral-800 p-2 rounded overflow-x-auto whitespace-nowrap"
+            title={currentDirectory}
           >
-            Import Paths
-          </button>
-        </label>
+            {currentDirectory.includes("/GitHub/")
+              ? "..." + currentDirectory.split("/GitHub/")[1]
+              : currentDirectory}
+          </div>
+        </div>
       </div>
 
       <!-- Error Message -->
@@ -756,7 +716,26 @@
         </div>
       {/if}
 
-      <!-- Directory selection removed for browser builds -->
+      <button
+        on:click={changeDirectory}
+        class="w-full px-3 py-2 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors flex items-center justify-center gap-2"
+      >
+        <svg
+          xmlns="http://www.w3.org2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width={2}
+          stroke="currentColor"
+          class="size-4"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776"
+          />
+        </svg>
+        Change Directory
+      </button>
     </div>
 
     <!-- New File Section -->
@@ -888,6 +867,12 @@
             <div
               class="p-3 border-b border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer file-item"
               on:click={() => loadFile(file)}
+              role="button"
+              tabindex="0"
+              on:keydown={(e) => {
+                if (e.key === "Enter" || e.key === " ") loadFile(file);
+              }}
+              aria-label={`Open ${file.name}`}
               class:bg-blue-50={selectedFile?.path === file.path}
               class:dark:bg-blue-900={selectedFile?.path === file.path}
             >

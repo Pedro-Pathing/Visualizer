@@ -73,6 +73,7 @@ export type SequenceWaitItem = {
   id: string;
   name: string;
   durationMs: number;
+  locked?: boolean;
 };
 
 export type SequenceItem = SequencePathItem | SequenceWaitItem;
@@ -94,7 +95,6 @@ export interface Settings {
   showGhostPaths?: boolean; // Show collision overlays via ghost paths
   showOnionLayers?: boolean; // Show robot body at intervals along the path
   onionLayerSpacing?: number; // Distance in inches between onion layers
-  onionNextOnly?: boolean; // If true, onion skinning applies only to the next dot
 }
 
 export interface Shape {

@@ -1,61 +1,47 @@
 {
   "name": "pedro-pathing-visualizer",
   "private": true,
-<<<<<<< Updated upstream
-  "version": "0.0.0",
-=======
-  "version": "1.2.6",
+  "version": "1.2.7",
   "author": "Matthew Allen <allenmc220@gmail.com>",
   "email": "allenmc220@gmail.com",
   "license": "MIT",
   "description": "A better alternative to pedro pathing visualizer",
->>>>>>> Stashed changes
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "version:bump": "node scripts/bump-version.js",
     "build": "vite build",
     "preview": "vite preview",
-<<<<<<< Updated upstream
-    "check": "svelte-check --tsconfig ./tsconfig.json && tsc -p tsconfig.node.json"
-=======
     "check": "svelte-check --tsconfig ./tsconfig.json && tsc -p tsconfig.node.json",
-    "dev": "vite",
-    "start": "vite preview",
+    "dev": "vite dev",
+    "start": "vite dev",
+    "dist": "vite build",
+    "dist:unsigned": "vite build",
+    "dist:all": "vite build",
+    "dist:linux:x64": "vite build",
+    "dist:publish": "node scripts/publish.js",
     "format": "prettier --write ."
->>>>>>> Stashed changes
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^3.1.2",
+    "@sveltejs/vite-plugin-svelte": "^3.1.1",
     "@tsconfig/svelte": "^5.0.4",
     "autoprefixer": "^10.4.20",
-<<<<<<< Updated upstream
-    "hotkeys-js": "^3.13.9",
-=======
     "cli-progress": "^3.12.0",
->>>>>>> Stashed changes
     "postcss": "^8.4.41",
+    "prettier": "^3.7.4",
+    "prettier-plugin-svelte": "^3.4.0",
+    "sass": "^1.97.1",
     "svelte": "^4.2.19",
     "svelte-check": "^3.8.5",
+    "svelte-highlight": "^7.9.0",
     "tailwindcss": "^3.4.9",
     "tslib": "^2.6.3",
-    "typescript": "^5.5.3",
-    "vite": "^5.4.21"
+    "typescript": "^5.3.3",
+    "vite": "^4.4.9"
   },
   "dependencies": {
-    "@types/d3": "^7.4.3",
-    "@types/lodash": "^4.17.7",
-    "d3": "^7.9.0",
-<<<<<<< Updated upstream
-=======
-    "gif.js": "^0.2.0",
->>>>>>> Stashed changes
+    "d3": "^7.8.5",
     "hotkeys-js": "^3.13.9",
     "lodash": "^4.17.21",
-    "prettier": "^3.3.3",
-    "prettier-plugin-java": "^2.6.4",
-    "sass": "^1.77.8",
-    "svelte-copy": "^1.4.2",
-    "svelte-highlight": "^7.7.0",
-    "two.js": "^0.8.14"
+    "two.js": "^0.8.15"
   }
 }

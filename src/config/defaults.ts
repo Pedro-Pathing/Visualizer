@@ -1,5 +1,5 @@
 import type { Point, Line, Shape, Settings } from "../types";
-import { getRandomColor } from "../utils/draw";
+import { getRandomColor } from "../utils";
 
 /**
  * Default robot dimensions
@@ -43,7 +43,6 @@ export const DEFAULT_SETTINGS: Settings = {
   showGhostPaths: false,
   showOnionLayers: false,
   onionLayerSpacing: 6, // inches between each robot body trace
-  onionNextOnly: false, // If true, onion skinning applies only to the next dot
 };
 
 /**

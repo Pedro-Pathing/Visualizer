@@ -15,40 +15,24 @@ export interface SaveData {
 /**
  * Download trajectory data as a .pp file
  */
-export async function downloadTrajectory(
+export function downloadTrajectory(
   startPoint: Point,
   lines: Line[],
   shapes: Shape[],
   sequence?: SequenceItem[],
-): Promise<string | null> {
-  // Save trajectory into browser IndexedDB store (no download)
+): void {
   const jsonString = JSON.stringify({ startPoint, lines, shapes, sequence });
-  try {
-    const mod = await import("./browserFileStore");
-    const store = (mod as any).default;
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const name = `path-${timestamp}.pp`;
-    const created = await store.create(name, jsonString);
-    console.log("Saved trajectory to browser store:", created);
-    return created.id;
-  } catch (err) {
-    console.error("Failed to save trajectory to store:", err);
-    // Fallback to download if store fails
-    try {
-      const blob = new Blob([jsonString], { type: "application/json" });
-      const linkObj = document.createElement("a");
-      const url = URL.createObjectURL(blob);
-      linkObj.href = url;
-      linkObj.download = "trajectory.pp";
-      document.body.appendChild(linkObj);
-      linkObj.click();
-      document.body.removeChild(linkObj);
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error("Fallback download failed:", e);
-    }
-    return null;
-  }
+  const blob = new Blob([jsonString], { type: "application/json" });
+  const linkObj = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+
+  linkObj.href = url;
+  linkObj.download = "trajectory.pp";
+
+  document.body.appendChild(linkObj);
+  linkObj.click();
+  document.body.removeChild(linkObj);
+  URL.revokeObjectURL(url);
 }
 
 /**

@@ -20,25 +20,50 @@ code.hljs {
 }
 
 @font-face {
-  font-family: 'Poppins';
-  src: url('/fonts/Poppins-ExtraLight.ttf') format('truetype');
+  font-family: "Poppins";
+  src: url("/fonts/Poppins-ExtraLight.ttf") format("truetype");
   font-weight: 200;
 }
 
 @font-face {
-  font-family: 'Poppins';
-  src: url('/fonts/Poppins-Light.ttf') format('truetype');
+  font-family: "Poppins";
+  src: url("/fonts/Poppins-Light.ttf") format("truetype");
   font-weight: 300;
 }
 
 @font-face {
-  font-family: 'Poppins';
-  src: url('/fonts/Poppins-Regular.ttf') format('truetype');
+  font-family: "Poppins";
+  src: url("/fonts/Poppins-Regular.ttf") format("truetype");
   font-weight: 400;
 }
 
 @font-face {
-  font-family: 'Poppins';
-  src: url('/fonts/Poppins-SemiBold.ttf') format('truetype');
+  font-family: "Poppins";
+  src: url("/fonts/Poppins-SemiBold.ttf") format("truetype");
   font-weight: 600;
+}
+
+/* Prevent selection on all field elements */
+.two-element-container * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Allow selection only in control areas */
+.control-tab *,
+.navbar * {
+  user-select: auto;
+  -webkit-user-select: auto;
+  -moz-user-select: auto;
+  -ms-user-select: auto;
+}
+
+/* Prevent image dragging globally for field images */
+img[alt="Field"],
+img[alt="Robot"] {
+  pointer-events: none !important;
+  user-drag: none !important;
+  -webkit-user-drag: none !important;
 }

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html class="h-full w-full" lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -14,7 +14,10 @@
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("sw.js").then(
           (registration) => {
-            console.log("Service worker registration successful:", registration);
+            console.log(
+              "Service worker registration successful:",
+              registration,
+            );
           },
           (error) => {
             console.error(`Service worker registration failed: ${error}`);

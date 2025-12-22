@@ -10,7 +10,10 @@ interface StoredSettings {
   lastUpdated: string;
 }
 
-const STORAGE_KEY = "ppv.settings";
+
+
+
+const SETTINGS_STORAGE_KEY = "pedro_settings";
 
 function migrateSettings(stored: Partial<StoredSettings>): Settings {
   const defaults = { ...DEFAULT_SETTINGS };
@@ -34,27 +37,24 @@ function migrateSettings(stored: Partial<StoredSettings>): Settings {
   return migrated;
 }
 
-// Load settings from file
+// Load settings from localStorage
 export async function loadSettings(): Promise<Settings> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_SETTINGS };
-    const stored: StoredSettings = JSON.parse(raw);
-
-    if (stored.version !== SETTINGS_VERSION) {
-      console.log(
-        `Migrating settings from version ${stored.version} to ${SETTINGS_VERSION}`,
-      );
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!raw) {
+      return { ...DEFAULT_SETTINGS };
     }
-
+    const stored: StoredSettings = JSON.parse(raw);
+    if (stored.version !== SETTINGS_VERSION) {
+      // Optionally handle migration here
+    }
     return migrateSettings(stored);
   } catch (error) {
-    console.error("Error loading settings:", error);
     return { ...DEFAULT_SETTINGS };
   }
 }
 
-// Save settings to file
+// Save settings to localStorage
 export async function saveSettings(settings: Settings): Promise<boolean> {
   try {
     const stored: StoredSettings = {
@@ -62,11 +62,9 @@ export async function saveSettings(settings: Settings): Promise<boolean> {
       settings: { ...settings },
       lastUpdated: new Date().toISOString(),
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-    console.log("Settings saved successfully");
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(stored));
     return true;
   } catch (error) {
-    console.error("Error saving settings:", error);
     return false;
   }
 }
@@ -78,6 +76,7 @@ export async function resetSettings(): Promise<Settings> {
   return defaults;
 }
 
+// Check if settings exist in localStorage
 export async function settingsFileExists(): Promise<boolean> {
-  return localStorage.getItem(STORAGE_KEY) !== null;
+  return !!localStorage.getItem(SETTINGS_STORAGE_KEY);
 }
