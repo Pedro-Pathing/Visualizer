@@ -52,10 +52,13 @@
     )
       return _markers;
 
+    // For each travel event, place the marker at the time the robot is ON the path point
+    // (i.e., arrival time / endTime of the travel segment) so seeking to the marker
+    // will position the robot exactly on that path point.
     timePrediction.timeline.forEach((ev) => {
       if ((ev as any).type === "travel") {
-        const start = (ev as any).startTime as number;
-        const pct = (start / timePrediction.totalTime) * 100;
+        const end = (ev as any).endTime as number;
+        const pct = (end / timePrediction.totalTime) * 100;
         const lineIndex = (ev as any).lineIndex as number;
         const line = lines[lineIndex];
         const color = line?.color || "#ffffff";

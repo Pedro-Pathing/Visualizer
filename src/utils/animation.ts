@@ -509,7 +509,7 @@ export function generateOnionLayers(
   robotWidth: number,
   robotHeight: number,
   spacing: number = 6,
-): Array<{ x: number; y: number; heading: number; corners: BasePoint[] }> {
+): Array<{ x: number; y: number; heading: number; corners: BasePoint[]; lineIndex: number }> {
   if (lines.length === 0) return [];
 
   const layers: Array<{
@@ -523,7 +523,8 @@ export function generateOnionLayers(
   let totalLength = 0;
   let currentLineStart = startPoint;
 
-  for (const line of lines) {
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
     const curvePoints = [
       currentLineStart,
       ...line.controlPoints,
@@ -556,7 +557,8 @@ export function generateOnionLayers(
   let accumulatedLength = 0;
   let nextLayerDistance = spacing;
 
-  for (const line of lines) {
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
     const curvePoints = [
       currentLineStart,
       ...line.controlPoints,
@@ -624,6 +626,7 @@ export function generateOnionLayers(
           y: robotPosInches.y,
           heading: heading,
           corners: corners,
+          lineIndex: li,
         });
 
         nextLayerDistance += spacing;

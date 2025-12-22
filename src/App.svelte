@@ -553,13 +553,40 @@
 
     if (settings.showOnionLayers && lines.length > 0) {
       const spacing = settings.onionLayerSpacing || 6;
-      const layers = generateOnionLayers(
+      let layers = generateOnionLayers(
         startPoint,
         lines,
         settings.rWidth,
         settings.rHeight,
         spacing,
       );
+
+      // If user requested onion layers only for the next point, filter to the relevant line
+      if (settings.onionNextPointOnly && timePrediction && timePrediction.timeline) {
+        const currentTime = (timePrediction.totalTime || 0) * (percent / 100);
+        const travelEvents = (timePrediction.timeline || []).filter(
+          (ev) => ev.type === "travel",
+        );
+
+        let selectedLineIndex: number | null = null;
+
+        // Current travel segment
+        const currentTravel = travelEvents.find(
+          (ev) => ev.startTime <= currentTime && ev.endTime >= currentTime,
+        );
+        if (currentTravel) {
+          selectedLineIndex = currentTravel.lineIndex as number;
+        } else {
+          // Next upcoming travel segment
+          const nextTravel = travelEvents.find((ev) => ev.startTime > currentTime);
+          if (nextTravel) selectedLineIndex = nextTravel.lineIndex as number;
+          else if (travelEvents.length) selectedLineIndex = travelEvents[travelEvents.length - 1].lineIndex as number;
+        }
+
+        if (selectedLineIndex !== null) {
+          layers = layers.filter((l: any) => l.lineIndex === selectedLineIndex);
+        }
+      }
 
       layers.forEach((layer, idx) => {
         // Create a rectangle from the robot corners

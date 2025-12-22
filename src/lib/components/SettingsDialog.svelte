@@ -841,12 +841,26 @@
                     Show robot body at intervals along the path
                   </div>
                 </div>
-                <input
-                  type="checkbox"
-                  bind:checked={settings.showOnionLayers}
-                  class="w-5 h-5 rounded border-neutral-300 dark:border-neutral-600 text-indigo-500 focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                  title="Enable robot onion layer visualization"
-                />
+
+                <!-- Main toggle + small next-point-only toggle next to it -->
+                <div class="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    bind:checked={settings.showOnionLayers}
+                    class="w-5 h-5 rounded border-neutral-300 dark:border-neutral-600 text-indigo-500 focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    title="Enable robot onion layer visualization"
+                  />
+
+                  <label class="flex items-center gap-2 text-xs text-neutral-600 dark:text-neutral-400">
+                    <input
+                      type="checkbox"
+                      bind:checked={settings.onionNextPointOnly}
+                      class="w-4 h-4 rounded border-neutral-300 dark:border-neutral-600 text-indigo-500 focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                      title="Limit onion layers to the next point (UI-only for now)"
+                    />
+                    <span>Next Point Only</span>
+                  </label>
+                </div>
               </div>
 
               <!-- Onion Layer Spacing -->
@@ -882,6 +896,8 @@
                   </div>
                 </div>
               {/if}
+
+              <!-- (moved Next-Point Only toggle next to the main onion toggle) -->
 
               <svg
                 xmlns="http://www.w3.org/2000/svg"

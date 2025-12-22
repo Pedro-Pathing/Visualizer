@@ -43,6 +43,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showGhostPaths: false,
   showOnionLayers: false,
   onionLayerSpacing: 6, // inches between each robot body trace
+  onionNextPointOnly: false,
 };
 
 /**
