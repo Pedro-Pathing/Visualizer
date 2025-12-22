@@ -17,8 +17,66 @@
     radiansToDegrees,
     shortestRotation,
   } from "./utils";
+<<<<<<< Updated upstream
   import hotkeys from 'hotkeys-js';
 
+=======
+  import {
+    POINT_RADIUS,
+    LINE_WIDTH,
+    DEFAULT_ROBOT_WIDTH,
+    DEFAULT_ROBOT_HEIGHT,
+    DEFAULT_SETTINGS,
+    FIELD_SIZE,
+    getDefaultStartPoint,
+    getDefaultLines,
+    getDefaultShapes,
+  } from "./config";
+  import { loadSettings, saveSettings } from "./utils/settingsPersistence";
+  import { exportPathToGif } from "./utils/exportGif";
+  import { onMount, tick } from "svelte";
+  import { debounce } from "lodash";
+  import { createHistory, type AppState } from "./utils/history";
+  // Small toast helper for quick user feedback
+  function toast(message: string, type: "success" | "error" | "info" = "info") {
+    const toast = document.createElement("div");
+    toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-md shadow-lg z-[1100] ${
+      type === "success" ? "bg-green-500 text-white" : "bg-blue-500 text-white"
+    }`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = "0";
+      toast.style.transition = "opacity 0.3s";
+      setTimeout(() => toast.remove(), 300);
+    }, 2000);
+  }
+  import fileStore from "./utils/browserFileStore";
+  const store = fileStore;
+
+  function normalizeLines(input: Line[]): Line[] {
+    return (input || []).map((line) => ({
+      ...line,
+      id: line.id || `line-${Math.random().toString(36).slice(2)}`,
+      controlPoints: line.controlPoints || [],
+      eventMarkers: line.eventMarkers || [],
+      color: line.color || getRandomColor(),
+      name: line.name || "",
+      waitBeforeMs: Math.max(
+        0,
+        Number(line.waitBeforeMs ?? line.waitBefore?.durationMs ?? 0),
+      ),
+      waitAfterMs: Math.max(
+        0,
+        Number(line.waitAfterMs ?? line.waitAfter?.durationMs ?? 0),
+      ),
+      waitBeforeName: line.waitBeforeName ?? line.waitBefore?.name ?? "",
+      waitAfterName: line.waitAfterName ?? line.waitAfter?.name ?? "",
+    }));
+  }
+
+  // Canvas state
+>>>>>>> Stashed changes
   let two: Two;
   let twoElement: HTMLDivElement;
 
@@ -265,6 +323,7 @@
         if (startPoint.heading === "constant") robotHeading = -((startPoint as any).degrees ?? 0);
         else if (startPoint.heading === "linear") robotHeading = -shortestRotation(startPoint.startDeg, startPoint.endDeg, 1);
       }
+<<<<<<< Updated upstream
     } else {
     switch (currentLine.endPoint.heading) {
       case "linear":
@@ -272,6 +331,41 @@
           currentLine.endPoint.startDeg,
           currentLine.endPoint.endDeg,
           linePercent
+=======
+    }
+
+    return ghostPath;
+  })();
+
+  $: onionLayerElements = (() => {
+    let onionLayers: Path[] = [];
+
+    if (settings.showOnionLayers && lines.length > 0) {
+      const spacing = settings.onionLayerSpacing || 6;
+      const layers = generateOnionLayers(
+        startPoint,
+        settings.onionNextOnly ? [lines[0]] : lines, // Apply to next dot if setting is true
+        settings.rWidth,
+        settings.rHeight,
+        spacing,
+      );
+
+      layers.forEach((layer, idx) => {
+        // Create a rectangle from the robot corners
+        let vertices = [];
+
+        // Create path from corners: front-left -> front-right -> back-right -> back-left
+        vertices.push(
+          new Two.Anchor(
+            x(layer.corners[0].x),
+            y(layer.corners[0].y),
+            0,
+            0,
+            0,
+            0,
+            Two.Commands.move,
+          ),
+>>>>>>> Stashed changes
         );
         break;
       case "constant":
@@ -293,7 +387,30 @@
           robotHeading = radiansToDegrees(angle);
         }
 
+<<<<<<< Updated upstream
         break;
+=======
+  // Save Function
+  async function saveProject() {
+    if ($currentFilePath && $currentFilePath.startsWith("local:")) {
+      try {
+        const jsonString = JSON.stringify({
+          startPoint,
+          lines,
+          sequence,
+          shapes,
+          settings,
+        });
+        await store.update($currentFilePath, jsonString);
+        isUnsaved.set(false);
+        console.log("Saved to", $currentFilePath);
+      } catch (e) {
+        console.error("Failed to save", e);
+        alert("Failed to save file.");
+      }
+    } else {
+      saveFile();
+>>>>>>> Stashed changes
     }
     }
   }
@@ -317,6 +434,20 @@
 
     two.update();
   })();
+<<<<<<< Updated upstream
+=======
+  function saveFileAs() {
+    (async () => {
+      const id = await downloadTrajectory(startPoint, lines, shapes, sequence);
+      if (id) {
+        currentFilePath.set(id);
+        toast(`Saved to local storage`, "success");
+      } else {
+        toast(`Saved (download)`, "info");
+      }
+    })();
+  }
+>>>>>>> Stashed changes
 
 let playing = false;
 
@@ -346,6 +477,7 @@ function animate(timestamp: number) {
     return;
   }
 
+<<<<<<< Updated upstream
   // Calculate elapsed ms since last frame
   const deltaTime = timestamp - previousTime;
   // Move previousTime forward now (keeps delta strictly the time spent since last frame)
@@ -380,6 +512,23 @@ function animate(timestamp: number) {
       } else {
         sum += motionMsPerLine * frac;
       }
+=======
+      // Browser download fallback
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "path.gif";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      notif.textContent = "GIF export complete";
+      setTimeout(() => notif.remove(), 2000);
+    } catch (err) {
+      alert("Failed to export GIF: " + (err as Error).message);
+      console.error(err);
+>>>>>>> Stashed changes
     }
 
     return sum;
@@ -730,7 +879,20 @@ function pause() {
   });
 
   function saveFile() {
+<<<<<<< Updated upstream
     const jsonString = JSON.stringify({ startPoint, lines});
+=======
+    (async () => {
+      const id = await downloadTrajectory(startPoint, lines, shapes, sequence);
+      if (id) {
+        currentFilePath.set(id);
+        toast(`Saved to local storage`, "success");
+      } else {
+        toast(`Saved (download)`, "info");
+      }
+    })();
+  }
+>>>>>>> Stashed changes
 
     const blob = new Blob([jsonString], { type: "application/json" });
 
@@ -738,18 +900,68 @@ function pause() {
 
     const url = URL.createObjectURL(blob);
 
+<<<<<<< Updated upstream
     linkObj.href = url;
     linkObj.download = "trajectory.pp";
 
     document.body.appendChild(linkObj);
 
     linkObj.click();
+=======
+    // Read file and import into browser store
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // Ensure startPoint has all required fields
+      startPoint = data.startPoint || {
+        x: 72,
+        y: 72,
+        heading: "tangential",
+        reverse: false,
+      };
+
+      // Normalize lines with all required fields
+      const normalizedLines = normalizeLines(data.lines || []);
+      lines = normalizedLines;
+
+      // Derive sequence from data or create default
+      sequence = (
+        data.sequence && data.sequence.length
+          ? data.sequence
+          : normalizedLines.map((ln) => ({
+              kind: "path",
+              lineId: ln.id!,
+            }))
+      ) as SequenceItem[];
+
+      shapes = data.shapes || [];
+
+      // Save to browser store and select
+      let targetName = file.name;
+      let counter = 1;
+      while (await store.exists(targetName)) {
+        const base = file.name.replace(/\.pp$/i, "");
+        targetName = `${base}_${counter}.pp`;
+        counter++;
+      }
+      const created = await store.create(targetName, text);
+      currentFilePath.set(created.id);
+      isUnsaved.set(false);
+      recordChange();
+      showToast(`Imported: ${created.name}`, "success");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load file: " + (err as Error).message);
+    }
+>>>>>>> Stashed changes
 
     document.body.removeChild(linkObj);
 
     URL.revokeObjectURL(url);
   }
 
+<<<<<<< Updated upstream
   function loadFile(evt: Event) {
     const elem = evt.target as HTMLInputElement;
     const file = elem.files?.[0];
@@ -777,6 +989,9 @@ function pause() {
       reader.readAsText(file);
     }
   }
+=======
+  
+>>>>>>> Stashed changes
 
   function loadRobot(evt: Event) {
     const elem = evt.target as HTMLInputElement;
