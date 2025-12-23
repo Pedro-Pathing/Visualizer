@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.2.7",
   "author": "Matthew Allen <allenmc220@gmail.com>",
+  "contributors": ["Mallen220"],
   "email": "allenmc220@gmail.com",
   "license": "MIT",
   "description": "A better alternative to pedro pathing visualizer",
