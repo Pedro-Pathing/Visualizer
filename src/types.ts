@@ -33,13 +33,6 @@ export type Point = BasePoint &
 
 export type ControlPoint = BasePoint;
 
-export interface EventMarker {
-  id: string;
-  name: string;
-  position: number; // 0-1 within the path segment
-  lineIndex: number;
-  parameters?: Record<string, any>;
-}
 
 export interface WaitSegment {
   name?: string;
@@ -53,7 +46,6 @@ export interface Line {
   controlPoints: ControlPoint[];
   color: string;
   name?: string;
-  eventMarkers?: EventMarker[];
   locked?: boolean;
   waitBefore?: WaitSegment;
   waitAfter?: WaitSegment;

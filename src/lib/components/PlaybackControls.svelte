@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { formatTime } from "../../utils";
+
   export let playing: boolean;
   export let play: () => any;
   export let pause: () => any;
@@ -6,6 +8,10 @@
   export let handleSeek: (percent: number) => void;
   export let loopAnimation: boolean;
   export let markers: { percent: number; color: string; name: string }[] = [];
+  // totalTime is in seconds
+  export let totalTime: number = 0;
+
+  $: elapsedSeconds = (percent / 100) * (totalTime || 0);
 </script>
 
 <div
@@ -105,5 +111,8 @@
       class="w-full appearance-none slider focus:outline-none"
       on:input={(e) => handleSeek(parseFloat(e.target.value))}
     />
+  </div>
+  <div class="flex items-center gap-2 ml-2 text-sm text-neutral-600 dark:text-neutral-300">
+    <div>{formatTime(elapsedSeconds)} / {formatTime(totalTime || 0)}</div>
   </div>
 </div>

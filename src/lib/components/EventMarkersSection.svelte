@@ -1,33 +1,4 @@
-<script lang="ts">
-  export let line: Line;
-  export let lineIdx: number;
-  export let collapsed: boolean;
-
-  function toggleCollapsed() {
-    collapsed = !collapsed;
-  }
-
-  function addEventMarker() {
-    if (!line.eventMarkers) {
-      line.eventMarkers = [];
-    }
-    line.eventMarkers.push({
-      id: `event-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      name: `Event_${lineIdx + 1}_${line.eventMarkers.length + 1}`,
-      position: 0.5,
-      lineIndex: lineIdx,
-    });
-    line = { ...line }; // Force reactivity
-  }
-
-  function removeEventMarker(eventIdx: number) {
-    if (line.eventMarkers) {
-      line.eventMarkers.splice(eventIdx, 1);
-      line = { ...line };
-    }
-  }
-</script>
-
+<!-- EventMarkersSection removed: event markers feature has been deleted -->
 <div class="flex flex-col w-full justify-start items-start mt-2">
   <div class="flex items-center justify-between w-full">
     <button

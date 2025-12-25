@@ -28,13 +28,13 @@
   export let lines: Line[];
   export let shapes: Shape[];
   export let sequence: SequenceItem[];
+  export let percent: number = 0;
   export let robotWidth: number;
   export let robotHeight: number;
   export let settings: Settings;
 
   export let saveProject: () => any;
   export let saveFileAs: () => any;
-  export let exportGif: () => any;
   export let undoAction: () => any;
   export let redoAction: () => any;
   export let recordChange: () => any;
@@ -54,6 +54,7 @@
   const gridSizeOptions = [1, 3, 6, 12, 24];
 
   $: timePrediction = calculatePathTime(startPoint, lines, settings, sequence);
+  $: elapsedSeconds = (percent / 100) * (timePrediction?.totalTime || 0);
 
   onMount(() => {
     const unsubscribeGridSize = gridSize.subscribe((value) => {
@@ -215,10 +216,14 @@
       <!-- time estimate -->
       <div class="flex items-center gap-2 text-sm">
         <div class="text-neutral-600 dark:text-neutral-300">
-          Est: {formatTime(timePrediction.totalTime)}
+            {#if timePrediction && timePrediction.totalTime > 0}
+              {formatTime(elapsedSeconds)} / {formatTime(timePrediction.totalTime)}
+            {:else}
+              {formatTime(0)} / {formatTime(0)}
+            {/if}
         </div>
         <div class="text-neutral-500 dark:text-neutral-400">
-          ({timePrediction.totalDistance.toFixed(0)} in)
+            ({(timePrediction?.totalDistance ?? 0).toFixed(0)} in)
         </div>
       </div>
       <!-- Undo / Redo -->
@@ -557,9 +562,9 @@
                 <span class="font-medium">Save</span>
                 <span class="text-xs text-neutral-500 dark:text-neutral-400">
                   {#if $currentFilePath}
-                    Save to {$currentFilePath.split(/[\\/]/).pop()}
+                    Overwrite {$currentFilePath.split(/[\/]/).pop()}
                   {:else}
-                    Save to new file
+                    Save to a new file (download)
                   {/if}
                 </span>
               </div>
@@ -592,7 +597,7 @@
               <div class="flex flex-col">
                 <span class="font-medium">Save As</span>
                 <span class="text-xs text-neutral-500 dark:text-neutral-400">
-                  Save to a new file
+                  Save as a new file (choose name)
                 </span>
               </div>
             </button>
@@ -658,15 +663,7 @@
             >
               Sequential Command
             </button>
-            <button
-              on:click={() => {
-                exportMenuOpen = false;
-                exportGif && exportGif();
-              }}
-              class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
-            >
-              Export GIF
-            </button>
+            <!-- GIF export removed temporarily -->
           </div>
         {/if}
       </div>
@@ -712,7 +709,7 @@
         target="_blank"
         rel="norefferer"
         title="GitHub Repo"
-        href="https://github.com/Mallen220/PedroPathingVisualizer"
+        href="https://github.com/Pedro-Pathing/Visualizer"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

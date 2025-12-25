@@ -69,7 +69,6 @@ interface Line {
   controlPoints: ControlPoint[];
   color: string;
   name?: string;
-  eventMarkers?: EventMarker[];
   locked?: boolean;
   waitBefore?: WaitSegment;
   waitAfter?: WaitSegment;

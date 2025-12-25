@@ -55,7 +55,6 @@
     getDefaultShapes,
   } from "./config";
   import { loadSettings, saveSettings } from "./utils/settingsPersistence";
-  import { exportPathToGif } from "./utils/exportGif";
   import * as browserFileStore from "./utils/browserFileStore";
   import { onMount, tick } from "svelte";
   import { debounce } from "lodash";
@@ -68,7 +67,6 @@
       ...line,
       id: line.id || `line-${Math.random().toString(36).slice(2)}`,
       controlPoints: line.controlPoints || [],
-      eventMarkers: line.eventMarkers || [],
       color: line.color || getRandomColor(),
       name: line.name || "",
       waitBeforeMs: Math.max(
@@ -200,6 +198,7 @@
         timePrediction.timeline,
         lines,
         startPoint,
+        settings,
         x,
         y,
       );
@@ -734,6 +733,7 @@
         timePrediction.timeline,
         lines,
         startPoint,
+        settings,
         x,
         y,
       );
@@ -750,63 +750,7 @@
     }
   }
 
-  $: eventMarkers = (() => {
-    const markers = [];
-
-    lines.forEach((line, lineIdx) => {
-      if (!line || !line.endPoint) return; // Skip invalid lines or lines without endPoint
-      if (line.eventMarkers && line.eventMarkers.length > 0) {
-        line.eventMarkers.forEach((event, eventIdx) => {
-          // Get the correct start point for this line
-          const lineStart =
-            lineIdx === 0 ? startPoint : lines[lineIdx - 1]?.endPoint || null;
-          if (!lineStart) return; // Skip if previous line's endPoint is missing
-          const curvePoints = [lineStart, ...line.controlPoints, line.endPoint];
-          const eventPosition = getCurvePoint(event.position, curvePoints);
-
-          // Create marker visualization
-          const markerGroup = new Two.Group();
-          markerGroup.id = `event-${lineIdx}-${eventIdx}`;
-
-          // Create a circle for the marker
-          const markerCircle = new Two.Circle(
-            x(eventPosition.x),
-            y(eventPosition.y),
-            x(POINT_RADIUS * 1.3), // Slightly larger than normal points
-          );
-          markerCircle.id = `event-circle-${lineIdx}-${eventIdx}`;
-          markerCircle.fill = "#8b5cf6"; // Purple color
-          markerCircle.stroke = "#ffffff";
-          markerCircle.linewidth = x(0.3);
-          // Create a flag/icon inside
-          const flagSize = x(1);
-          const flagPoints = [
-            new Two.Anchor(
-              x(eventPosition.x),
-              y(eventPosition.y) - flagSize / 2,
-            ),
-            new Two.Anchor(
-              x(eventPosition.x) + flagSize / 2,
-              y(eventPosition.y),
-            ),
-            new Two.Anchor(
-              x(eventPosition.x),
-              y(eventPosition.y) + flagSize / 2,
-            ),
-          ];
-          const flag = new Two.Path(flagPoints, true);
-          flag.fill = "#ffffff";
-          flag.stroke = "none";
-          flag.id = `event-flag-${lineIdx}-${eventIdx}`;
-
-          markerGroup.add(markerCircle, flag);
-          markers.push(markerGroup);
-        });
-      }
-    });
-
-    return markers;
-  })();
+  // Event markers removed: no runtime visualization created
 
   $: (() => {
     if (!two) {
@@ -831,7 +775,6 @@
     }
     two.add(...path);
     two.add(...points);
-    two.add(...eventMarkers);
 
     two.update();
   })();
@@ -839,69 +782,7 @@
     downloadTrajectory(startPoint, lines, shapes, sequence);
   }
 
-  // Export GIF
-  async function exportGif() {
-    try {
-      const durationSec = animationController.getDuration();
-      const fps = 15; // reasonable default
-
-      // Simple UI feedback
-      const notif = document.createElement("div");
-      notif.textContent = "Exporting GIF...";
-      notif.style.position = "fixed";
-      notif.style.right = "16px";
-      notif.style.top = "16px";
-      notif.style.background = "rgba(0,0,0,0.8)";
-      notif.style.color = "white";
-      notif.style.padding = "8px 12px";
-      notif.style.borderRadius = "6px";
-      document.body.appendChild(notif);
-
-      const fieldImageSrc = settings.fieldMap
-        ? `/fields/${settings.fieldMap}`
-        : "/fields/decode.webp";
-
-      const blob = await exportPathToGif({
-        two,
-        animationController,
-        durationSec,
-        fps,
-        backgroundImageSrc: fieldImageSrc,
-        // Robot overlay options
-        robotImageSrc: settings.robotImage || "/robot.png",
-        robotWidthPx: x(robotWidth),
-        robotHeightPx: x(robotHeight),
-        getRobotState: (p: number) =>
-          calculateRobotState(
-            p,
-            timePrediction.timeline,
-            lines,
-            startPoint,
-            x,
-            y,
-          ),
-        onProgress: (p: number) => {
-          notif.textContent = `Exporting GIF... ${Math.round(p * 100)}%`;
-        },
-      });
-
-      // Download the resulting GIF blob in the browser (no Electron APIs)
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "path.gif";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      notif.textContent = "GIF export complete";
-      setTimeout(() => notif.remove(), 2000);
-    } catch (err) {
-      alert("Failed to export GIF: " + (err as Error).message);
-      console.error(err);
-    }
-  }
+  
 
   function animate(timestamp: number) {
     if (!startTime) {
@@ -1381,8 +1262,8 @@
       // Delay slightly to allow initial rendering and Two.js to initialize
       setTimeout(async () => {
         try {
-          await exportGif();
-          console.log("Auto GIF export attempted");
+          // auto GIF export removed (exportGif deleted)
+          console.log("Auto GIF export skipped (exportGif removed)");
         } catch (err) {
           console.error("Auto GIF export failed:", err);
         }
@@ -1399,11 +1280,11 @@
   bind:settings
   bind:robotWidth
   bind:robotHeight
+  {percent}
   {saveProject}
   {saveFileAs}
   {loadFile}
   {loadRobot}
-  {exportGif}
   {undoAction}
   {redoAction}
   {recordChange}

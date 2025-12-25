@@ -5,7 +5,7 @@ import {
   radiansToDegrees,
 } from "./math";
 import { getRobotCorners } from "./geometry";
-import type { Point, Line, TimelineEvent, BasePoint } from "../types";
+import type { Point, Line, TimelineEvent, BasePoint, Settings } from "../types";
 import type { ScaleLinear } from "d3";
 
 export interface RobotState {
@@ -32,6 +32,7 @@ export function calculateRobotState(
   timeline: TimelineEvent[],
   lines: Line[],
   startPoint: Point,
+  settings: Settings,
   xScale: ScaleLinear<number, number>,
   yScale: ScaleLinear<number, number>,
 ): RobotState {
@@ -77,18 +78,100 @@ export function calculateRobotState(
     const currentLine = lines[lineIdx];
     const prevPoint = lineIdx === 0 ? startPoint : lines[lineIdx - 1].endPoint;
 
-    // Calculate progress (0.0 to 1.0) within this specific travel event
-    const timeProgress =
-      (currentSeconds - activeEvent.startTime) / activeEvent.duration;
-    // Apply Easing only to the movement
-    const linePercent = easeInOutQuad(Math.max(0, Math.min(1, timeProgress)));
+    // Calculate progress (in seconds) within this specific travel event
+    const timeIntoEvent = currentSeconds - activeEvent.startTime;
+
+    // Determine fraction along the path using motion profile when available
+    let linePercent = 0;
+    const curvePoints = [prevPoint, ...currentLine.controlPoints, currentLine.endPoint];
+
+    // Helper: approximate curve length by sampling
+    function calculateCurveLength(start: BasePoint, controlPoints: BasePoint[], end: BasePoint, samples = 100) {
+      let length = 0;
+      let prev = start;
+      for (let i = 1; i <= samples; i++) {
+        const t = i / samples;
+        const p = getCurvePoint(t, [start, ...controlPoints, end]);
+        const dx = p.x - prev.x;
+        const dy = p.y - prev.y;
+        length += Math.sqrt(dx * dx + dy * dy);
+        prev = p;
+      }
+      return length;
+    }
+
+    const segLength = calculateCurveLength(prevPoint as BasePoint, currentLine.controlPoints as BasePoint[], currentLine.endPoint as BasePoint);
+
+    // If settings provide a motion profile, compute distance fraction accordingly
+    if (
+      settings &&
+      settings.maxVelocity !== undefined &&
+      settings.maxAcceleration !== undefined
+    ) {
+      const maxV = settings.maxVelocity;
+      const maxA = settings.maxAcceleration;
+      const maxD = settings.maxDeceleration ?? settings.maxAcceleration;
+
+      // Build profile parameters
+      const accTime = maxV / maxA;
+      const decTime = maxV / maxD;
+      const accDist = 0.5 * maxA * accTime * accTime;
+      const decDist = 0.5 * maxD * decTime * decTime;
+
+      let constTime = 0;
+      let constDist = 0;
+      let totalTime = 0;
+
+      if (segLength >= accDist + decDist) {
+        constDist = Math.max(0, segLength - accDist - decDist);
+        constTime = constDist / maxV;
+        totalTime = accTime + constTime + decTime;
+      } else {
+        // Triangular profile
+        const vPeak = Math.sqrt((2 * segLength * maxA * maxD) / (maxA + maxD));
+        constTime = 0;
+        const accT = vPeak / maxA;
+        const decT = vPeak / maxD;
+        totalTime = accT + decT;
+      }
+
+      // Clamp timeIntoEvent to event duration
+      const t = Math.max(0, Math.min(timeIntoEvent, activeEvent.duration));
+
+      // Compute distance traveled at time t
+      let dist = 0;
+      if (segLength === 0) {
+        linePercent = 0;
+      } else if (segLength >= accDist + decDist) {
+        if (t <= accTime) {
+          dist = 0.5 * maxA * t * t;
+        } else if (t <= accTime + constTime) {
+          dist = accDist + maxV * (t - accTime);
+        } else {
+          const rem = t - (accTime + constTime);
+          dist = accDist + constDist + maxV * rem - 0.5 * maxD * rem * rem;
+        }
+      } else {
+        // triangular
+        const vPeak = Math.sqrt((2 * segLength * maxA * maxD) / (maxA + maxD));
+        const accT = vPeak / maxA;
+        if (t <= accT) {
+          dist = 0.5 * maxA * t * t;
+        } else {
+          const rem = t - accT;
+          dist = 0.5 * maxA * accT * accT + vPeak * rem - 0.5 * maxD * rem * rem;
+        }
+      }
+
+      linePercent = Math.max(0, Math.min(1, dist / Math.max(1e-9, segLength)));
+    } else {
+      // Fallback: use easing over the event duration (preserves previous behaviour)
+      const timeProgress = timeIntoEvent / activeEvent.duration;
+      linePercent = easeInOutQuad(Math.max(0, Math.min(1, timeProgress)));
+    }
 
     // Calculate Position
-    const robotInchesXY = getCurvePoint(linePercent, [
-      prevPoint,
-      ...currentLine.controlPoints,
-      currentLine.endPoint,
-    ]);
+    const robotInchesXY = getCurvePoint(linePercent, curvePoints);
 
     const robotXY = { x: xScale(robotInchesXY.x), y: yScale(robotInchesXY.y) };
     let robotHeading = 0;

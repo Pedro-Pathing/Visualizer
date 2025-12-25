@@ -1,5 +1,5 @@
 import prettier from "prettier";
-import type { Point, Line, BasePoint, SequenceItem } from "../types";
+import type { Point, Line, BasePoint } from "../types";
 import { getCurvePoint } from "./math";
 
 /**
@@ -72,17 +72,6 @@ export async function generateJavaCode(
             ? ".setReversed(true)"
             : "";
 
-          // Add event markers to the path builder
-          let eventMarkerCode = "";
-          if (line.eventMarkers && line.eventMarkers.length > 0) {
-            eventMarkerCode = line.eventMarkers
-              .map(
-                (event) =>
-                  `\n        .addEventMarker(${event.position.toFixed(3)}, "${event.name}")`,
-              )
-              .join("");
-          }
-
           return `${variableName} = follower.pathBuilder().addPath(
           ${curveType}(
             ${start},
@@ -90,7 +79,7 @@ export async function generateJavaCode(
             new Pose(${line.endPoint.x.toFixed(3)}, ${line.endPoint.y.toFixed(3)})
           )
         ).${headingTypeToFunctionName[line.endPoint.heading]}(${headingConfig})
-        ${reverseConfig}${eventMarkerCode}
+        ${reverseConfig}
         .build();`;
         })
         .join("\n\n")}

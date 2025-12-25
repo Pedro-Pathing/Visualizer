@@ -38,6 +38,7 @@
   export let recordChange: () => void;
 
   // Reference exported but unused props to silence Svelte unused-export warnings
+
   $: robotWidth;
   $: robotHeight;
 
@@ -52,9 +53,6 @@
     )
       return _markers;
 
-    // For each travel event, place the marker at the time the robot is ON the path point
-    // (i.e., arrival time / endTime of the travel segment) so seeking to the marker
-    // will position the robot exactly on that path point.
     timePrediction.timeline.forEach((ev) => {
       if ((ev as any).type === "travel") {
         const end = (ev as any).endTime as number;
@@ -70,8 +68,6 @@
     return _markers;
   })();
 
-  let collapsedEventMarkers: boolean[] = lines.map(() => false);
-
   // State for collapsed sections
   let collapsedSections = {
     obstacles: shapes.map(() => true),
@@ -81,7 +77,6 @@
 
   // Reactive statements to update UI state when lines or shapes change from file load
   $: if (lines.length !== collapsedSections.lines.length) {
-    collapsedEventMarkers = lines.map(() => false);
     collapsedSections = {
       obstacles: shapes.map(() => true),
       lines: lines.map(() => false),
@@ -105,40 +100,59 @@
     const lineIndex = lines.findIndex((l) => l.id === seqItem.lineId);
     const currentLine = lines[lineIndex];
 
-    // Calculate a new point offset from the current line's end point
-    let newPoint: Point;
-    if (currentLine.endPoint.heading === "linear") {
-      newPoint = {
-        x: _.random(36, 108),
-        y: _.random(36, 108),
-        heading: "linear",
-        startDeg: currentLine.endPoint.startDeg,
-        endDeg: currentLine.endPoint.endDeg,
-      };
-    } else if (currentLine.endPoint.heading === "constant") {
-      newPoint = {
-        x: _.random(36, 108),
-        y: _.random(36, 108),
-        heading: "constant",
-        degrees: currentLine.endPoint.degrees,
-      };
-    } else {
-      newPoint = {
-        x: _.random(36, 108),
-        y: _.random(36, 108),
-        heading: "tangential",
-        reverse: currentLine.endPoint.reverse,
-      };
+    // Find the next path item in the sequence after seqIndex
+    let nextPathSeqIndex = -1;
+    for (let i = seqIndex + 1; i < sequence.length; i++) {
+      if (sequence[i].kind === "path") {
+        nextPathSeqIndex = i;
+        break;
+      }
     }
 
-    // Create a new line that starts where the current line ends
+    // If there is no next path in sequence, fall back to addLine behavior (append new randomized point)
+    let newPoint: Point | null = null;
+    if (nextPathSeqIndex !== -1) {
+      const nextLineId = (sequence[nextPathSeqIndex] as any).lineId;
+      const nextLine = lines.find((l) => l.id === nextLineId);
+      if (nextLine && nextLine.endPoint && currentLine && currentLine.endPoint) {
+        const a = currentLine.endPoint;
+        const b = nextLine.endPoint;
+        const midX = (Number(a.x) + Number(b.x)) / 2;
+        const midY = (Number(a.y) + Number(b.y)) / 2;
+        newPoint = {
+          x: midX,
+          y: midY,
+          heading: "tangential",
+          reverse: false,
+        };
+      }
+    }
+
+    if (!newPoint) {
+      // fallback: random nearby point from current end
+      if (currentLine && currentLine.endPoint) {
+        newPoint = {
+          x: (currentLine.endPoint.x ?? 72) + _.random(-12, 12),
+          y: (currentLine.endPoint.y ?? 72) + _.random(-12, 12),
+          heading: "tangential",
+          reverse: false,
+        };
+      } else {
+        newPoint = {
+          x: _.random(0, 144),
+          y: _.random(0, 144),
+          heading: "tangential",
+          reverse: false,
+        };
+      }
+    }
+
     const newLine = {
       id: makeId(),
       endPoint: newPoint,
       controlPoints: [],
       color: getRandomColor(),
       name: `Path ${lines.length + 1}`,
-      eventMarkers: [],
       waitBeforeMs: 0,
       waitAfterMs: 0,
       waitBeforeName: "",
@@ -156,11 +170,73 @@
 
     collapsedSections.lines.splice(lineIndex + 1, 0, false);
     collapsedSections.controlPoints.splice(lineIndex + 1, 0, true);
-    collapsedEventMarkers.splice(lineIndex + 1, 0, false);
 
     // Force reactivity
     collapsedSections = { ...collapsedSections };
-    collapsedEventMarkers = [...collapsedEventMarkers];
+  }
+
+  // Insert a midpoint between this path and the next path in sequence
+  function insertMidpointAfter(seqIndex: number) {
+    const seqItem = sequence[seqIndex];
+    if (!seqItem || seqItem.kind !== "path") return;
+    const lineIndex = lines.findIndex((l) => l.id === seqItem.lineId);
+    const currentLine = lines[lineIndex];
+
+    // Find the next path in sequence
+    let nextPathSeqIndex = -1;
+    for (let i = seqIndex + 1; i < sequence.length; i++) {
+      if (sequence[i].kind === "path") {
+        nextPathSeqIndex = i;
+        break;
+      }
+    }
+
+    if (nextPathSeqIndex === -1) {
+      // no next path -> do nothing or fallback
+      return;
+    }
+
+    const nextLineId = (sequence[nextPathSeqIndex] as any).lineId;
+    const nextLine = lines.find((l) => l.id === nextLineId);
+    if (!currentLine || !nextLine) return;
+
+    const a = currentLine.endPoint;
+    const b = nextLine.endPoint;
+    const midX = (Number(a.x) + Number(b.x)) / 2;
+    const midY = (Number(a.y) + Number(b.y)) / 2;
+
+    const newLine: Line = {
+      id: makeId(),
+      endPoint: {
+        x: midX,
+        y: midY,
+        heading: "tangential",
+        reverse: false,
+      },
+      controlPoints: [],
+      color: getRandomColor(),
+      name: `Path ${lines.length + 1}`,
+      waitBeforeMs: 0,
+      waitAfterMs: 0,
+      waitBeforeName: "",
+      waitAfterName: "",
+    };
+
+    // Insert into lines right after current line index
+    const newLines = [...lines];
+    newLines.splice(lineIndex + 1, 0, newLine);
+    lines = newLines;
+
+    // Insert into sequence right after seqIndex
+    const newSeq = [...sequence];
+    newSeq.splice(seqIndex + 1, 0, { kind: "path", lineId: newLine.id! });
+    sequence = newSeq;
+
+    collapsedSections.lines.splice(lineIndex + 1, 0, false);
+    collapsedSections.controlPoints.splice(lineIndex + 1, 0, true);
+
+    collapsedSections = { ...collapsedSections };
+    recordChange();
   }
 
   function removeLine(idx: number) {
@@ -175,7 +251,6 @@
     }
     collapsedSections.lines.splice(idx, 1);
     collapsedSections.controlPoints.splice(idx, 1);
-    collapsedEventMarkers.splice(idx, 1);
     recordChange();
   }
 
@@ -237,7 +312,6 @@
       },
       controlPoints: [],
       color: getRandomColor(),
-      eventMarkers: [],
       waitBeforeMs: 0,
       waitAfterMs: 0,
       waitBeforeName: "",
@@ -250,7 +324,6 @@
       true,
       ...collapsedSections.controlPoints,
     ];
-    collapsedEventMarkers = [false, ...collapsedEventMarkers];
     recordChange();
   }
 
@@ -279,7 +352,6 @@
       },
       controlPoints: [],
       color: getRandomColor(),
-      eventMarkers: [],
       waitBeforeMs: 0,
       waitAfterMs: 0,
       waitBeforeName: "",
@@ -297,11 +369,9 @@
     // Add UI state for the new line
     collapsedSections.lines.push(false);
     collapsedSections.controlPoints.push(true);
-    collapsedEventMarkers.push(false);
 
     // Force reactivity
     collapsedSections = { ...collapsedSections };
-    collapsedEventMarkers = [...collapsedEventMarkers];
     recordChange();
   }
 
@@ -314,7 +384,6 @@
       line,
       collapsed: collapsedSections.lines[idx],
       control: collapsedSections.controlPoints[idx],
-      markers: collapsedEventMarkers[idx],
     }));
 
     const byId = new Map(indexedLines.map((entry) => [entry.line.id, entry]));
@@ -337,7 +406,7 @@
       lines: reordered.map((entry) => entry.collapsed ?? false),
       controlPoints: reordered.map((entry) => entry.control ?? true),
     };
-    collapsedEventMarkers = reordered.map((entry) => entry.markers ?? false);
+    // No collapsedEventMarkers to update
   }
 
   function moveSequenceItem(seqIndex: number, delta: number) {
@@ -397,9 +466,7 @@
               bind:collapsed={
                 collapsedSections.lines[lines.findIndex((l) => l.id === ln.id)]
               }
-              bind:collapsedEventMarkers={
-                collapsedEventMarkers[lines.findIndex((l) => l.id === ln.id)]
-              }
+              
               bind:collapsedControlPoints={
                 collapsedSections.controlPoints[
                   lines.findIndex((l) => l.id === ln.id)
@@ -408,6 +475,7 @@
               onRemove={() =>
                 removeLine(lines.findIndex((l) => l.id === ln.id))}
               onInsertAfter={() => insertLineAfter(sIdx)}
+              onInsertMidpoint={() => insertMidpointAfter(sIdx)}
               onAddWaitAfter={() => insertWaitAfter(sIdx)}
               onMoveUp={() => moveSequenceItem(sIdx, -1)}
               onMoveDown={() => moveSequenceItem(sIdx, 1)}
@@ -520,5 +588,6 @@
     {handleSeek}
     bind:loopAnimation
     {markers}
+    totalTime={timePrediction?.totalTime ?? 0}
   />
 </div>

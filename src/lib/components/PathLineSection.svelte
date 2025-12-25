@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { Line } from "../../types";
   import { snapToGrid, showGrid, gridSize } from "../../stores";
-  import EventMarkersSection from "./EventMarkersSection.svelte";
   import ControlPointsSection from "./ControlPointsSection.svelte";
   import HeadingControls from "./HeadingControls.svelte";
 
@@ -9,10 +8,10 @@
   export let idx: number;
   export let lines: Line[];
   export let collapsed: boolean;
-  export let collapsedEventMarkers: boolean;
   export let collapsedControlPoints: boolean;
   export let onRemove: () => void;
   export let onInsertAfter: () => void;
+  export let onInsertMidpoint: () => void;
   export let onAddWaitAfter: () => void;
   export let recordChange: () => void;
   export let onMoveUp: () => void;
@@ -198,6 +197,19 @@
         </svg>
       </button>
 
+      <!-- Insert Midpoint Between This and Next Path -->
+      <button
+        title="Insert midpoint between this path and the next"
+        on:click={() => onInsertMidpoint && onInsertMidpoint()}
+        class="text-cyan-500 hover:text-cyan-600 ml-2"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={2} class="size-5">
+          <circle cx="6" cy="12" r="1.5" />
+          <circle cx="12" cy="12" r="1.5" />
+          <circle cx="18" cy="12" r="1.5" />
+        </svg>
+      </button>
+
       <!-- Add Wait After Button -->
       <button
         title="Add Wait After"
@@ -285,12 +297,6 @@
         />
       </div>
     </div>
-
-    <EventMarkersSection
-      bind:line
-      lineIdx={idx}
-      bind:collapsed={collapsedEventMarkers}
-    />
 
     <ControlPointsSection
       bind:line
