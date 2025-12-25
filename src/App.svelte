@@ -18,6 +18,7 @@
     shortestRotation,
   } from "./utils";
   import hotkeys from 'hotkeys-js';
+  import { history } from "./utils/history";
 
   let two: Two;
   let twoElement: HTMLDivElement;
@@ -75,6 +76,30 @@
       color: getRandomColor(),
     },
   ];
+
+  function pushHistory() {
+    history.push({ startPoint, lines, robotWidth, robotHeight });
+  }
+
+  function undo() {
+    const state = history.undo();
+    if (state) {
+      startPoint = state.startPoint;
+      lines = state.lines;
+      robotWidth = state.robotWidth;
+      robotHeight = state.robotHeight;
+    }
+  }
+
+  function redo() {
+    const state = history.redo();
+    if (state) {
+      startPoint = state.startPoint;
+      lines = state.lines;
+      robotWidth = state.robotWidth;
+      robotHeight = state.robotHeight;
+    }
+  }
 
   $: points = (() => {
     let _points = [];
@@ -659,6 +684,7 @@ function pause() {
     }).appendTo(twoElement);
 
     updateRobotImage();
+    history.init({ startPoint, lines, robotWidth, robotHeight });
 
     let currentElem: string | null = null;
     let isDown = false;
@@ -697,6 +723,9 @@ function pause() {
       isDown = true;
     });
     two.renderer.domElement.addEventListener("mouseup", () => {
+      if (isDown) {
+        pushHistory();
+      }
       isDown = false;
     });
   });
@@ -769,6 +798,7 @@ function pause() {
 
           startPoint = jsonObj.startPoint;
           lines = jsonObj.lines;
+          pushHistory();
         } catch (err) {
           console.error(err);
         }
@@ -820,6 +850,7 @@ function pause() {
       color: getRandomColor(),
     },
   ];
+  pushHistory();
 }
 
 
@@ -830,6 +861,7 @@ function addControlPoint() {
       x: _.random(36, 108),
       y: _.random(36, 108),
     });
+    pushHistory();
   }
 }
 
@@ -838,6 +870,7 @@ function removeControlPoint() {
     const lastLine = lines[lines.length - 1];
     if (lastLine.controlPoints.length > 0) {
       lastLine.controlPoints.pop();
+      pushHistory();
     }
   }
 }
@@ -860,9 +893,19 @@ hotkeys('s', function(event, handler){
   two.update();
 });
 
+hotkeys('cmd+z,ctrl+z', function(event, handler){
+  event.preventDefault();
+  undo();
+});
+
+hotkeys('cmd+shift+z,ctrl+shift+z,cmd+y,ctrl+y', function(event, handler){
+  event.preventDefault();
+  redo();
+});
+
 </script>
 
-<Navbar bind:lines bind:startPoint bind:settings bind:robotWidth bind:robotHeight {saveFile} {loadFile} {loadRobot}/>
+<Navbar bind:lines bind:startPoint bind:settings bind:robotWidth bind:robotHeight {saveFile} {loadFile} {loadRobot} {pushHistory}/>
 <div
   class="w-screen h-screen pt-20 p-2 flex flex-row justify-center items-center gap-2"
 >
@@ -899,5 +942,8 @@ hotkeys('s', function(event, handler){
     {x}
     {y}
     {playElapsedMs}
+    {pushHistory}
+    {undo}
+    {redo}
   />
 </div>

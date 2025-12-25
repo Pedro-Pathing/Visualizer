@@ -14,6 +14,7 @@
   export let saveFile: () => any;
   export let loadFile: (evt: any) => any;
   export let loadRobot: (evt: any) => any;
+  export let pushHistory: () => void = () => {};
 
   let exportFullCode = false;
   export let startPoint: Point;
@@ -335,6 +336,7 @@
         color: getRandomColor(),
       },
     ];
+    pushHistory();
         }}
       >
         <svg

@@ -1,6 +1,11 @@
 <script lang="ts">
   import _ from "lodash";
   import { getRandomColor } from "../utils";
+  import { history } from "../utils/history";
+
+  // Detect OS for keyboard shortcut labels
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+  const modKey = isMac ? 'Cmd' : 'Ctrl';
 
   export let percent: number;
   export let playing: boolean;
@@ -16,6 +21,9 @@
   export let y: d3.ScaleLinear<number, number, number>;
   export let settings: FPASettings;
   export let playElapsedMs: number = 0;
+  export let pushHistory: () => void = () => {};
+  export let undo: () => void = () => {};
+  export let redo: () => void = () => {};
   function formatMs(ms: number) {
     const s = Math.floor(ms / 1000);
     const rem = Math.floor(ms % 1000);
@@ -63,6 +71,7 @@
             if (settings) {
               settings.rWidth = robotWidth;
             }
+            pushHistory();
           }}
           type="number"
           class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-16"
@@ -75,6 +84,7 @@
             if (settings) {
               settings.rHeight = robotHeight;
             }
+            pushHistory();
           }}
           type="number"
           class="pl-1.5 rounded-md bg-neutral-100 border-[0.5px] focus:outline-none w-16 dark:bg-neutral-950 dark:border-neutral-700"
@@ -105,6 +115,7 @@
         <div class="font-extralight">X:</div>
         <input
           bind:value={startPoint.x}
+          on:change={pushHistory}
           min="0"
           max="144"
           type="number"
@@ -114,6 +125,7 @@
         <div class="font-extralight">Y:</div>
         <input
           bind:value={startPoint.y}
+          on:change={pushHistory}
           min="0"
           max="144"
           type="number"
@@ -131,6 +143,7 @@
           >
             <input
               bind:value={line.name}
+              on:change={pushHistory}
               placeholder="Path {idx + 1}"
               class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm font-semibold"
             />
@@ -150,6 +163,7 @@
                     y: _.random(36, 108),
                   },
                 ];
+                pushHistory();
               }}
             >
               <svg
@@ -175,6 +189,7 @@
                   lines = _lns;
                   // ensure waits still reference the correct preceding path
                   updateWaitPositions();
+                  pushHistory();
                 }}
               >
                 <svg
@@ -202,6 +217,7 @@
                 _lns[idx] = tmp;
                 lines = _lns;
                 updateWaitPositions();
+                pushHistory();
               }}
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} class="size-5 stroke-yellow-400">
@@ -218,6 +234,7 @@
                 _lns[idx] = tmp;
                 lines = _lns;
                 updateWaitPositions();
+                pushHistory();
               }}
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} class="size-5 stroke-yellow-400">
@@ -239,6 +256,7 @@
               min="0"
               max="144"
               bind:value={line.endPoint.x}
+              on:change={pushHistory}
             />
             <div class="font-extralight">Y:</div>
             <input
@@ -248,10 +266,12 @@
               max="144"
               type="number"
               bind:value={line.endPoint.y}
+              on:change={pushHistory}
             />
 
             <select
               bind:value={line.endPoint.heading}
+              on:change={pushHistory}
               class=" rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28 text-sm"
               title="The heading style of the robot.
 With constant heading, the robot maintains the same heading throughout the line.
@@ -271,6 +291,7 @@ With tangential heading, the heading follows the direction of the line."
                 min="-180"
                 max="180"
                 bind:value={line.endPoint.startDeg}
+                on:change={pushHistory}
                 title="The heading the robot starts this line at (in degrees)"
               />
               <input
@@ -280,6 +301,7 @@ With tangential heading, the heading follows the direction of the line."
                 min="-180"
                 max="180"
                 bind:value={line.endPoint.endDeg}
+                on:change={pushHistory}
                 title="The heading the robot ends this line at (in degrees)"
               />
             {:else if line.endPoint.heading === "constant"}
@@ -290,11 +312,12 @@ With tangential heading, the heading follows the direction of the line."
                 min="-180"
                 max="180"
                 bind:value={line.endPoint.degrees}
+                on:change={pushHistory}
                 title="The constant heading the robot maintains throughout this line (in degrees)"
               />
             {:else if line.endPoint.heading === "tangential"}
               <p class="text-sm font-extralight">Reverse:</p>
-              <input type="checkbox" bind:checked={line.endPoint.reverse} title="Reverse the direction the robot faces along the tangential path" />
+              <input type="checkbox" bind:checked={line.endPoint.reverse} on:change={pushHistory} title="Reverse the direction the robot faces along the tangential path" />
             {/if}
           </div>
         </div>
@@ -309,7 +332,7 @@ With tangential heading, the heading follows the direction of the line."
               type="number"
               min="0"
               bind:value={line.waitMs}
-              on:change={() => { line.waitMs = Number(line.waitMs) || 0 }}
+              on:change={() => { line.waitMs = Number(line.waitMs) || 0; pushHistory(); }}
             />
             <div class="font-extralight">(Robot pauses at previous point)</div>
           </div>
@@ -325,6 +348,7 @@ With tangential heading, the heading follows the direction of the line."
                 step="0.1"
                 type="number"
                 bind:value={point.x}
+                on:change={pushHistory}
                 min="0"
                 max="144"
               />
@@ -334,6 +358,7 @@ With tangential heading, the heading follows the direction of the line."
                 step="0.1"
                 type="number"
                 bind:value={point.y}
+                on:change={pushHistory}
                 min="0"
                 max="144"
               />
@@ -343,6 +368,7 @@ With tangential heading, the heading follows the direction of the line."
                   let _pts = line.controlPoints;
                   _pts.splice(idx1, 1);
                   line.controlPoints = _pts;
+                  pushHistory();
                 }}
               >
                 <svg
@@ -381,6 +407,7 @@ With tangential heading, the heading follows the direction of the line."
             color: getRandomColor(),
           },
         ];
+        pushHistory();
       }}
       class="font-semibold text-green-500 text-sm flex flex-row justify-center items-center gap-1 h-8 px-3"
     >
@@ -414,6 +441,7 @@ With tangential heading, the heading follows the direction of the line."
             waitMs: 1000,
           },
         ];
+        pushHistory();
       }}
       class="font-semibold text-yellow-500 text-sm flex flex-row justify-center items-center gap-1 h-8 px-3"
     >
@@ -427,6 +455,29 @@ With tangential heading, the heading follows the direction of the line."
   <div
     class="w-full bg-neutral-50 dark:bg-neutral-900 rounded-lg p-3 flex flex-row justify-start items-center gap-3 shadow-lg"
   >
+    <div class="flex flex-row items-center gap-1">
+      <button
+        title="Undo ({modKey}+Z)"
+        on:click={undo}
+        disabled={$history.past.length === 0}
+        class="disabled:opacity-30"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+        </svg>
+      </button>
+      <button
+        title="Redo ({modKey}+Shift+Z)"
+        on:click={redo}
+        disabled={$history.future.length === 0}
+        class="disabled:opacity-30"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3" />
+        </svg>
+      </button>
+    </div>
+    <div class="w-[1px] h-6 bg-neutral-200 dark:bg-neutral-800 mx-1" />
     <button
       title="Play/Pause"
       on:click={() => {
