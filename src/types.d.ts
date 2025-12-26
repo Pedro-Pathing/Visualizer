@@ -76,6 +76,9 @@ interface Line {
   waitAfterMs?: number;
   waitBeforeName?: string;
   waitAfterName?: string;
+  // Optional single wait duration in milliseconds (legacy/simple format)
+  // If present, this represents a pause at this line's end point.
+  waitMs?: number;
 }
 
 type SequencePathItem = {
@@ -149,6 +152,25 @@ interface Shape {
   vertices: BasePoint[];
   color: string;
   fillColor: string;
+}
+
+// FPALine / FPASettings from external format support
+interface FPALine {
+  startPoint: Point;
+  endPoint: Point;
+  controlPoints: ControlPoint[];
+  interpolation: string;
+  color: string;
+  name?: string;
+}
+
+interface FPASettings {
+  xVelocity: number;
+  yVelocity: number;
+  aVelocity: number;
+  kFriction: number;
+  rWidth: number;
+  rHeight: number;
 }
 
 interface EventMarker {
