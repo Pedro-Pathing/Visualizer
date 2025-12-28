@@ -87,6 +87,7 @@ export interface Settings {
   showGhostPaths?: boolean; // Show collision overlays via ghost paths
   showOnionLayers?: boolean; // Show robot body at intervals along the path
   onionLayerSpacing?: number; // Distance in inches between onion layers
+  onionColor?: string; // Color for onion-layer colliders
   onionNextPointOnly?: boolean; // When true, onion layers show only for the next point (UI-only for now)
 }
 

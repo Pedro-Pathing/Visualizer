@@ -42,7 +42,8 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: "auto",
   showGhostPaths: false,
   showOnionLayers: false,
-  onionLayerSpacing: 6, // inches between each robot body trace
+  onionLayerSpacing: 3, // inches between each robot body trace
+  onionColor: "#dc2626",
   onionNextPointOnly: false,
 };
 
@@ -84,32 +85,6 @@ export function getDefaultLines(): Line[] {
  * Get default shapes (field obstacles)
  */
 export function getDefaultShapes(): Shape[] {
-  return [
-    {
-      id: "triangle-1",
-      name: "Red Goal",
-      vertices: [
-        { x: 144, y: 70 },
-        { x: 144, y: 144 },
-        { x: 120, y: 144 },
-        { x: 138, y: 119 },
-        { x: 138, y: 70 },
-      ],
-      color: "#dc2626",
-      fillColor: "#fca5a5",
-    },
-    {
-      id: "triangle-2",
-      name: "Blue Goal",
-      vertices: [
-        { x: 6, y: 119 },
-        { x: 25, y: 144 },
-        { x: 0, y: 144 },
-        { x: 0, y: 70 },
-        { x: 7, y: 70 },
-      ],
-      color: "#0b08d9",
-      fillColor: "#fca5a5",
-    },
-  ];
+  // Remove default obstacles by returning an empty array.
+  return [];
 }

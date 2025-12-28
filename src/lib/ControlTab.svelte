@@ -9,7 +9,6 @@
   } from "../types";
   import _ from "lodash";
   import { getRandomColor } from "../utils";
-  import ObstaclesSection from "./components/ObstaclesSection.svelte";
   import RobotPositionDisplay from "./components/RobotPositionDisplay.svelte";
   import StartingPointSection from "./components/StartingPointSection.svelte";
   import PathLineSection from "./components/PathLineSection.svelte";
@@ -70,7 +69,6 @@
 
   // State for collapsed sections
   let collapsedSections = {
-    obstacles: shapes.map(() => true),
     lines: lines.map(() => false),
     controlPoints: lines.map(() => true), // Start with control points collapsed
   };
@@ -78,14 +76,9 @@
   // Reactive statements to update UI state when lines or shapes change from file load
   $: if (lines.length !== collapsedSections.lines.length) {
     collapsedSections = {
-      obstacles: shapes.map(() => true),
       lines: lines.map(() => false),
       controlPoints: lines.map(() => true),
     };
-  }
-
-  $: if (shapes.length !== collapsedSections.obstacles.length) {
-    collapsedSections.obstacles = shapes.map(() => true);
   }
 
   const makeId = () =>
@@ -278,6 +271,52 @@
     recordChange();
   }
 
+  // Add a control point to the line represented by `seqIndex` in the sequence
+  function addControlPointToLine(seqIndex: number) {
+    const seqItem = sequence[seqIndex];
+    if (!seqItem || seqItem.kind !== "path") return;
+    const lineIndex = lines.findIndex((l) => l.id === seqItem.lineId);
+    if (lineIndex === -1) return;
+    const line = lines[lineIndex];
+    line.controlPoints = line.controlPoints || [];
+    const prevPt = lineIndex === 0 ? startPoint : lines[lineIndex - 1].endPoint;
+    const endPt = line.endPoint || { x: 72, y: 72 };
+    const mx = ((prevPt?.x ?? 72) + (endPt?.x ?? 72)) / 2;
+    const my = ((prevPt?.y ?? 72) + (endPt?.y ?? 72)) / 2;
+    line.controlPoints.push({ x: mx + _.random(-4, 4), y: my + _.random(-4, 4) });
+    collapsedSections.controlPoints[lineIndex] = false;
+    lines = [...lines];
+    collapsedSections = { ...collapsedSections };
+    recordChange?.();
+  }
+
+  // Add a control point to the last path in `lines` (fallback: create a new line)
+  function addControlPointToLastLine() {
+    if (!lines || lines.length === 0) {
+      // No lines exist: create a new line instead
+      addLine();
+      return;
+    }
+
+    // Prefer adding to the first line whose control points are expanded (user is focusing it)
+    let targetIdx = collapsedSections.controlPoints.findIndex((v) => v === false);
+    if (targetIdx === -1) targetIdx = lines.length - 1;
+
+    const line = lines[targetIdx];
+    line.controlPoints = line.controlPoints || [];
+    // Insert a control point near the line midpoint for convenience
+    const prevPt = targetIdx === 0 ? startPoint : lines[targetIdx - 1].endPoint;
+    const endPt = line.endPoint || { x: 72, y: 72 };
+    const mx = ((prevPt?.x ?? 72) + (endPt?.x ?? 72)) / 2;
+    const my = ((prevPt?.y ?? 72) + (endPt?.y ?? 72)) / 2;
+    line.controlPoints.push({ x: mx + _.random(-4, 4), y: my + _.random(-4, 4) });
+    // Ensure control points UI is expanded for this line
+    collapsedSections.controlPoints[targetIdx] = false;
+    lines = [...lines];
+    collapsedSections = { ...collapsedSections };
+    recordChange?.();
+  }
+
   function addWait() {
     const wait = {
       kind: "wait",
@@ -445,10 +484,7 @@
   <div
     class="flex flex-col justify-start items-start w-full rounded-lg bg-neutral-50 dark:bg-neutral-900 shadow-md p-4 overflow-y-scroll overflow-x-hidden h-full gap-6"
   >
-    <ObstaclesSection
-      bind:shapes
-      bind:collapsedObstacles={collapsedSections.obstacles}
-    />
+    <!-- Obstacles removed -->
 
     <RobotPositionDisplay {robotXY} {robotHeading} {x} {y} />
 
@@ -474,7 +510,7 @@
               }
               onRemove={() =>
                 removeLine(lines.findIndex((l) => l.id === ln.id))}
-              onInsertAfter={() => insertLineAfter(sIdx)}
+              onInsertAfter={() => addControlPointToLine(sIdx)}
               onInsertMidpoint={() => insertMidpointAfter(sIdx)}
               onAddWaitAfter={() => insertWaitAfter(sIdx)}
               onMoveUp={() => moveSequenceItem(sIdx, -1)}

@@ -197,16 +197,25 @@
         </svg>
       </button>
 
-      <!-- Insert Midpoint Between This and Next Path -->
+      <!-- Insert Midpoint Between This and Next Path (dark-blue plus icon) -->
       <button
-        title="Insert midpoint between this path and the next"
+        title="Insert point between this path and the next"
         on:click={() => onInsertMidpoint && onInsertMidpoint()}
-        class="text-cyan-500 hover:text-cyan-600 ml-2"
+        class="text-blue-700 hover:text-blue-500 ml-2"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={2} class="size-5">
-          <circle cx="6" cy="12" r="1.5" />
-          <circle cx="12" cy="12" r="1.5" />
-          <circle cx="18" cy="12" r="1.5" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width={2}
+          stroke="currentColor"
+          class="size-5"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M12 4.5v15m7.5-7.5h-15"
+          />
         </svg>
       </button>
 

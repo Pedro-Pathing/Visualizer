@@ -270,39 +270,7 @@
         }
       });
     });
-    // Add obstacle vertices as draggable points
-    shapes.forEach((shape, shapeIdx) => {
-      shape.vertices.forEach((vertex, vertexIdx) => {
-        let pointGroup = new Two.Group();
-        pointGroup.id = `obstacle-${shapeIdx}-${vertexIdx}`;
-
-        let pointElem = new Two.Circle(
-          x(vertex.x),
-          y(vertex.y),
-          x(POINT_RADIUS),
-        );
-        pointElem.id = `obstacle-${shapeIdx}-${vertexIdx}-background`;
-        pointElem.fill = "#991b1b"; // Match obstacle color
-        pointElem.noStroke();
-
-        let pointText = new Two.Text(
-          `${vertexIdx + 1}`,
-          x(vertex.x),
-          y(vertex.y - 0.15),
-          x(POINT_RADIUS),
-        );
-        pointText.id = `obstacle-${shapeIdx}-${vertexIdx}-text`;
-        pointText.size = x(1.55);
-        pointText.leading = 1;
-        pointText.family = "ui-sans-serif, system-ui, sans-serif";
-        pointText.alignment = "center";
-        pointText.baseline = "middle";
-        pointText.fill = "white";
-        pointText.noStroke();
-        pointGroup.add(pointElem, pointText);
-        _points.push(pointGroup);
-      });
-    });
+    // Obstacles removed: no obstacle points generated
 
     return _points;
   })();
@@ -410,69 +378,8 @@
     return _path;
   })();
   $: shapeElements = (() => {
-    let _shapes: Path[] = [];
-
-    shapes.forEach((shape, idx) => {
-      if (shape.vertices.length >= 3) {
-        // Create polygon from vertices - properly format for Two.js
-        let vertices = [];
-
-        // Start with move command for first vertex
-        vertices.push(
-          new Two.Anchor(
-            x(shape.vertices[0].x),
-            y(shape.vertices[0].y),
-            0,
-            0,
-            0,
-            0,
-            Two.Commands.move,
-          ),
-        );
-
-        // Add line commands for remaining vertices
-        for (let i = 1; i < shape.vertices.length; i++) {
-          vertices.push(
-            new Two.Anchor(
-              x(shape.vertices[i].x),
-              y(shape.vertices[i].y),
-              0,
-              0,
-              0,
-              0,
-              Two.Commands.line,
-            ),
-          );
-        }
-
-        // Close the shape
-        vertices.push(
-          new Two.Anchor(
-            x(shape.vertices[0].x),
-            y(shape.vertices[0].y),
-            0,
-            0,
-            0,
-            0,
-            Two.Commands.close,
-          ),
-        );
-
-        vertices.forEach((point) => (point.relative = false));
-
-        let shapeElement = new Two.Path(vertices);
-        shapeElement.id = `shape-${idx}`;
-        shapeElement.stroke = shape.color;
-        shapeElement.fill = shape.color;
-        shapeElement.opacity = 0.4;
-        shapeElement.linewidth = x(0.8);
-        shapeElement.automatic = false;
-
-        _shapes.push(shapeElement);
-      }
-    });
-
-    return _shapes;
+    // Obstacles removed: return empty array for shape elements
+    return [] as Path[];
   })();
 
   $: ghostPathElement = (() => {
@@ -635,10 +542,11 @@
 
         let onionRect = new Two.Path(vertices);
         onionRect.id = `onion-layer-${idx}`;
-        onionRect.stroke = "#818cf8"; // Indigo color
+        onionRect.stroke = settings.onionColor || "#dc2626";
         onionRect.noFill();
-        onionRect.opacity = 0.35;
-        onionRect.linewidth = x(0.5);
+        // Increase opacity so colliders are more visible
+        onionRect.opacity = 0.9;
+        onionRect.linewidth = x(0.28);
         onionRect.automatic = false;
 
         onionLayers.push(onionRect);
@@ -843,10 +751,10 @@
       const elem = document.elementFromPoint(evt.clientX, evt.clientY);
 
       if (isDown && currentElem) {
-        const line = Number(currentElem.split("-")[1]) - 1;
+        const hitLine = Number(currentElem.split("-")[1]) - 1;
 
         // Skip dragging if the line is locked
-        if (line >= 0 && lines[line]?.locked) {
+        if (hitLine >= 0 && lines[hitLine]?.locked) {
           return;
         }
 
@@ -878,37 +786,27 @@
           inchY = Math.max(0, Math.min(FIELD_SIZE, inchY));
         }
 
-        if (currentElem.startsWith("obstacle-")) {
-          // Handle obstacle vertex dragging
-          const parts = currentElem.split("-");
-          const shapeIdx = Number(parts[1]);
-          const vertexIdx = Number(parts[2]);
+        // Handle path point dragging
+        const line = Number(currentElem.split("-")[1]) - 1;
+        const point = Number(currentElem.split("-")[2]);
 
-          shapes[shapeIdx].vertices[vertexIdx].x = inchX;
-          shapes[shapeIdx].vertices[vertexIdx].y = inchY;
-        } else {
-          // Handle path point dragging
-          const line = Number(currentElem.split("-")[1]) - 1;
-          const point = Number(currentElem.split("-")[2]);
-
-          if (line === -1) {
-            // This is the starting point
-            if (startPoint.locked) return;
-            startPoint.x = inchX;
-            startPoint.y = inchY;
-          } else if (lines[line]) {
-            if (point === 0 && lines[line].endPoint) {
-              lines[line].endPoint.x = inchX;
-              lines[line].endPoint.y = inchY;
-            } else {
-              if (lines[line]?.locked) return;
-              lines[line].controlPoints[point - 1].x = inchX;
-              lines[line].controlPoints[point - 1].y = inchY;
-            }
+        if (line === -1) {
+          // This is the starting point
+          if (startPoint.locked) return;
+          startPoint.x = inchX;
+          startPoint.y = inchY;
+        } else if (lines[line]) {
+          if (point === 0 && lines[line].endPoint) {
+            lines[line].endPoint.x = inchX;
+            lines[line].endPoint.y = inchY;
+          } else {
+            if (lines[line]?.locked) return;
+            lines[line].controlPoints[point - 1].x = inchX;
+            lines[line].controlPoints[point - 1].y = inchY;
           }
         }
       } else {
-        if (elem?.id.startsWith("point") || elem?.id.startsWith("obstacle")) {
+        if (elem?.id.startsWith("point")) {
           two.renderer.domElement.style.cursor = "pointer";
           currentElem = elem.id;
         } else {
@@ -930,15 +828,8 @@
         let objectX = 0;
         let objectY = 0;
 
-        if (currentElem.startsWith("obstacle-")) {
-          const parts = currentElem.split("-");
-          const shapeIdx = Number(parts[1]);
-          const vertexIdx = Number(parts[2]);
-          if (shapes[shapeIdx]?.vertices[vertexIdx]) {
-            objectX = shapes[shapeIdx].vertices[vertexIdx].x;
-            objectY = shapes[shapeIdx].vertices[vertexIdx].y;
-          }
-        } else {
+        // Only handle points (start point / path points)
+        {
           const line = Number(currentElem.split("-")[1]) - 1;
           const point = Number(currentElem.split("-")[2]);
 
@@ -973,13 +864,11 @@
 
     // Double-click on the field to create a new path at that position
     two.renderer.domElement.addEventListener("dblclick", (evt: MouseEvent) => {
-      // Ignore dblclicks on existing points/obstacles/lines
+      // Ignore dblclicks on existing points/lines
       const elem = document.elementFromPoint(evt.clientX, evt.clientY);
       if (
         elem?.id &&
-        (elem.id.startsWith("point") ||
-          elem.id.startsWith("obstacle") ||
-          elem.id.startsWith("line"))
+        (elem.id.startsWith("point") || elem.id.startsWith("line"))
       ) {
         return;
       }

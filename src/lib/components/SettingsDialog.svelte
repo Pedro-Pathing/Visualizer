@@ -894,6 +894,16 @@
                   >
                     Distance in inches between each robot body trace
                   </div>
+                  <div class="mt-3">
+                    <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                      Onion Layer Color
+                      <div class="text-xs text-neutral-500 dark:text-neutral-400">Color used to draw onion-layer colliders</div>
+                    </label>
+                    <div class="flex items-center gap-3">
+                      <input type="color" bind:value={settings.onionColor} class="w-10 h-10 p-0 border rounded" />
+                      <input type="text" bind:value={settings.onionColor} class="px-2 py-1 rounded border bg-white dark:bg-neutral-800" />
+                    </div>
+                  </div>
                 </div>
               {/if}
 
