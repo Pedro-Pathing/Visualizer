@@ -283,6 +283,79 @@
     }
   }
 
+  // Download current project as a .pp file to the user's computer (Save As...)
+  function downloadCurrentToDisk() {
+    try {
+      const content = JSON.stringify({
+        startPoint,
+        lines,
+        shapes,
+        sequence,
+        version: "1.2.1",
+        timestamp: new Date().toISOString(),
+      }, null, 2);
+
+      const blob = new Blob([content], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const defaultName = selectedFile?.name || "path.pp";
+      a.href = url;
+      a.download = defaultName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast(`Downloaded: ${a.download}`, "success");
+    } catch (error) {
+      showToast(`Failed to download file: ${getErrorMessage(error)}`, "error");
+    }
+  }
+
+  // If the browser supports the File System Access API, allow picking an existing local file and overwrite it.
+  async function pickAndOverwriteLocalFile() {
+    const win: any = window as any;
+    if (!win.showOpenFilePicker) {
+      showToast(
+        "This browser does not support direct file overwrite. Use 'Download .pp' instead.",
+        "warning",
+      );
+      return;
+    }
+
+    try {
+      const [handle] = await win.showOpenFilePicker({
+        types: [
+          {
+            description: "Path files",
+            accept: { "application/json": [".pp", ".json"] },
+          },
+        ],
+        excludeAcceptAllOption: false,
+        multiple: false,
+      });
+
+      if (!handle) return;
+
+      const writable = await handle.createWritable();
+
+      const content = JSON.stringify({
+        startPoint,
+        lines,
+        shapes,
+        sequence,
+        version: "1.2.1",
+        timestamp: new Date().toISOString(),
+      }, null, 2);
+
+      await writable.write(content);
+      await writable.close();
+
+      showToast(`Saved to local file: ${handle.name}`, "success");
+    } catch (error) {
+      console.error("File System API error:", error);
+      showToast(`Failed to write local file: ${getErrorMessage(error)}`, "error");
+    }
+  }
   async function createNewFile() {
     if (!newFileName.trim()) {
       showToast("Please enter a file name", "warning");
@@ -352,11 +425,43 @@
     }
 
     try {
-      await browserFileStore.deleteFile(file.path);
+      const pathToDelete = String(file.path || file.name).trim();
 
-      if (selectedFile?.path === file.path) {
-        selectedFile = null;
-        currentFilePath.set(null);
+      // Try multiple variants in case keys differ (basename vs full path vs name)
+      const candidates = [pathToDelete, file.name, path.basename(pathToDelete)];
+      let deleted = false;
+      for (const candidate of candidates) {
+        try {
+          if (!candidate) continue;
+          const res = await browserFileStore.deleteFile(candidate);
+          console.debug("Attempted delete of", candidate, "=>", res);
+          if (res) {
+            deleted = true;
+            // Normalize selectedFile/path if it matched any candidate
+            if (selectedFile && (selectedFile.path === candidate || selectedFile.name === candidate || selectedFile.name === file.name)) {
+              selectedFile = null;
+              currentFilePath.set(null);
+            }
+            break;
+          }
+        } catch (err) {
+          console.warn("deleteFile attempt error for", candidate, err);
+        }
+      }
+
+      if (!deleted) {
+        const msg = `Could not delete file: ${file.name} (not found in cache)`;
+        console.warn(msg, { tried: candidates });
+        showToast(msg, "error");
+        // Dump storage to console for debugging
+        try {
+          const raw = localStorage.getItem("pp_files");
+          console.debug("pp_files content:", raw ? JSON.parse(raw) : raw);
+        } catch (err) {
+          console.warn("Failed to read pp_files localStorage", err);
+        }
+        await refreshDirectory();
+        return;
       }
 
       await refreshDirectory();
@@ -365,6 +470,20 @@
       console.error("Error deleting file:", error);
       errorMessage = `Failed to delete file: ${getErrorMessage(error)}`;
       showToast("Failed to delete file", "error");
+    }
+  }
+
+  // Debug helper: print raw storage entries to console and show toast
+  function debugPrintStorage() {
+    try {
+      const raw = localStorage.getItem("pp_files");
+      const parsed = raw ? JSON.parse(raw) : null;
+      console.info("pp_files:", parsed);
+      const count = parsed ? Object.keys(parsed).length : 0;
+      showToast(`Storage contains ${count} file(s). See console for details.`, "info");
+    } catch (err) {
+      console.error("Failed to read pp_files", err);
+      showToast("Failed to read storage (see console)", "error");
     }
   }
 
@@ -715,27 +834,7 @@
           ⚠ {errorMessage}
         </div>
       {/if}
-
-      <button
-        on:click={changeDirectory}
-        class="w-full px-3 py-2 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors flex items-center justify-center gap-2"
-      >
-        <svg
-          xmlns="http://www.w3.org2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke-width={2}
-          stroke="currentColor"
-          class="size-4"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776"
-          />
-        </svg>
-        Change Directory
-      </button>
+      
     </div>
 
     <!-- New File Section -->
@@ -1096,27 +1195,62 @@
           </button>
         </div>
 
-        <button
-          on:click={saveCurrentToFile}
-          class="w-full px-3 py-2 text-sm bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors flex items-center justify-center gap-2"
-          disabled={!selectedFile}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width={2}
-            stroke="currentColor"
-            class="size-4"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M16.5 3.75V16.5L12 14.25 7.5 16.5V3.75m9 0H18A2.25 2.25 0 0 1 20.25 6v12A2.25 2.25 0 0 1 18 20.25H6A2.25 2.25 0 0 1 3.75 18V6A2.25 2.25 0 0 1 6 3.75h1.5m9 0h-9"
-            />
-          </svg>
-          Save to {selectedFile.name}
-        </button>
+        <div class="space-y-2">
+          <div class="grid grid-cols-1 gap-2">
+            <button
+              on:click={saveCurrentToFile}
+              class="w-full px-3 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-colors flex items-center justify-center gap-2"
+              disabled={!selectedFile}
+              title="Overwrite the selected file in the project storage"
+            >
+              <!-- overwrite icon -->
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5A2.25 2.25 0 0 1 5.25 5.25h13.5A2.25 2.25 0 0 1 21 7.5v9a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 16.5v-9zM7.5 11.25h9M7.5 14.25h6" />
+              </svg>
+              Save into selected file (overwrite)
+            </button>
+            <div class="text-xs text-neutral-500 dark:text-neutral-400 px-2">Overwrite the currently selected project file in the app's storage with the current path data.</div>
+
+            <button
+              on:click={() => (creatingNewFile = true)}
+              class="w-full px-3 py-2 text-sm bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors flex items-center justify-center gap-2"
+              title="Create a new .pp file in the project storage and save into it"
+            >
+              <!-- create new icon -->
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Create new file in project and save
+            </button>
+            <div class="text-xs text-neutral-500 dark:text-neutral-400 px-2">Open a prompt to choose a new filename and add the file to the app's project storage, then save current path data into it.</div>
+
+            <button
+              on:click={downloadCurrentToDisk}
+              class="w-full px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors flex items-center justify-center gap-2"
+              title="Download current path as a .pp file to your computer (Save As...)"
+            >
+              <!-- download/save-as icon -->
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 3-3m-3 3-3-3M21 21H3" />
+              </svg>
+              Download .pp to your computer (Save As...)
+            </button>
+            <div class="text-xs text-neutral-500 dark:text-neutral-400 px-2">Download the current path as a .pp file and choose where to save it on your computer using the browser's Save dialog.</div>
+
+            <button
+              on:click={pickAndOverwriteLocalFile}
+              class="w-full px-3 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors flex items-center justify-center gap-2"
+              title="Pick an existing local .pp file and overwrite it (if supported)"
+            >
+              <!-- local overwrite icon -->
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M12 12v6m0-6V6m0 6l3-3m-3 3-3-3" />
+              </svg>
+              Save into an existing local file (pick & overwrite)
+            </button>
+            <div class="text-xs text-neutral-500 dark:text-neutral-400 px-2">If your browser supports the File System Access API, choose an existing file on your computer to overwrite directly. Otherwise use Download.</div>
+          </div>
+        </div>
       </div>
     {:else}
       <div

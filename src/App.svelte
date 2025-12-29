@@ -140,6 +140,8 @@
       isUnsaved.set(true);
       two && two.update();
     }
+
+    // undoAction completes; no file-picker behavior here
   }
 
   function redoAction() {
@@ -496,7 +498,7 @@
 
       layers.forEach((layer, idx) => {
         // Create a rectangle from the robot corners
-        let vertices = [];
+        let vertices: any[] = [];
 
         // Create path from corners: front-left -> front-right -> back-right -> back-left
         vertices.push(
@@ -525,7 +527,7 @@
           );
         }
 
-        // Close the shape
+        // Close the path by returning to the first corner
         vertices.push(
           new Two.Anchor(
             x(layer.corners[0].x),
@@ -686,8 +688,106 @@
 
     two.update();
   })();
-  function saveFileAs() {
-    downloadTrajectory(startPoint, lines, shapes, sequence);
+  async function saveFileAs() {
+    const win: any = window as any;
+    const content = JSON.stringify(
+      {
+        startPoint,
+        lines,
+        shapes,
+        sequence,
+        version: "1.2.1",
+        timestamp: new Date().toISOString(),
+      },
+      null,
+      2,
+    );
+
+    // Prefer File System Access API if available: opens native Save dialog
+    if (win.showSaveFilePicker) {
+      try {
+        const opts = {
+          suggestedName: $currentFilePath ? $currentFilePath.split(/[\/]/).pop() : "path.pp",
+          types: [
+            {
+              description: "Path files",
+              accept: { "application/json": [".pp", ".json"] },
+            },
+          ],
+        };
+
+        const handle = await win.showSaveFilePicker(opts);
+        if (!handle) {
+          // User cancelled
+          return;
+        }
+
+        const writable = await handle.createWritable();
+        await writable.write(content);
+        await writable.close();
+
+        // Update app state to reflect saved file
+        try {
+          currentFilePath.set(handle.name || (typeof handle === "string" ? handle : null));
+        } catch (e) {
+          // ignore
+        }
+        isUnsaved.set(false);
+        alert(`Saved to: ${handle.name || "selected file"}`);
+        return;
+      } catch (err) {
+        console.error("SaveFilePicker error:", err);
+        // fall through to download fallback
+      }
+    }
+
+    // If showSaveFilePicker is not available or failed, try showOpenFilePicker to let user pick an existing file to overwrite
+    if (win.showOpenFilePicker) {
+      try {
+        const [handle] = await win.showOpenFilePicker({
+          types: [
+            {
+              description: "Path files",
+              accept: { "application/json": [".pp", ".json"] },
+            },
+          ],
+          multiple: false,
+        });
+
+        if (handle) {
+          const writable = await handle.createWritable();
+          await writable.write(content);
+          await writable.close();
+          try {
+            currentFilePath.set(handle.name || null);
+          } catch (e) {}
+          isUnsaved.set(false);
+          alert(`Saved to local file: ${handle.name || "selected file"}`);
+          return;
+        }
+      } catch (err) {
+        console.error("showOpenFilePicker error:", err);
+        // fall through to download fallback
+      }
+    }
+
+    // Fallback for browsers without File System Access (e.g., Firefox).
+    // Automatically save into the app's browser-backed storage to avoid forcing a download.
+    try {
+      await saveFile();
+      alert(
+        "Your browser does not support native file dialogs. The project was saved to the app's storage.\n\nOpen the File Manager to download or export the file to your computer.",
+      );
+    } catch (err) {
+      console.error("Failed to save into app storage:", err);
+      // As a last resort, download the file
+      try {
+        downloadTrajectory(startPoint, lines, shapes, sequence);
+      } catch (err2) {
+        console.error("Save As fallback failed:", err2);
+        alert("Failed to save file. Your browser may not support file picker APIs.");
+      }
+    }
   }
 
   
@@ -927,8 +1027,34 @@
       }
     }
   });
-  function saveFile() {
-    downloadTrajectory(startPoint, lines, shapes, sequence);
+  async function saveFile() {
+    try {
+      const content = JSON.stringify({
+        startPoint,
+        lines,
+        shapes,
+        sequence,
+        version: "1.2.1",
+        timestamp: new Date().toISOString(),
+      }, null, 2);
+
+      if ($currentFilePath) {
+        await browserFileStore.writeFile($currentFilePath, content);
+        isUnsaved.set(false);
+        // Provide simple feedback
+        alert(`Saved to project storage: ${$currentFilePath}`);
+      } else {
+        // No current project file selected — save into browser cache as a new file
+        const defaultName = `path_${Date.now()}.pp`;
+        await browserFileStore.writeFile(defaultName, content);
+        currentFilePath.set(defaultName);
+        isUnsaved.set(false);
+        alert(`Saved to project storage as: ${defaultName}`);
+      }
+    } catch (err) {
+      console.error("Failed to save project to storage:", err);
+      alert("Failed to save project to browser storage.");
+    }
   }
 
   async function loadFile(evt: Event) {

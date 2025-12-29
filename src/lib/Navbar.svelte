@@ -45,6 +45,8 @@
   let settingsOpen = false;
   let exportMenuOpen = false;
   let exportDialog: ExportCodeDialog;
+  // Hide sequential export UI by default; backend generator remains available
+  const showSequentialExport = false;
 
   let saveDropdownOpen = false;
   let saveDropdownRef: HTMLElement;
@@ -562,9 +564,9 @@
                 <span class="font-medium">Save</span>
                 <span class="text-xs text-neutral-500 dark:text-neutral-400">
                   {#if $currentFilePath}
-                    Overwrite {$currentFilePath.split(/[\/]/).pop()}
+                    Overwrite the current project file in app storage ({$currentFilePath.split(/[\/]/).pop()})
                   {:else}
-                    Save to a new file (download)
+                    No project file selected — this will download the path as a new file to your computer
                   {/if}
                 </span>
               </div>
@@ -597,7 +599,7 @@
               <div class="flex flex-col">
                 <span class="font-medium">Save As</span>
                 <span class="text-xs text-neutral-500 dark:text-neutral-400">
-                  Save as a new file (choose name)
+                  Create a new project file (choose a filename) or download a new .pp to your computer
                 </span>
               </div>
             </button>
@@ -657,12 +659,14 @@
             >
               Points Array
             </button>
-            <button
-              on:click={() => handleExport("sequential")}
-              class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
-            >
-              Sequential Command
-            </button>
+            {#if showSequentialExport}
+              <button
+                on:click={() => handleExport("sequential")}
+                class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+              >
+                Sequential Command
+              </button>
+            {/if}
             <!-- GIF export removed temporarily -->
           </div>
         {/if}
