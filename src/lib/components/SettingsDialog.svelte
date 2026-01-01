@@ -17,9 +17,6 @@
   };
 
   // Get version from package. json
-  import packageJson from "../../../package.json";
-  let appVersion = packageJson.version;
-
   // Display value for angular velocity (user inputs this, gets multiplied by PI)
   $: angularVelocityDisplay = settings ? settings.aVelocity / Math.PI : 1;
 
@@ -83,7 +80,7 @@
   >
     <div
       transition:fly={{ duration: 500, easing: cubicInOut, y: 20 }}
-      class="flex flex-col justify-start items-start p-6 bg-white dark:bg-neutral-900 rounded-lg w-full max-w-md max-h-[80vh]"
+      class="flex flex-col justify-start items-start p-6 bg-white dark:bg-neutral-900 rounded-lg w-full max-w-2xl max-h-[80vh]"
     >
       <!-- Header -->
       <div class="flex flex-row justify-between items-center w-full mb-4">
@@ -93,17 +90,9 @@
         >
           Settings
         </h2>
-        <div class="flex items-center gap-2 mt-1">
-          <span
-            class="text-xs font-medium text-neutral-500 dark:text-neutral-400"
-          >
-            Version {appVersion}
-          </span>
-          <div class="text-xs text-neutral-400 dark:text-neutral-500">•</div>
-          <span class="text-xs text-neutral-500 dark:text-neutral-400">
-            Pedro Pathing Visualizer
-          </span>
-        </div>
+        <span class="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+          Pedro Pathing Visualizer
+        </span>
         <button
           on:click={() => (isOpen = false)}
           aria-label="Close settings"

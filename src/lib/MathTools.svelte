@@ -267,7 +267,7 @@
           stroke-width={i % 3 === 0 ? "2" : "1"}
         />
         {#if i % 3 === 0}
-          {@const r3 = protractorRadius + 10}
+          {@const r3 = protractorRadius - 32}
           <text
             x={Math.cos(angle) * r3}
             y={-Math.sin(angle) * r3 + 4}
@@ -332,8 +332,8 @@
       <!-- Angle display -->
       <text
         x="0"
-        y={-protractorRadius - 15}
-        class="fill-red-600 dark:fill-red-400 text-sm font-bold"
+        y={-protractorRadius - 18}
+        class="fill-red-600 dark:fill-red-400 text-base font-bold"
         text-anchor="middle"
       >
         {360 - normalizedProtractorAngle}°

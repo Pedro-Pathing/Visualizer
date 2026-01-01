@@ -6,7 +6,7 @@
   export let pause: () => any;
   export let percent: number;
   export let handleSeek: (percent: number) => void;
-  export let loopAnimation: boolean;
+  export let loopAnimation: boolean = true;
   export let markers: { percent: number; color: string; name: string }[] = [];
   // totalTime is in seconds
   export let totalTime: number = 0;

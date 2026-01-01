@@ -49,13 +49,13 @@
     <div class="w-full mt-2 space-y-2">
       {#each line.controlPoints as point, idx1}
         <div
-          class="flex flex-col p-2 border border-blue-300 dark:border-blue-700 rounded-md bg-blue-50 dark:bg-blue-900/20"
+          class="flex flex-col p-2 border border-green-300 dark:border-green-700 rounded-md bg-green-50 dark:bg-green-900/20"
         >
           <div class="flex items-center justify-between mb-2">
             <div class="flex items-center gap-2">
-              <div class="w-3 h-3 rounded-full bg-blue-500"></div>
+              <div class="w-3 h-3 rounded-full bg-green-500"></div>
               <span
-                class="text-sm font-medium text-blue-700 dark:text-blue-300"
+                class="text-sm font-medium text-green-700 dark:text-green-300"
               >
                 Control Point {idx1 + 1}
               </span>

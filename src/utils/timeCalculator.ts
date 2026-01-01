@@ -222,13 +222,13 @@ export function calculatePathTime(
 }
 
 export function formatTime(totalSeconds: number): string {
-  if (totalSeconds <= 0) return "0.000s";
+  if (totalSeconds <= 0) return "0.0s";
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   if (minutes > 0) {
-    return `${minutes}:${seconds.toFixed(3).padStart(6, "0")}s`;
+    return `${minutes}:${seconds.toFixed(1).padStart(4, "0")}s`;
   }
-  return `${seconds.toFixed(3)}s`;
+  return `${seconds.toFixed(1)}s`;
 }
 
 export function getAnimationDuration(
