@@ -1,6 +1,20 @@
 <script lang="ts">
+  import type {
+    Line,
+    BasePoint,
+    Settings,
+    Point,
+    SequenceItem,
+    Shape,
+  } from "./types";
   import * as d3 from "d3";
-  import { onMount } from "svelte";
+  import {
+    snapToGrid,
+    gridSize,
+    currentFilePath,
+    isUnsaved,
+    showGrid,
+  } from "./stores";
   import Two from "two.js";
   import type { Path } from "two.js/src/path";
   import type { Line as PathLine } from "two.js/src/shapes/line";
@@ -8,80 +22,203 @@
   import Navbar from "./lib/Navbar.svelte";
   import MathTools from "./lib/MathTools.svelte";
   import _ from "lodash";
+  import hotkeys from "hotkeys-js";
+  import { createAnimationController } from "./utils/animation";
+  import { calculatePathTime, getAnimationDuration } from "./utils";
+
+  import {
+    calculateRobotState,
+    generateGhostPathPoints,
+    generateOnionLayers,
+  } from "./utils";
   import {
     easeInOutQuad,
     getCurvePoint,
-    getMousePos,
     getRandomColor,
     quadraticToCubic,
     radiansToDegrees,
     shortestRotation,
+    downloadTrajectory,
+    loadTrajectoryFromFile,
+    loadRobotImage,
+    updateRobotImageDisplay,
   } from "./utils";
-  import hotkeys from 'hotkeys-js';
+  import {
+    POINT_RADIUS,
+    LINE_WIDTH,
+    DEFAULT_ROBOT_WIDTH,
+    DEFAULT_ROBOT_HEIGHT,
+    DEFAULT_SETTINGS,
+    FIELD_SIZE,
+    getDefaultStartPoint,
+    getDefaultLines,
+    getDefaultShapes,
+  } from "./config";
+  import { loadSettings, saveSettings } from "./utils/settingsPersistence";
+  import * as browserFileStore from "./utils/browserFileStore";
+  import { onMount, tick } from "svelte";
+  import { debounce } from "lodash";
+  import { createHistory, type AppState } from "./utils/history";
+  // Browser-only build: file operations use the browser file store and
+  // localStorage. Electron-specific APIs have been removed.
 
+  function normalizeLines(input: Line[]): Line[] {
+    return (input || []).map((line) => ({
+      ...line,
+      id: line.id || `line-${Math.random().toString(36).slice(2)}`,
+      controlPoints: line.controlPoints || [],
+      color: line.color || getRandomColor(),
+      name: line.name || "",
+      waitBeforeMs: Math.max(
+        0,
+        Number(line.waitBeforeMs ?? line.waitBefore?.durationMs ?? 0),
+      ),
+      waitAfterMs: Math.max(
+        0,
+        Number(line.waitAfterMs ?? line.waitAfter?.durationMs ?? 0),
+      ),
+      waitBeforeName: line.waitBeforeName ?? line.waitBefore?.name ?? "",
+      waitAfterName: line.waitAfterName ?? line.waitAfter?.name ?? "",
+    }));
+  }
+
+  // Canvas state
   let two: Two;
   let twoElement: HTMLDivElement;
-
-  let pointRadius = 1.15;
-  let lineWidth = 0.57;
-  let robotWidth = 16;
-  let robotHeight = 16;
-  let settings: FPASettings = {
-    xVelocity: 60,
-    yVelocity: 60,
-    aVelocity: Math.PI,
-    kFriction: 0.05,
-    rWidth: robotWidth,
-    rHeight: robotHeight
-  };
-
+  let width = 0;
+  let height = 0;
+  // Robot state
+  $: robotWidth = settings?.rWidth || DEFAULT_ROBOT_WIDTH;
+  $: robotHeight = settings?.rHeight || DEFAULT_ROBOT_HEIGHT;
+  let robotXY: BasePoint = { x: 0, y: 0 };
+  let robotHeading: number = 0;
+  // Animation state
   let percent: number = 0;
+  let playing = false;
+  let animationFrame: number;
+  let startTime: number | null = null;
+  let previousTime: number | null = null;
+  // Path data
+  let settings: Settings = { ...DEFAULT_SETTINGS };
+  let startPoint: Point = getDefaultStartPoint();
+  let lines: Line[] = normalizeLines(getDefaultLines());
+  let sequence: SequenceItem[] = lines.map((ln) => ({
+    kind: "path",
+    lineId: ln.id!,
+  }));
+  let shapes: Shape[] = getDefaultShapes();
 
-  /**
-   * Converter for X axis from inches to pixels.
-   */
-  $: x = d3
-    .scaleLinear()
-    .domain([0, 144])
-    .range([0, twoElement?.clientWidth ?? 144]);
+  const history = createHistory();
+  const { canUndoStore, canRedoStore } = history;
 
-  /**
-   * Converter for Y axis from inches to pixels.
-   */
-  $: y = d3
-    .scaleLinear()
-    .domain([0, 144])
-    .range([twoElement?.clientHeight ?? 144, 0]);
+  function getAppState(): AppState {
+    return {
+      startPoint,
+      lines,
+      shapes,
+      sequence,
+      settings,
+    };
+  }
 
+  // Use the stores for reactivity
+  $: canUndo = $canUndoStore;
+  $: canRedo = $canRedoStore;
+
+  function recordChange() {
+    history.record(getAppState());
+  }
+
+  function undoAction() {
+    const prev = history.undo();
+    if (prev) {
+      startPoint = prev.startPoint;
+      lines = prev.lines;
+      shapes = prev.shapes;
+      sequence = prev.sequence;
+      settings = prev.settings;
+      isUnsaved.set(true);
+      two && two.update();
+    }
+
+    // undoAction completes; no file-picker behavior here
+  }
+
+  function redoAction() {
+    const next = history.redo();
+    if (next) {
+      startPoint = next.startPoint;
+      lines = next.lines;
+      shapes = next.shapes;
+      sequence = next.sequence;
+      settings = next.settings;
+      isUnsaved.set(true);
+      two && two.update();
+    }
+  }
+
+  $: {
+    // Ensure arrays are reactive when items are added/removed
+    lines = lines;
+    shapes = shapes;
+  }
+
+  // Two.js groups
   let lineGroup = new Two.Group();
   lineGroup.id = "line-group";
   let pointGroup = new Two.Group();
   pointGroup.id = "point-group";
   let shapeGroup = new Two.Group();
   shapeGroup.id = "shape-group";
+  // Coordinate converters
+  let x: d3.ScaleLinear<number, number, number>;
 
-  let startPoint: Point = {
-    x: 56,
-    y: 8,
-    heading: "linear",
-    startDeg: 90,
-    endDeg: 180
-  };
-  let lines: Line[] = [
-    {
-      name: "Path 1",
-      endPoint: { x: 56, y: 36, heading: "linear", startDeg: 90, endDeg: 180 },
-      controlPoints: [],
-      color: getRandomColor(),
-    },
-  ];
+  // Animation controller
+  let loopAnimation = true;
+  let animationController: ReturnType<typeof createAnimationController>;
+  $: timePrediction = calculatePathTime(startPoint, lines, settings, sequence);
+  $: animationDuration = getAnimationDuration(timePrediction.totalTime / 1000);
+  /**
+   * Converter for X axis from inches to pixels.
+   */
+  $: x = d3
+    .scaleLinear()
+    .domain([0, FIELD_SIZE])
+    .range([0, width || FIELD_SIZE]);
+  /**
+   * Converter for Y axis from inches to pixels.
+   */
+  $: y = d3
+    .scaleLinear()
+    .domain([0, FIELD_SIZE])
+    .range([height || FIELD_SIZE, 0]);
+  $: {
+    // Calculate robot state using the Timeline
+    if (timePrediction && timePrediction.timeline && lines.length > 0) {
+      const state = calculateRobotState(
+        percent,
+        timePrediction.timeline,
+        lines,
+        startPoint,
+        settings,
+        x,
+        y,
+      );
+      robotXY = { x: state.x, y: state.y };
+      robotHeading = state.heading;
+    } else {
+      // Fallback for initialization
+      robotXY = { x: x(startPoint.x), y: y(startPoint.y) };
+      robotHeading = 0;
+    }
+  }
 
   $: points = (() => {
     let _points = [];
     let startPointElem = new Two.Circle(
       x(startPoint.x),
       y(startPoint.y),
-      x(pointRadius)
+      x(POINT_RADIUS),
     );
     startPointElem.id = `point-0-0`;
     startPointElem.fill = lines[0].color;
@@ -90,6 +227,7 @@
     _points.push(startPointElem);
 
     lines.forEach((line, idx) => {
+      if (!line || !line.endPoint) return; // Skip invalid lines or lines without endPoint
       [line.endPoint, ...line.controlPoints].forEach((point, idx1) => {
         if (idx1 > 0) {
           let pointGroup = new Two.Group();
@@ -98,7 +236,7 @@
           let pointElem = new Two.Circle(
             x(point.x),
             y(point.y),
-            x(pointRadius)
+            x(POINT_RADIUS),
           );
           pointElem.id = `point-${idx + 1}-${idx1}-background`;
           pointElem.fill = line.color;
@@ -108,7 +246,7 @@
             `${idx1}`,
             x(point.x),
             y(point.y - 0.15),
-            x(pointRadius)
+            x(POINT_RADIUS),
           );
           pointText.id = `point-${idx + 1}-${idx1}-text`;
           pointText.size = x(1.55);
@@ -125,7 +263,7 @@
           let pointElem = new Two.Circle(
             x(point.x),
             y(point.y),
-            x(pointRadius)
+            x(POINT_RADIUS),
           );
           pointElem.id = `point-${idx + 1}-${idx1}`;
           pointElem.fill = line.color;
@@ -134,6 +272,7 @@
         }
       });
     });
+    // Obstacles removed: no obstacle points generated
 
     return _points;
   })();
@@ -142,20 +281,42 @@
     let _path: (Path | PathLine)[] = [];
 
     lines.forEach((line, idx) => {
-      let _startPoint = idx === 0 ? startPoint : lines[idx - 1].endPoint;
+      if (!line || !line.endPoint) return; // Skip invalid lines or lines without endPoint
+      let _startPoint =
+        idx === 0 ? startPoint : lines[idx - 1]?.endPoint || null;
+      if (!_startPoint) return; // Skip if previous line's endPoint is missing
 
       let lineElem: Path | PathLine;
       if (line.controlPoints.length > 2) {
         // Approximate an n-degree bezier curve by sampling it at 100 points
         const samples = 100;
         const cps = [_startPoint, ...line.controlPoints, line.endPoint];
-        let points = [new Two.Anchor(x(_startPoint.x), y(_startPoint.y), 0, 0, 0, 0, Two.Commands.move)];
+        let points = [
+          new Two.Anchor(
+            x(_startPoint.x),
+            y(_startPoint.y),
+            0,
+            0,
+            0,
+            0,
+            Two.Commands.move,
+          ),
+        ];
         for (let i = 1; i <= samples; ++i) {
           const point = getCurvePoint(i / samples, cps);
-          points.push(new Two.Anchor(x(point.x), y(point.y), 0, 0, 0, 0, Two.Commands.line));
+          points.push(
+            new Two.Anchor(
+              x(point.x),
+              y(point.y),
+              0,
+              0,
+              0,
+              0,
+              Two.Commands.line,
+            ),
+          );
         }
         points.forEach((point) => (point.relative = false));
-
         lineElem = new Two.Path(points);
         lineElem.automatic = false;
       } else if (line.controlPoints.length > 0) {
@@ -167,7 +328,6 @@
           line.controlPoints[1] ??
           quadraticToCubic(_startPoint, line.controlPoints[0], line.endPoint)
             .Q2;
-
         let points = [
           new Two.Anchor(
             x(_startPoint.x),
@@ -176,7 +336,7 @@
             y(_startPoint.y),
             x(cp1.x),
             y(cp1.y),
-            Two.Commands.move
+            Two.Commands.move,
           ),
           new Two.Anchor(
             x(line.endPoint.x),
@@ -185,7 +345,7 @@
             y(cp2.y),
             x(line.endPoint.x),
             y(line.endPoint.y),
-            Two.Commands.curve
+            Two.Commands.curve,
           ),
         ];
         points.forEach((point) => (point.relative = false));
@@ -197,106 +357,310 @@
           x(_startPoint.x),
           y(_startPoint.y),
           x(line.endPoint.x),
-          y(line.endPoint.y)
+          y(line.endPoint.y),
         );
       }
 
       lineElem.id = `line-${idx + 1}`;
       lineElem.stroke = line.color;
-      lineElem.linewidth = x(lineWidth);
+      lineElem.linewidth = x(LINE_WIDTH);
       lineElem.noFill();
+      // Add a dashed line for locked paths
+      if (line.locked) {
+        lineElem.dashes = [x(2), x(2)];
+        lineElem.opacity = 0.7;
+      } else {
+        lineElem.dashes = [];
+        lineElem.opacity = 1;
+      }
 
       _path.push(lineElem);
     });
 
     return _path;
   })();
+  $: shapeElements = (() => {
+    // Obstacles removed: return empty array for shape elements
+    return [] as Path[];
+  })();
 
-  let robotXY: BasePoint = { x: 0, y: 0 };
-  let robotHeading: number = 0;
+  $: ghostPathElement = (() => {
+    let ghostPath: Path | null = null;
 
-  $: {
-    let totalLineProgress = (lines.length * Math.min(percent, 99.999999999)) / 100;
-    let currentLineIdx = Math.min(Math.trunc(totalLineProgress), lines.length - 1);
-    let currentLine = lines[currentLineIdx];
+    if (settings.showGhostPaths && lines.length > 0) {
+      const ghostPoints = generateGhostPathPoints(
+        startPoint,
+        lines,
+        settings.rWidth,
+        settings.rHeight,
+        50,
+      );
 
-    let linePercent = easeInOutQuad(totalLineProgress - Math.floor(totalLineProgress));
-    let _startPoint = currentLineIdx === 0 ? startPoint : lines[currentLineIdx - 1].endPoint;
-    let robotInchesXY = getCurvePoint(linePercent, [_startPoint, ...currentLine.controlPoints, currentLine.endPoint]);
-    robotXY = { x: x(robotInchesXY.x), y: y(robotInchesXY.y) };
+      if (ghostPoints.length >= 3) {
+        // Create polygon from ghost path points
+        let vertices = [];
 
-    // If this line is a wait, compute heading from the previous non-wait line's end heading
-    if ((currentLine as any).waitMs !== undefined) {
-      let prevIdx = currentLineIdx - 1;
-      while (prevIdx >= 0 && (lines[prevIdx] as any).waitMs !== undefined) {
-        prevIdx -= 1;
-      }
-
-      if (prevIdx >= 0) {
-        const prevLine = lines[prevIdx];
-        const prevStart = prevIdx === 0 ? startPoint : lines[prevIdx - 1].endPoint;
-        // determine heading at end of prevLine (t = 1)
-        switch (prevLine.endPoint.heading) {
-          case "linear":
-            robotHeading = -shortestRotation(
-              prevLine.endPoint.startDeg,
-              prevLine.endPoint.endDeg,
-              1
-            );
-            break;
-          case "constant":
-            robotHeading = -prevLine.endPoint.degrees;
-            break;
-          case "tangential": {
-            const pBefore = getCurvePoint(0.99, [prevStart, ...prevLine.controlPoints, prevLine.endPoint]);
-            const pEnd = getCurvePoint(1, [prevStart, ...prevLine.controlPoints, prevLine.endPoint]);
-            const pBeforePx = { x: x(pBefore.x), y: y(pBefore.y) };
-            const pEndPx = { x: x(pEnd.x), y: y(pEnd.y) };
-            const dx = pEndPx.x - pBeforePx.x;
-            const dy = pEndPx.y - pBeforePx.y;
-            if (dx !== 0 || dy !== 0) {
-              robotHeading = radiansToDegrees(Math.atan2(dy, dx));
-            }
-            break;
-          }
-        }
-      } else {
-        // no previous line, fall back to startPoint heading if available
-        if (startPoint.heading === "constant") robotHeading = -((startPoint as any).degrees ?? 0);
-        else if (startPoint.heading === "linear") robotHeading = -shortestRotation(startPoint.startDeg, startPoint.endDeg, 1);
-      }
-    } else {
-    switch (currentLine.endPoint.heading) {
-      case "linear":
-        robotHeading = -shortestRotation(
-          currentLine.endPoint.startDeg,
-          currentLine.endPoint.endDeg,
-          linePercent
+        // Start with move command for first point
+        vertices.push(
+          new Two.Anchor(
+            x(ghostPoints[0].x),
+            y(ghostPoints[0].y),
+            0,
+            0,
+            0,
+            0,
+            Two.Commands.move,
+          ),
         );
-        break;
-      case "constant":
-        robotHeading = -currentLine.endPoint.degrees;
-        break;
-      case "tangential":
-        const nextPointInches = getCurvePoint(
-          linePercent + (currentLine.endPoint.reverse ? -0.01 : 0.01),
-          [_startPoint, ...currentLine.controlPoints, currentLine.endPoint]
-        );
-        const nextPoint = { x: x(nextPointInches.x), y: y(nextPointInches.y) };
 
-        const dx = nextPoint.x - robotXY.x;
-        const dy = nextPoint.y - robotXY.y;
-
-        if (dx !== 0 || dy !== 0) {
-          const angle = Math.atan2(dy, dx);
-
-          robotHeading = radiansToDegrees(angle);
+        // Add line commands for remaining points
+        for (let i = 1; i < ghostPoints.length; i++) {
+          vertices.push(
+            new Two.Anchor(
+              x(ghostPoints[i].x),
+              y(ghostPoints[i].y),
+              0,
+              0,
+              0,
+              0,
+              Two.Commands.line,
+            ),
+          );
         }
 
-        break;
+        // Close the shape
+        vertices.push(
+          new Two.Anchor(
+            x(ghostPoints[0].x),
+            y(ghostPoints[0].y),
+            0,
+            0,
+            0,
+            0,
+            Two.Commands.close,
+          ),
+        );
+
+        vertices.forEach((point) => (point.relative = false));
+
+        ghostPath = new Two.Path(vertices);
+        ghostPath.id = "ghost-path";
+        ghostPath.stroke = "#a78bfa"; // Light purple/lavender
+        ghostPath.fill = "#a78bfa";
+        ghostPath.opacity = 0.15;
+        ghostPath.linewidth = x(0.5);
+        ghostPath.automatic = false;
+      }
     }
+
+    return ghostPath;
+  })();
+
+  $: onionLayerElements = (() => {
+    let onionLayers: Path[] = [];
+
+    if (settings.showOnionLayers && lines.length > 0) {
+      const spacing = settings.onionLayerSpacing || 6;
+      let layers = generateOnionLayers(
+        startPoint,
+        lines,
+        settings.rWidth,
+        settings.rHeight,
+        spacing,
+      );
+
+      // If user requested onion layers only for the next point, filter to the relevant line
+      if (settings.onionNextPointOnly && timePrediction && timePrediction.timeline) {
+        const currentTime = (timePrediction.totalTime || 0) * (percent / 100);
+        const travelEvents = (timePrediction.timeline || []).filter(
+          (ev) => ev.type === "travel",
+        );
+
+        let selectedLineIndex: number | null = null;
+
+        // Current travel segment
+        const currentTravel = travelEvents.find(
+          (ev) => ev.startTime <= currentTime && ev.endTime >= currentTime,
+        );
+        if (currentTravel) {
+          selectedLineIndex = currentTravel.lineIndex as number;
+        } else {
+          // Next upcoming travel segment
+          const nextTravel = travelEvents.find((ev) => ev.startTime > currentTime);
+          if (nextTravel) selectedLineIndex = nextTravel.lineIndex as number;
+          else if (travelEvents.length) selectedLineIndex = travelEvents[travelEvents.length - 1].lineIndex as number;
+        }
+
+        if (selectedLineIndex !== null) {
+          layers = layers.filter((l: any) => l.lineIndex === selectedLineIndex);
+        }
+      }
+
+      layers.forEach((layer, idx) => {
+        // Create a rectangle from the robot corners
+        let vertices: any[] = [];
+
+        // Create path from corners: front-left -> front-right -> back-right -> back-left
+        vertices.push(
+          new Two.Anchor(
+            x(layer.corners[0].x),
+            y(layer.corners[0].y),
+            0,
+            0,
+            0,
+            0,
+            Two.Commands.move,
+          ),
+        );
+
+        for (let i = 1; i < layer.corners.length; i++) {
+          vertices.push(
+            new Two.Anchor(
+              x(layer.corners[i].x),
+              y(layer.corners[i].y),
+              0,
+              0,
+              0,
+              0,
+              Two.Commands.line,
+            ),
+          );
+        }
+
+        // Close the path by returning to the first corner
+        vertices.push(
+          new Two.Anchor(
+            x(layer.corners[0].x),
+            y(layer.corners[0].y),
+            0,
+            0,
+            0,
+            0,
+            Two.Commands.close,
+          ),
+        );
+
+        vertices.forEach((point) => (point.relative = false));
+
+        let onionRect = new Two.Path(vertices);
+        onionRect.id = `onion-layer-${idx}`;
+        onionRect.stroke = settings.onionColor || "#dc2626";
+        onionRect.noFill();
+        // Increase opacity so colliders are more visible
+        onionRect.opacity = 0.9;
+        onionRect.linewidth = x(0.28);
+        onionRect.automatic = false;
+
+        onionLayers.push(onionRect);
+      });
+    }
+
+    return onionLayers;
+  })();
+
+  let isLoaded = false;
+  // Reactively trigger when any saveable data changes
+  $: {
+    if (isLoaded && (lines || shapes || startPoint || settings)) {
+      isUnsaved.set(true);
     }
   }
+
+  // Allow the app to stabilize before tracking changes
+  onMount(() => {
+    setTimeout(() => {
+      isLoaded = true;
+      recordChange();
+    }, 500);
+  });
+  onMount(async () => {
+    // Load saved settings
+    const savedSettings = await loadSettings();
+    settings = { ...savedSettings };
+
+    // Update robot dimensions from loaded settings
+    robotWidth = settings.rWidth;
+    robotHeight = settings.rHeight;
+  });
+  // Debounced save function
+  const debouncedSaveSettings = debounce(async (settingsToSave: Settings) => {
+    await saveSettings(settingsToSave);
+  }, 1000);
+  // Save after 1 second of inactivity
+
+  // Watch for settings changes and save
+  $: {
+    if (settings) {
+      debouncedSaveSettings(settings);
+    }
+  }
+
+  // Initialize animation controller
+  onMount(() => {
+    animationController = createAnimationController(
+      animationDuration,
+      (newPercent) => {
+        percent = newPercent;
+      },
+      () => {
+        // Animation completed callback
+        console.log("Animation completed");
+        playing = false;
+      },
+    );
+  });
+  $: if (animationController) {
+    animationController.setDuration(animationDuration);
+  }
+
+  $: if (animationController) {
+    animationController.setLoop(loopAnimation);
+    // Sync UI state with controller
+    playing = animationController.isPlaying();
+  }
+
+  // Save Function
+  // Save the current project into the browser-backed store (or download)
+  async function saveProject() {
+    try {
+      await saveFile();
+    } catch (e) {
+      console.error("Failed to save project:", e);
+      alert("Failed to save file.");
+    }
+  }
+
+  // Keyboard shortcut for save
+  hotkeys("cmd+s, ctrl+s", function (event, handler) {
+    event.preventDefault();
+    saveProject();
+  });
+  $: {
+    // This handles both 'travel' (movement) and 'wait' (stationary rotation) events.
+    if (timePrediction && timePrediction.timeline && lines.length > 0) {
+      const state = calculateRobotState(
+        percent,
+        timePrediction.timeline,
+        lines,
+        startPoint,
+        settings,
+        x,
+        y,
+      );
+      robotXY = { x: state.x, y: state.y };
+      robotHeading = state.heading;
+    } else {
+      // Fallback for initialization or empty state
+      robotXY = { x: x(startPoint.x), y: y(startPoint.y) };
+      // Calculate initial heading based on start point settings
+      if (startPoint.heading === "linear") robotHeading = -startPoint.startDeg;
+      else if (startPoint.heading === "constant")
+        robotHeading = -startPoint.degrees;
+      else robotHeading = 0;
+    }
+  }
+
+  // Event markers removed: no runtime visualization created
 
   $: (() => {
     if (!two) {
@@ -312,345 +676,164 @@
 
     two.clear();
 
+    two.add(...shapeElements);
+    if (ghostPathElement) {
+      two.add(ghostPathElement);
+    }
+    if (onionLayerElements.length > 0) {
+      two.add(...onionLayerElements);
+    }
     two.add(...path);
     two.add(...points);
 
     two.update();
   })();
+  async function saveFileAs() {
+    const win: any = window as any;
+    const content = JSON.stringify(
+      {
+        startPoint,
+        lines,
+        shapes,
+        sequence,
+        version: "1.2.1",
+        timestamp: new Date().toISOString(),
+      },
+      null,
+      2,
+    );
 
-let playing = false;
+    // Prefer File System Access API if available: opens native Save dialog
+    if (win.showSaveFilePicker) {
+      try {
+        const opts = {
+          suggestedName: $currentFilePath ? $currentFilePath.split(/[\/]/).pop() : "path.pp",
+          types: [
+            {
+              description: "Path files",
+              accept: { "application/json": [".pp", ".json"] },
+            },
+          ],
+        };
 
-let animationFrame: number;
-let startTime: number | null = null;
-let previousTime: number | null = null;
+        const handle = await win.showSaveFilePicker(opts);
+        if (!handle) {
+          // User cancelled
+          return;
+        }
 
-let waiting = false;
-let waitTimerRemaining = 0;
-let lastHandledLineIdx = -1;
-let waitEndTimestamp: number | null = null;
-let prevPercent = 0;
-let cycleTimerRunning = false;
-// Playback elapsed timer (ms) — resets when `play()` starts
-let playElapsedMs = 0;
+        const writable = await handle.createWritable();
+        await writable.write(content);
+        await writable.close();
 
-function normalizeWaitMs(value: any): number {
-  const n = Number(value) || 0;
-  return n <= 0 ? 0 : n; // treat value as milliseconds directly
-}
-
-function animate(timestamp: number) {
-  // First frame init
-  if (previousTime === null) {
-    previousTime = timestamp;
-    animationFrame = requestAnimationFrame(animate);
-    return;
-  }
-
-  // Calculate elapsed ms since last frame
-  const deltaTime = timestamp - previousTime;
-  // Move previousTime forward now (keeps delta strictly the time spent since last frame)
-  previousTime = timestamp;
-
-  // compute playback elapsed deterministically from `percent` and waits
-  function computeElapsedFromPercent(p: number) {
-    if (!lines || lines.length === 0) return 0;
-    const clamped = Math.max(0, Math.min(100, p));
-    const totalLineProgress = (lines.length * clamped) / 100;
-    let idx = Math.min(Math.trunc(totalLineProgress), Math.max(0, lines.length - 1));
-    const frac = totalLineProgress - Math.floor(totalLineProgress);
-
-    // motion time per non-wait line (derived from existing speed formula)
-    const motionMsPerLine = 100 / 0.065; // ~=1538.461538ms
-
-    let sum = 0;
-    for (let j = 0; j < idx; j++) {
-      const l = lines[j] as any;
-      if (l && l.waitMs !== undefined) {
-        sum += Number(l.waitMs) || 0;
-      } else {
-        sum += motionMsPerLine;
-      }
-    }
-
-    // current line partial
-    const cur = lines[idx] as any;
-    if (cur) {
-      if (cur.waitMs !== undefined) {
-        sum += (Number(cur.waitMs) || 0) * frac;
-      } else {
-        sum += motionMsPerLine * frac;
-      }
-    }
-
-    return sum;
-  }
-
-  playElapsedMs = computeElapsedFromPercent(percent);
-
-  // Detect current line based on percent
-  const totalLineProgress = (lines.length * Math.min(percent, 99.999999)) / 100;
-  const currentLineIdx = Math.min(Math.trunc(totalLineProgress), Math.max(0, lines.length - 1));
-  const currentLine = lines[currentLineIdx];
-
-  // If we just entered a line that has a wait, start the wait timer (only once per line)
-  if (currentLine && (currentLine as any).waitMs !== undefined && lastHandledLineIdx !== currentLineIdx) {
-    waiting = true;
-    const ms = normalizeWaitMs((currentLine as any).waitMs);
-    // set an absolute end timestamp for the wait based on current frame timestamp
-    waitEndTimestamp = timestamp + ms;
-    waitTimerRemaining = ms;
-    lastHandledLineIdx = currentLineIdx;
-    console.log(`Entering wait on line ${currentLineIdx}: raw waitMs=${(currentLine as any).waitMs} normalized=${ms}ms, will end at ${waitEndTimestamp}`);
-  }
-
-  // HANDLE WAIT: subtract elapsed time (ms). Do not advance percent while waiting.
-  if (waiting) {
-    // compute remaining based on absolute end timestamp if set
-    if (waitEndTimestamp !== null) {
-      const remaining = Math.max(0, waitEndTimestamp - timestamp);
-      waitTimerRemaining = remaining;
-      if (timestamp >= waitEndTimestamp) {
-        // wait finished
-        waiting = false;
-        waitTimerRemaining = 0;
-        waitEndTimestamp = null;
-        // reset previousTime so the next frame's delta doesn't include the time that passed during the wait
-        previousTime = timestamp;
-        console.log(`Wait finished on line ${currentLineIdx}`);
-      }
-    }
-
-    // keep animating loop but do not advance percent while waiting
-    animationFrame = requestAnimationFrame(animate);
-    return;
-  }
-
-  // NORMAL PROGRESS
-  if (percent >= 100) {
-    percent = 0;
-    lastHandledLineIdx = -1; // allow waits to re-trigger on next loop
-    // cycle finished — stop cycle timer so it will restart on the next run
-    cycleTimerRunning = false;
-  } else {
-    // Your original motion formula — kept similar, but uses real ms deltaTime
-    const speed = 0.65 / Math.max(1, lines.length);
-    percent += speed * deltaTime * 0.1; // you can tune this multiplier if you want motion faster/slower
-    // If we transitioned from 0 -> >0, this is the very first path beginning — reset cycle timer
-    if (!cycleTimerRunning && prevPercent === 0 && percent > 0) {
-      playElapsedMs = 0;
-      cycleTimerRunning = true;
-      console.log('Cycle timer started (first path began)');
-    }
-  }
-
-  animationFrame = requestAnimationFrame(animate);
-  // remember percent for next frame to detect 0->>0 transitions
-  prevPercent = percent;
-}
-
-function play() {
-  if (!playing) {
-    playing = true;
-    // If we're starting from the very beginning (never played), reset elapsed timer.
-    // If we're resuming (percent > 0 or waits already handled), don't reset timers or progress.
-    startTime = null;
-    previousTime = null; // force animate to initialize timing on next frame (prevents big delta)
-    if (percent === 0 && lastHandledLineIdx === -1) {
-      playElapsedMs = 0;
-    }
-    animationFrame = requestAnimationFrame(animate);
-  }
-}
-
-function pause() {
-  playing = false;
-  cancelAnimationFrame(animationFrame);
-}
-
-  async function fpa(l: FPALine, s: FPASettings): Promise<Line> {
-    let status = 'Starting optimization...';
-    let result = null;
-    // Convert to arrays, not JSON strings - this was the main issue!
-    // If no obstacle vertices, create a small default obstacle outside the field
-    const inputWaypoints = [l.startPoint, ...l.controlPoints, l.endPoint].map(p => [p.x, p.y]);
-
-    // Extract heading degrees based on Point type
-    let startHeadingDeg = 0;
-    let endHeadingDeg = 0;
-
-    if (l.startPoint.heading === "linear") {
-      startHeadingDeg = l.startPoint.startDeg ?? 0;
-    } else if (l.startPoint.heading === "constant") {
-      startHeadingDeg = (l.startPoint as any).degrees ?? 0;
-    }
-
-    if (l.endPoint.heading === "linear") {
-      endHeadingDeg = l.endPoint.endDeg ?? 0;
-    } else if (l.endPoint.heading === "constant") {
-      endHeadingDeg = (l.endPoint as any).degrees ?? 0;
-    }
-
-    console.log('FPA Optimization Parameters:');
-    console.log('Waypoints:', inputWaypoints);
-    console.log('Start heading:', startHeadingDeg);
-    console.log('End heading:', endHeadingDeg);
-    console.log('Settings:', s);
-
-    const payload = {
-                waypoints: inputWaypoints,
-                start_heading_degrees: startHeadingDeg,
-                end_heading_degrees: endHeadingDeg,
-                x_velocity: s.xVelocity,
-                y_velocity: s.yVelocity,
-                angular_velocity: s.aVelocity,
-                friction_coefficient: s.kFriction,
-                robot_width: s.rWidth,
-                robot_height: s.rHeight,
-                min_coord_field: 0,
-                max_coord_field: 144,
-                interpolation: l.interpolation === "tangential" ? "tangent" : l.interpolation
-    };
-    try {
-      result = await runOptimization(payload);
-      status = 'Optimization Complete!';
-    } catch (e: any) {
-      status = 'Error: ' + e.message;
-      throw e;
-    }
-
-    // result is already parsed JSON data, no need to call .json()
-    const resultData = result;
-
-    // Handle the new API format that returns optimized_waypoints
-    let optimizedWaypoints;
-    if (resultData.optimized_waypoints) {
-      optimizedWaypoints = resultData.optimized_waypoints;
-    } else if (Array.isArray(resultData)) {
-      // Legacy format support
-      optimizedWaypoints = resultData;
-    } else {
-      throw new Error('Unexpected result format from optimization API');
-    }
-
-    // Handle the different Point types based on heading
-    let endPoint: Point;
-
-    if (l.interpolation === "tangential") {
-      endPoint = {
-        x: optimizedWaypoints[optimizedWaypoints.length - 1][0],
-        y: optimizedWaypoints[optimizedWaypoints.length - 1][1],
-        heading: "tangential",
-        reverse: l.endPoint.reverse ?? false
-      };
-    } else if (l.interpolation === "constant") {
-      endPoint = {
-        x: optimizedWaypoints[optimizedWaypoints.length - 1][0],
-        y: optimizedWaypoints[optimizedWaypoints.length - 1][1],
-        heading: "constant",
-        degrees: (l.endPoint as any).degrees ?? 0
-      };
-    } else {
-      // linear
-      endPoint = {
-        x: optimizedWaypoints[optimizedWaypoints.length - 1][0],
-        y: optimizedWaypoints[optimizedWaypoints.length - 1][1],
-        heading: "linear",
-        startDeg: l.endPoint.startDeg ?? 0,
-        endDeg: l.endPoint.endDeg ?? 0
-      };
-    }
-
-    return {
-      name: l.name,
-      endPoint,
-      color: l.color,
-      controlPoints: optimizedWaypoints.slice(1, optimizedWaypoints.length - 1).map((p: number[]) => ({ x: p[0], y: p[1] }))
-    }
-
-    /*return {
-        endPoint: { x: 36, y: 80, heading: "linear", startDeg: 0, endDeg: 0 },
-        controlPoints: [],
-        color: getRandomColor(),
-      }*/
-  }
-
-
-    function sleep(ms: number) {
-        return new Promise(res => setTimeout(res, ms));
-    }
-
-    export async function createTask(payload: any) {
+        // Update app state to reflect saved file
         try {
-            console.log('Creating optimization task with payload:', payload);
-            const response = await fetch('https://fpa.pedropathing.com/optimize', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            console.log('Response status:', response.status);
-
-            // Handle offline response from service worker
-            if (response.status === 503) {
-                const errorData = await response.json();
-                if (errorData.error === 'offline') {
-                    throw new Error('OFFLINE: ' + errorData.message);
-                }
-            }
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Server error response:', errorText);
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            console.log('Job created with ID:', data.job_id);
-            return data.job_id;
-        } catch (error) {
-            console.error('Failed to create optimization task:', error);
-            throw error;
+          currentFilePath.set(handle.name || (typeof handle === "string" ? handle : null));
+        } catch (e) {
+          // ignore
         }
+        isUnsaved.set(false);
+        alert(`Saved to: ${handle.name || "selected file"}`);
+        return;
+      } catch (err) {
+        console.error("SaveFilePicker error:", err);
+        // fall through to download fallback
+      }
     }
 
-    export async function pollForResult(jobId: string, pollInterval = 1000, maxTries = 60) {
-        for (let i = 0; i < maxTries; i++) {
-            try {
-                const response = await fetch(`https://fpa.pedropathing.com/job/${jobId}`);
+    // If showSaveFilePicker is not available or failed, try showOpenFilePicker to let user pick an existing file to overwrite
+    if (win.showOpenFilePicker) {
+      try {
+        const [handle] = await win.showOpenFilePicker({
+          types: [
+            {
+              description: "Path files",
+              accept: { "application/json": [".pp", ".json"] },
+            },
+          ],
+          multiple: false,
+        });
 
-                // Handle offline response from service worker
-                if (response.status === 503) {
-                    const errorData = await response.json();
-                    if (errorData.error === 'offline') {
-                       console.log('OFFLINE: ' + errorData.message)
-                        throw new Error('OFFLINE: ' + errorData.message);
-                    }
-                }
-
-                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                const data = await response.json();
-                if (data.status === 'completed' && data.result) {
-                    return data.result;
-                } else if (data.status === 'error') {
-                    throw new Error('Optimization failed with error.');
-                }
-                await sleep(pollInterval);
-            } catch (error) {
-                console.error(`Polling attempt ${i + 1} failed:`, error);
-                if (i === maxTries - 1) throw error; // Re-throw on last attempt
-                await sleep(pollInterval);
-            }
+        if (handle) {
+          const writable = await handle.createWritable();
+          await writable.write(content);
+          await writable.close();
+          try {
+            currentFilePath.set(handle.name || null);
+          } catch (e) {}
+          isUnsaved.set(false);
+          alert(`Saved to local file: ${handle.name || "selected file"}`);
+          return;
         }
-        console.log('Polling timed out after', maxTries, 'attempts.')
-        throw new Error('Timeout waiting for job result.');
+      } catch (err) {
+        console.error("showOpenFilePicker error:", err);
+        // fall through to download fallback
+      }
     }
 
-    // 3. Run Optimization - creates task, then polls for result and returns it
-    export async function runOptimization(payload: any, pollInterval = 1000, maxTries = 60) {
-        const jobId = await createTask(payload);
-        const result = await pollForResult(jobId, pollInterval, maxTries);
-        return result;
+    // Fallback for browsers without File System Access (e.g., Firefox).
+    // Automatically save into the app's browser-backed storage to avoid forcing a download.
+    try {
+      await saveFile();
+      alert(
+        "Your browser does not support native file dialogs. The project was saved to the app's storage.\n\nOpen the File Manager to download or export the file to your computer.",
+      );
+    } catch (err) {
+      console.error("Failed to save into app storage:", err);
+      // As a last resort, download the file
+      try {
+        downloadTrajectory(startPoint, lines, shapes, sequence);
+      } catch (err2) {
+        console.error("Save As fallback failed:", err2);
+        alert("Failed to save file. Your browser may not support file picker APIs.");
+      }
     }
+  }
+
+  
+
+  function animate(timestamp: number) {
+    if (!startTime) {
+      startTime = timestamp;
+    }
+
+    if (previousTime !== null) {
+      const deltaTime = timestamp - previousTime;
+      if (percent >= 100) {
+        percent = 0;
+      } else {
+        percent += (0.65 / lines.length) * (deltaTime * 0.1);
+      }
+    }
+
+    previousTime = timestamp;
+
+    if (playing) {
+      requestAnimationFrame(animate);
+    }
+  }
+
+  function play() {
+    animationController.play();
+    playing = true;
+  }
+
+  function pause() {
+    animationController.pause();
+    playing = false;
+  }
+
+  function resetAnimation() {
+    animationController.reset();
+    playing = false;
+  }
+
+  // Handle slider changes
+  function handleSeek(newPercent: number) {
+    if (animationController) {
+      animationController.seekToPercent(newPercent);
+    }
+  }
 
   onMount(() => {
     two = new Two({
@@ -658,33 +841,72 @@ function pause() {
       type: Two.Types.svg,
     }).appendTo(twoElement);
 
-    updateRobotImage();
+    updateRobotImageDisplay();
 
     let currentElem: string | null = null;
     let isDown = false;
+    let dragOffset = { x: 0, y: 0 }; // Store offset to prevent snapping to center
 
     two.renderer.domElement.addEventListener("mousemove", (evt: MouseEvent) => {
       const elem = document.elementFromPoint(evt.clientX, evt.clientY);
-      if (isDown && currentElem) {
-        const { x: xPos, y: yPos } = getMousePos(evt, two.renderer.domElement);
-          // Handle path point dragging
-          const line = Number(currentElem.split("-")[1]) - 1;
-          const point = Number(currentElem.split("-")[2]);
 
-          if (line === -1) {
-            startPoint.x = x.invert(xPos);
-            startPoint.y = y.invert(yPos);
+      if (isDown && currentElem) {
+        const hitLine = Number(currentElem.split("-")[1]) - 1;
+
+        // Skip dragging if the line is locked
+        if (hitLine >= 0 && lines[hitLine]?.locked) {
+          return;
+        }
+
+        // Use simple bounding rect math to match D3 scales which are bound to clientWidth/Height
+        const rect = two.renderer.domElement.getBoundingClientRect();
+        const xPos = evt.clientX - rect.left;
+        const yPos = evt.clientY - rect.top;
+
+        // Get current store values for reactivity
+        const currentGridSize = $gridSize;
+        const currentSnapToGrid = $snapToGrid;
+        const currentShowGrid = $showGrid;
+
+        // Apply drag offset (in inches) to the raw mouse position
+        let rawInchX = x.invert(xPos) + dragOffset.x;
+        let rawInchY = y.invert(yPos) + dragOffset.y;
+
+        let inchX = rawInchX;
+        let inchY = rawInchY;
+
+        // Always apply grid snapping when enabled
+        if (currentSnapToGrid && currentShowGrid && currentGridSize > 0) {
+          // Force snap to nearest grid point
+          inchX = Math.round(rawInchX / currentGridSize) * currentGridSize;
+          inchY = Math.round(rawInchY / currentGridSize) * currentGridSize;
+
+          // Clamp to field boundaries
+          inchX = Math.max(0, Math.min(FIELD_SIZE, inchX));
+          inchY = Math.max(0, Math.min(FIELD_SIZE, inchY));
+        }
+
+        // Handle path point dragging
+        const line = Number(currentElem.split("-")[1]) - 1;
+        const point = Number(currentElem.split("-")[2]);
+
+        if (line === -1) {
+          // This is the starting point
+          if (startPoint.locked) return;
+          startPoint.x = inchX;
+          startPoint.y = inchY;
+        } else if (lines[line]) {
+          if (point === 0 && lines[line].endPoint) {
+            lines[line].endPoint.x = inchX;
+            lines[line].endPoint.y = inchY;
           } else {
-            if (point === 0) {
-              lines[line].endPoint.x = x.invert(xPos);
-              lines[line].endPoint.y = y.invert(yPos);
-            } else {
-              lines[line].controlPoints[point - 1].x = x.invert(xPos);
-              lines[line].controlPoints[point - 1].y = y.invert(yPos);
-            }
+            if (lines[line]?.locked) return;
+            lines[line].controlPoints[point - 1].x = inchX;
+            lines[line].controlPoints[point - 1].y = inchY;
           }
+        }
       } else {
-        if (elem?.id.startsWith("point") || elem?.id.startsWith("obstacle")) {
+        if (elem?.id.startsWith("point")) {
           two.renderer.domElement.style.cursor = "pointer";
           currentElem = elem.id;
         } else {
@@ -693,14 +915,109 @@ function pause() {
         }
       }
     });
-    two.renderer.domElement.addEventListener("mousedown", () => {
+
+    two.renderer.domElement.addEventListener("mousedown", (evt: MouseEvent) => {
       isDown = true;
+
+      // Calculate drag offset when clicking to prevent snapping center to mouse
+      if (currentElem) {
+        const rect = two.renderer.domElement.getBoundingClientRect();
+        const mouseX = x.invert(evt.clientX - rect.left);
+        const mouseY = y.invert(evt.clientY - rect.top);
+
+        let objectX = 0;
+        let objectY = 0;
+
+        // Only handle points (start point / path points)
+        {
+          const line = Number(currentElem.split("-")[1]) - 1;
+          const point = Number(currentElem.split("-")[2]);
+
+          if (line === -1) {
+            objectX = startPoint.x;
+            objectY = startPoint.y;
+          } else if (lines[line]) {
+            if (point === 0 && lines[line].endPoint) {
+              objectX = lines[line].endPoint.x;
+              objectY = lines[line].endPoint.y;
+            } else {
+              if (lines[line].controlPoints[point - 1]) {
+                objectX = lines[line].controlPoints[point - 1].x;
+                objectY = lines[line].controlPoints[point - 1].y;
+              }
+            }
+          }
+        }
+
+        dragOffset = {
+          x: objectX - mouseX,
+          y: objectY - mouseY,
+        };
+      }
     });
+
     two.renderer.domElement.addEventListener("mouseup", () => {
       isDown = false;
+      dragOffset = { x: 0, y: 0 };
+      recordChange();
+    });
+
+    // Double-click on the field to create a new path at that position
+    two.renderer.domElement.addEventListener("dblclick", (evt: MouseEvent) => {
+      // Ignore dblclicks on existing points/lines
+      const elem = document.elementFromPoint(evt.clientX, evt.clientY);
+      if (
+        elem?.id &&
+        (elem.id.startsWith("point") || elem.id.startsWith("line"))
+      ) {
+        return;
+      }
+
+      const rect = two.renderer.domElement.getBoundingClientRect();
+      const rawInchX = x.invert(evt.clientX - rect.left);
+      const rawInchY = y.invert(evt.clientY - rect.top);
+
+      // Apply grid snapping if enabled
+      const currentGridSize = $gridSize;
+      const currentSnapToGrid = $snapToGrid;
+      const currentShowGrid = $showGrid;
+
+      let inchX = rawInchX;
+      let inchY = rawInchY;
+
+      if (currentSnapToGrid && currentShowGrid && currentGridSize > 0) {
+        inchX = Math.round(rawInchX / currentGridSize) * currentGridSize;
+        inchY = Math.round(rawInchY / currentGridSize) * currentGridSize;
+      }
+
+      // Clamp to field boundaries
+      inchX = Math.max(0, Math.min(FIELD_SIZE, inchX));
+      inchY = Math.max(0, Math.min(FIELD_SIZE, inchY));
+
+      // Create a new line with endPoint at the clicked position
+      const newLine: Line = {
+        id: `line-${Math.random().toString(36).slice(2)}`,
+        endPoint: {
+          x: inchX,
+          y: inchY,
+          heading: "tangential",
+          reverse: false,
+        },
+        controlPoints: [],
+        color: getRandomColor(),
+        locked: false,
+        waitBeforeMs: 0,
+        waitAfterMs: 0,
+        waitBeforeName: "",
+        waitAfterName: "",
+      };
+
+      lines = [...lines, newLine];
+      sequence = [...sequence, { kind: "path", lineId: newLine.id! }];
+      recordChange();
+      two.update();
     });
   });
-
   document.addEventListener("keydown", function (evt) {
     if (evt.code === "Space" && document.activeElement === document.body) {
       if (playing) {
@@ -709,178 +1026,359 @@ function pause() {
         play();
       }
     }
-
-    const updateScale = () => {
-        x = d3
-          .scaleLinear()
-          .domain([0, 144])
-          .range([0, twoElement?.clientWidth ?? 144]);
-
-        y = d3
-          .scaleLinear()
-          .domain([0, 144])
-          .range([twoElement?.clientHeight ?? 144, 0]);
-      };
-
-      const observer = new ResizeObserver(() => {
-        updateScale();
-      });
-
-      observer.observe(twoElement);
   });
+  async function saveFile() {
+    try {
+      const content = JSON.stringify({
+        startPoint,
+        lines,
+        shapes,
+        sequence,
+        version: "1.2.1",
+        timestamp: new Date().toISOString(),
+      }, null, 2);
 
-  function saveFile() {
-    const jsonString = JSON.stringify({ startPoint, lines});
-
-    const blob = new Blob([jsonString], { type: "application/json" });
-
-    const linkObj = document.createElement("a");
-
-    const url = URL.createObjectURL(blob);
-
-    linkObj.href = url;
-    linkObj.download = "trajectory.pp";
-
-    document.body.appendChild(linkObj);
-
-    linkObj.click();
-
-    document.body.removeChild(linkObj);
-
-    URL.revokeObjectURL(url);
+      if ($currentFilePath) {
+        await browserFileStore.writeFile($currentFilePath, content);
+        isUnsaved.set(false);
+        // Provide simple feedback
+        alert(`Saved to project storage: ${$currentFilePath}`);
+      } else {
+        // No current project file selected — save into browser cache as a new file
+        const defaultName = `path_${Date.now()}.pp`;
+        await browserFileStore.writeFile(defaultName, content);
+        currentFilePath.set(defaultName);
+        isUnsaved.set(false);
+        alert(`Saved to project storage as: ${defaultName}`);
+      }
+    } catch (err) {
+      console.error("Failed to save project to storage:", err);
+      alert("Failed to save project to browser storage.");
+    }
   }
 
-  function loadFile(evt: Event) {
+  async function loadFile(evt: Event) {
     const elem = evt.target as HTMLInputElement;
     const file = elem.files?.[0];
 
-    if (file) {
-      const reader = new FileReader();
+    if (!file) return;
 
-      reader.onload = function (e: ProgressEvent<FileReader>) {
-        try {
-          const result = e.target?.result as string;
+    // Check if file is a .pp file
+    if (!file.name.endsWith(".pp")) {
+      alert("Please select a .pp file");
+      // Reset the file input
+      elem.value = "";
+      return;
+    }
 
-          const jsonObj: {
-            startPoint: Point;
-            lines: Line[];
-            shapes?: Shape[];
-          } = JSON.parse(result);
-
-          startPoint = jsonObj.startPoint;
-          lines = jsonObj.lines;
-        } catch (err) {
-          console.error(err);
-        }
+    // Parse and load the uploaded file, then cache it into the browser store.
+    loadTrajectoryFromFile(evt, async (data) => {
+      // Ensure startPoint has all required fields
+      startPoint = data.startPoint || {
+        x: 72,
+        y: 72,
+        heading: "tangential",
+        reverse: false,
       };
 
-      reader.readAsText(file);
-    }
+      // Normalize lines with all required fields
+      const normalizedLines = normalizeLines(data.lines || []);
+      lines = normalizedLines;
+
+      // Derive sequence from data or create default
+      sequence = (
+        data.sequence && data.sequence.length
+          ? data.sequence
+          : normalizedLines.map((ln) => ({
+              kind: "path",
+              lineId: ln.id!,
+            }))
+      ) as SequenceItem[];
+
+      // Load shapes with defaults
+      shapes = data.shapes || [];
+
+      isUnsaved.set(false);
+      recordChange();
+
+      // Cache the uploaded file into the browser-backed store for later access
+      try {
+        const content = JSON.stringify(data);
+        await browserFileStore.writeFile(file.name, content);
+        currentFilePath.set(file.name);
+      } catch (err) {
+        console.warn("Failed to cache uploaded file to store:", err);
+      }
+    });
+
+    // Reset the file input
+    elem.value = "";
+  }
+
+  // Electron file-copying logic removed — browser store and upload are used instead.
+
+  // Helper function to load data into app state
+  function loadData(data: any) {
+    // Ensure startPoint has all required fields
+    startPoint = data.startPoint || {
+      x: 72,
+      y: 72,
+      heading: "tangential",
+      reverse: false,
+    };
+
+    // Normalize lines with all required fields
+    const normalizedLines = normalizeLines(data.lines || []);
+    lines = normalizedLines;
+
+    // Derive sequence from data or create default
+    sequence = (
+      data.sequence && data.sequence.length
+        ? data.sequence
+        : normalizedLines.map((ln) => ({
+            kind: "path",
+            lineId: ln.id!,
+          }))
+    ) as SequenceItem[];
+
+    // Load shapes with defaults
+    shapes = data.shapes || [];
+
+    isUnsaved.set(false);
+    recordChange();
   }
 
   function loadRobot(evt: Event) {
-    const elem = evt.target as HTMLInputElement;
-    const file = elem.files?.[0];
-
-    if (file && file.type === "image/png") {
-      const reader = new FileReader();
-
-      reader.onload = function (e: ProgressEvent<FileReader>) {
-        const result = e.target?.result as string;
-        localStorage.setItem('robot.png', result);
-        updateRobotImage();
-      };
-
-      reader.readAsDataURL(file);
-    } else {
-      console.error("Invalid file type. Please upload a PNG file.");
-    }
-  }
-
-  function updateRobotImage() {
-    const robotImage = document.querySelector('img[alt="Robot"]') as HTMLImageElement;
-    const storedImage = localStorage.getItem('robot.png');
-    if (robotImage && storedImage) {
-      robotImage.src = storedImage;
-    }
+    loadRobotImage(evt, () => updateRobotImageDisplay());
   }
 
   function addNewLine() {
-  lines = [
-    ...lines,
-    {
-      endPoint: {
+    lines = [
+      ...lines,
+      {
+        id: `line-${Math.random().toString(36).slice(2)}`,
+        endPoint: {
+          x: _.random(36, 108),
+          y: _.random(36, 108),
+          heading: "tangential",
+          reverse: true,
+        } as Point,
+        controlPoints: [],
+        color: getRandomColor(),
+        locked: false,
+        waitBeforeMs: 0,
+        waitAfterMs: 0,
+        waitBeforeName: "",
+        waitAfterName: "",
+      },
+    ];
+    sequence = [
+      ...sequence,
+      { kind: "path", lineId: lines[lines.length - 1].id! },
+    ];
+    recordChange();
+  }
+
+  function addControlPoint() {
+    if (lines.length > 0) {
+      const lastLine = lines[lines.length - 1];
+      lastLine.controlPoints.push({
         x: _.random(36, 108),
         y: _.random(36, 108),
-        heading: "tangential",
-        reverse: true,
-        // Remove startDeg/endDeg for tangential type if not needed by your Point type
-      } as Point,
-      controlPoints: [],
-      color: getRandomColor(),
-    },
-  ];
-}
-
-
-function addControlPoint() {
-  if (lines.length > 0) {
-    const lastLine = lines[lines.length - 1];
-    lastLine.controlPoints.push({
-      x: _.random(36, 108),
-      y: _.random(36, 108),
-    });
-  }
-}
-
-function removeControlPoint() {
-  if (lines.length > 0) {
-    const lastLine = lines[lines.length - 1];
-    if (lastLine.controlPoints.length > 0) {
-      lastLine.controlPoints.pop();
+      });
+      recordChange();
     }
   }
-}
 
-hotkeys('w', function(event, handler){
-  event.preventDefault();
-  addNewLine();
-});
+  function removeControlPoint() {
+    if (lines.length > 0) {
+      const lastLine = lines[lines.length - 1];
+      if (lastLine.controlPoints.length > 0) {
+        lastLine.controlPoints.pop();
+        recordChange();
+      }
+    }
+  }
 
+  // Keyboard shortcuts for quick path editing
+  hotkeys("w", function (event, handler) {
+    event.preventDefault();
+    addNewLine();
+  });
+  hotkeys("a", function (event, handler) {
+    event.preventDefault();
+    addControlPoint();
+    two.update();
+  });
+  hotkeys("s", function (event, handler) {
+    event.preventDefault();
+    removeControlPoint();
+    two.update();
+  });
+  hotkeys("cmd+z, ctrl+z", function (event) {
+    event.preventDefault();
+    undoAction();
+  });
+  hotkeys("cmd+shift+z, ctrl+shift+z, ctrl+y", function (event) {
+    event.preventDefault();
+    redoAction();
+  });
+  function applyTheme(theme: "light" | "dark" | "auto") {
+    let actualTheme = theme;
+    if (theme === "auto") {
+      // Check system preference
+      if (
+        window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches
+      ) {
+        actualTheme = "dark";
+      } else {
+        actualTheme = "light";
+      }
+    }
 
-hotkeys('a', function(event, handler){
-  event.preventDefault();
-  addControlPoint();
-  two.update();
-});
+    if (actualTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }
 
-hotkeys('s', function(event, handler){
-  event.preventDefault();
-  removeControlPoint();
-  two.update();
-});
+  // Watch for theme changes in settings
+  $: if (settings) {
+    applyTheme(settings.theme);
+  }
 
+  // Watch for system theme changes if auto mode is enabled
+  let mediaQuery: MediaQueryList;
+  onMount(() => {
+    if (settings?.theme === "auto") {
+      mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      const handleSystemThemeChange = () => {
+        if (settings.theme === "auto") {
+          applyTheme("auto");
+        }
+      };
+      mediaQuery.addEventListener("change", handleSystemThemeChange);
+
+      return () => {
+        mediaQuery.removeEventListener("change", handleSystemThemeChange);
+      };
+    }
+  });
+
+  // Auto-export for CI/testing: if the app is loaded with URL hash #export-gif-test, automatically run GIF export once mounted
+  onMount(() => {
+    if (
+      typeof window !== "undefined" &&
+      window.location &&
+      window.location.hash === "#export-gif-test"
+    ) {
+      // Delay slightly to allow initial rendering and Two.js to initialize
+      setTimeout(async () => {
+        try {
+          // auto GIF export removed (exportGif deleted)
+          console.log("Auto GIF export skipped (exportGif removed)");
+        } catch (err) {
+          console.error("Auto GIF export failed:", err);
+        }
+      }, 1500);
+    }
+  });
 </script>
 
-<Navbar bind:lines bind:startPoint bind:settings bind:robotWidth bind:robotHeight {saveFile} {loadFile} {loadRobot}/>
+<Navbar
+  bind:lines
+  bind:startPoint
+  bind:shapes
+  bind:sequence
+  bind:settings
+  bind:robotWidth
+  bind:robotHeight
+  {percent}
+  {saveProject}
+  {saveFileAs}
+  {loadFile}
+  {loadRobot}
+  {undoAction}
+  {redoAction}
+  {recordChange}
+  {canUndo}
+  {canRedo}
+/>
+<!--   {saveFile} -->
 <div
   class="w-screen h-screen pt-20 p-2 flex flex-row justify-center items-center gap-2"
 >
   <div class="flex h-full justify-center items-center">
     <div
       bind:this={twoElement}
-      class="flex-shrink-0 min-w-600 m h-full aspect-square rounded-lg shadow-md bg-neutral-50 dark:bg-neutral-900 relative overflow-visible"
+      bind:clientWidth={width}
+      bind:clientHeight={height}
+      class="h-full aspect-square rounded-lg shadow-md bg-neutral-50 dark:bg-neutral-900 relative overflow-clip"
+      role="application"
+      style="
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    user-drag: none;
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -ms-user-drag: none;
+    -o-user-drag: none;
+  "
+      on:contextmenu={(e) => e.preventDefault()}
+      on:dragstart={(e) => e.preventDefault()}
+      on:selectstart={(e) => e.preventDefault()}
+      tabindex="-1"
     >
       <img
-        src="/fields/decode.webp"
+        src={settings.fieldMap
+          ? `/fields/${settings.fieldMap}`
+          : "/fields/decode.webp"}
         alt="Field"
-        class="absolute top-0 left-0 w-full h-full rounded-lg z-10 pointer-events-none"
+        class="absolute top-0 left-0 w-full h-full rounded-lg z-10"
+        style="
+    background: transparent; 
+    pointer-events: none; 
+    user-select: none; 
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    user-drag: none;
+    -webkit-user-drag: none;
+    -moz-user-drag: none;
+    -ms-user-drag: none;
+    -o-user-drag: none;
+  "
+        draggable="false"
+        on:error={(e) => {
+          console.error("Failed to load field map:", settings.fieldMap);
+          e.target.src = "/fields/decode.webp"; // Fallback
+        }}
+        on:dragstart={(e) => e.preventDefault()}
+        on:selectstart={(e) => e.preventDefault()}
       />
       <MathTools {x} {y} {twoElement} {robotXY} {robotHeading} />
       <img
-        src={"/robot.png"}
+        src={settings.robotImage || "/robot.png"}
         alt="Robot"
-        style={`position: absolute; top: ${robotXY.y}px; left: ${robotXY.x}px; transform: translate(-50%, -50%) rotate(${robotHeading}deg); z-index: 20; width: ${x(robotWidth)}px; height: ${x(robotHeight)}px;`}
+        style={`position: absolute; top: ${robotXY.y}px;
+left: ${robotXY.x}px; transform: translate(-50%, -50%) rotate(${robotHeading}deg); z-index: 20; width: ${x(robotWidth)}px; height: ${x(robotHeight)}px;user-select: none; -webkit-user-select: none; -moz-user-select: none;-ms-user-select: none;
+pointer-events: none;`}
+        draggable="false"
+        on:error={(e) => {
+          console.error("Failed to load robot image:", settings.robotImage);
+          e.target.src = "/robot.png"; // Fallback to default
+        }}
+        on:dragstart={(e) => e.preventDefault()}
+        on:selectstart={(e) => e.preventDefault()}
       />
     </div>
   </div>
@@ -890,14 +1388,20 @@ hotkeys('s', function(event, handler){
     {pause}
     bind:startPoint
     bind:lines
+    bind:sequence
     bind:robotWidth
     bind:robotHeight
     bind:settings
     bind:percent
     bind:robotXY
     bind:robotHeading
+    bind:shapes
     {x}
     {y}
-    {playElapsedMs}
+    {animationDuration}
+    {handleSeek}
+    bind:loopAnimation
+    {resetAnimation}
+    {recordChange}
   />
 </div>

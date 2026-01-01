@@ -1,6 +1,20 @@
 <script lang="ts">
+  import type {
+    Point,
+    Line,
+    BasePoint,
+    Settings,
+    Shape,
+    SequenceItem,
+  } from "../types";
   import _ from "lodash";
   import { getRandomColor } from "../utils";
+  import RobotPositionDisplay from "./components/RobotPositionDisplay.svelte";
+  import StartingPointSection from "./components/StartingPointSection.svelte";
+  import PathLineSection from "./components/PathLineSection.svelte";
+  import PlaybackControls from "./components/PlaybackControls.svelte";
+  import WaitRow from "./components/WaitRow.svelte";
+  import { calculatePathTime } from "../utils";
 
   export let percent: number;
   export let playing: boolean;
@@ -8,481 +22,608 @@
   export let pause: () => any;
   export let startPoint: Point;
   export let lines: Line[];
+  export let sequence: SequenceItem[];
   export let robotWidth: number = 16;
   export let robotHeight: number = 16;
   export let robotXY: BasePoint;
   export let robotHeading: number;
   export let x: d3.ScaleLinear<number, number, number>;
   export let y: d3.ScaleLinear<number, number, number>;
-  export let settings: FPASettings;
-  export let playElapsedMs: number = 0;
-  function formatMs(ms: number) {
-    const s = Math.floor(ms / 1000);
-    const rem = Math.floor(ms % 1000);
-    return `${s}.${String(rem).padStart(3, '0')}s`;
+  export let settings: Settings;
+  export let handleSeek: (percent: number) => void;
+  export let loopAnimation: boolean;
+
+  export let shapes: Shape[];
+  export let recordChange: () => void;
+
+  // Reference exported but unused props to silence Svelte unused-export warnings
+
+  $: robotWidth;
+  $: robotHeight;
+
+  // Compute timeline markers for the UI (start of each travel segment)
+  $: timePrediction = calculatePathTime(startPoint, lines, settings, sequence);
+  $: markers = (() => {
+    const _markers: { percent: number; color: string; name: string }[] = [];
+    if (
+      !timePrediction ||
+      !timePrediction.timeline ||
+      timePrediction.totalTime <= 0
+    )
+      return _markers;
+
+    timePrediction.timeline.forEach((ev) => {
+      if ((ev as any).type === "travel") {
+        const end = (ev as any).endTime as number;
+        const pct = (end / timePrediction.totalTime) * 100;
+        const lineIndex = (ev as any).lineIndex as number;
+        const line = lines[lineIndex];
+        const color = line?.color || "#ffffff";
+        const name = line?.name || `Path ${lineIndex + 1}`;
+        _markers.push({ percent: pct, color, name });
+      }
+    });
+
+    return _markers;
+  })();
+
+  // State for collapsed sections
+  let collapsedSections = {
+    lines: lines.map(() => false),
+    controlPoints: lines.map(() => true), // Start with control points collapsed
+  };
+
+  // Reactive statements to update UI state when lines or shapes change from file load
+  $: if (lines.length !== collapsedSections.lines.length) {
+    collapsedSections = {
+      lines: lines.map(() => false),
+      controlPoints: lines.map(() => true),
+    };
   }
 
-  // Ensure each wait line's endPoint matches the previous non-wait path's endPoint (or startPoint)
-  function updateWaitPositions() {
-    if (!lines) return;
-    const newLines = lines.map((l) => ({
-      ...l,
-      // shallow-copy objects to avoid mutating original references
-      endPoint: { ...l.endPoint },
-      controlPoints: l.controlPoints ? l.controlPoints.map((p) => ({ ...p })) : [],
-    }));
+  const makeId = () =>
+    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  function getWait(i: any) {
+    return i as any;
+  }
 
-    for (let i = 0; i < newLines.length; i++) {
-      const l = newLines[i] as any;
-      if (l && l.waitMs !== undefined) {
-        // find previous non-wait line
-        let j = i - 1;
-        while (j >= 0 && (newLines[j] as any).waitMs !== undefined) j--;
-        const source = j >= 0 ? (newLines[j] as any).endPoint : startPoint;
-        if (source) {
-          l.endPoint = { ...source };
-        }
+  function insertLineAfter(seqIndex: number) {
+    const seqItem = sequence[seqIndex];
+    if (!seqItem || seqItem.kind !== "path") return;
+    const lineIndex = lines.findIndex((l) => l.id === seqItem.lineId);
+    const currentLine = lines[lineIndex];
+
+    // Find the next path item in the sequence after seqIndex
+    let nextPathSeqIndex = -1;
+    for (let i = seqIndex + 1; i < sequence.length; i++) {
+      if (sequence[i].kind === "path") {
+        nextPathSeqIndex = i;
+        break;
       }
     }
 
+    // If there is no next path in sequence, fall back to addLine behavior (append new randomized point)
+    let newPoint: Point | null = null;
+    if (nextPathSeqIndex !== -1) {
+      const nextLineId = (sequence[nextPathSeqIndex] as any).lineId;
+      const nextLine = lines.find((l) => l.id === nextLineId);
+      if (nextLine && nextLine.endPoint && currentLine && currentLine.endPoint) {
+        const a = currentLine.endPoint;
+        const b = nextLine.endPoint;
+        const midX = (Number(a.x) + Number(b.x)) / 2;
+        const midY = (Number(a.y) + Number(b.y)) / 2;
+        newPoint = {
+          x: midX,
+          y: midY,
+          heading: "tangential",
+          reverse: false,
+        };
+      }
+    }
+
+    if (!newPoint) {
+      // fallback: random nearby point from current end
+      if (currentLine && currentLine.endPoint) {
+        newPoint = {
+          x: (currentLine.endPoint.x ?? 72) + _.random(-12, 12),
+          y: (currentLine.endPoint.y ?? 72) + _.random(-12, 12),
+          heading: "tangential",
+          reverse: false,
+        };
+      } else {
+        newPoint = {
+          x: _.random(0, 144),
+          y: _.random(0, 144),
+          heading: "tangential",
+          reverse: false,
+        };
+      }
+    }
+
+    const newLine = {
+      id: makeId(),
+      endPoint: newPoint,
+      controlPoints: [],
+      color: getRandomColor(),
+      name: `Path ${lines.length + 1}`,
+      waitBeforeMs: 0,
+      waitAfterMs: 0,
+      waitBeforeName: "",
+      waitAfterName: "",
+    };
+
+    // Insert the new line after the current one and a sequence item after current seq index
+    const newLines = [...lines];
+    newLines.splice(lineIndex + 1, 0, newLine);
     lines = newLines;
+
+    const newSeq = [...sequence];
+    newSeq.splice(seqIndex + 1, 0, { kind: "path", lineId: newLine.id! });
+    sequence = newSeq;
+
+    collapsedSections.lines.splice(lineIndex + 1, 0, false);
+    collapsedSections.controlPoints.splice(lineIndex + 1, 0, true);
+
+    // Force reactivity
+    collapsedSections = { ...collapsedSections };
+  }
+
+  // Insert a midpoint between this path and the next path in sequence
+  function insertMidpointAfter(seqIndex: number) {
+    const seqItem = sequence[seqIndex];
+    if (!seqItem || seqItem.kind !== "path") return;
+    const lineIndex = lines.findIndex((l) => l.id === seqItem.lineId);
+    const currentLine = lines[lineIndex];
+
+    // Find the next path in sequence
+    let nextPathSeqIndex = -1;
+    for (let i = seqIndex + 1; i < sequence.length; i++) {
+      if (sequence[i].kind === "path") {
+        nextPathSeqIndex = i;
+        break;
+      }
+    }
+
+    if (nextPathSeqIndex === -1) {
+      // no next path -> do nothing or fallback
+      return;
+    }
+
+    const nextLineId = (sequence[nextPathSeqIndex] as any).lineId;
+    const nextLine = lines.find((l) => l.id === nextLineId);
+    if (!currentLine || !nextLine) return;
+
+    const a = currentLine.endPoint;
+    const b = nextLine.endPoint;
+    const midX = (Number(a.x) + Number(b.x)) / 2;
+    const midY = (Number(a.y) + Number(b.y)) / 2;
+
+    const newLine: Line = {
+      id: makeId(),
+      endPoint: {
+        x: midX,
+        y: midY,
+        heading: "tangential",
+        reverse: false,
+      },
+      controlPoints: [],
+      color: getRandomColor(),
+      name: `Path ${lines.length + 1}`,
+      waitBeforeMs: 0,
+      waitAfterMs: 0,
+      waitBeforeName: "",
+      waitAfterName: "",
+    };
+
+    // Insert into lines right after current line index
+    const newLines = [...lines];
+    newLines.splice(lineIndex + 1, 0, newLine);
+    lines = newLines;
+
+    // Insert into sequence right after seqIndex
+    const newSeq = [...sequence];
+    newSeq.splice(seqIndex + 1, 0, { kind: "path", lineId: newLine.id! });
+    sequence = newSeq;
+
+    collapsedSections.lines.splice(lineIndex + 1, 0, false);
+    collapsedSections.controlPoints.splice(lineIndex + 1, 0, true);
+
+    collapsedSections = { ...collapsedSections };
+    recordChange();
+  }
+
+  function removeLine(idx: number) {
+    const removedId = lines[idx]?.id;
+    let _lns = lines;
+    lines.splice(idx, 1);
+    lines = _lns;
+    if (removedId) {
+      sequence = sequence.filter(
+        (s) => s.kind === "wait" || s.lineId !== removedId,
+      );
+    }
+    collapsedSections.lines.splice(idx, 1);
+    collapsedSections.controlPoints.splice(idx, 1);
+    recordChange();
+  }
+
+  function addLine() {
+    const newLine: Line = {
+      id: makeId(),
+      name: `Path ${lines.length + 1}`,
+      endPoint: {
+        x: _.random(0, 144),
+        y: _.random(0, 144),
+        heading: "tangential",
+        reverse: false,
+      },
+      controlPoints: [],
+      color: getRandomColor(),
+      waitBeforeMs: 0,
+      waitAfterMs: 0,
+      waitBeforeName: "",
+      waitAfterName: "",
+    };
+    lines = [...lines, newLine];
+    sequence = [...sequence, { kind: "path", lineId: newLine.id! }];
+    collapsedSections.lines.push(false);
+    collapsedSections.controlPoints.push(true);
+    recordChange();
+  }
+
+  // Add a control point to the line represented by `seqIndex` in the sequence
+  function addControlPointToLine(seqIndex: number) {
+    const seqItem = sequence[seqIndex];
+    if (!seqItem || seqItem.kind !== "path") return;
+    const lineIndex = lines.findIndex((l) => l.id === seqItem.lineId);
+    if (lineIndex === -1) return;
+    const line = lines[lineIndex];
+    line.controlPoints = line.controlPoints || [];
+    const prevPt = lineIndex === 0 ? startPoint : lines[lineIndex - 1].endPoint;
+    const endPt = line.endPoint || { x: 72, y: 72 };
+    const mx = ((prevPt?.x ?? 72) + (endPt?.x ?? 72)) / 2;
+    const my = ((prevPt?.y ?? 72) + (endPt?.y ?? 72)) / 2;
+    line.controlPoints.push({ x: mx + _.random(-4, 4), y: my + _.random(-4, 4) });
+    collapsedSections.controlPoints[lineIndex] = false;
+    lines = [...lines];
+    collapsedSections = { ...collapsedSections };
+    recordChange?.();
+  }
+
+  // Add a control point to the last path in `lines` (fallback: create a new line)
+  function addControlPointToLastLine() {
+    if (!lines || lines.length === 0) {
+      // No lines exist: create a new line instead
+      addLine();
+      return;
+    }
+
+    // Prefer adding to the first line whose control points are expanded (user is focusing it)
+    let targetIdx = collapsedSections.controlPoints.findIndex((v) => v === false);
+    if (targetIdx === -1) targetIdx = lines.length - 1;
+
+    const line = lines[targetIdx];
+    line.controlPoints = line.controlPoints || [];
+    // Insert a control point near the line midpoint for convenience
+    const prevPt = targetIdx === 0 ? startPoint : lines[targetIdx - 1].endPoint;
+    const endPt = line.endPoint || { x: 72, y: 72 };
+    const mx = ((prevPt?.x ?? 72) + (endPt?.x ?? 72)) / 2;
+    const my = ((prevPt?.y ?? 72) + (endPt?.y ?? 72)) / 2;
+    line.controlPoints.push({ x: mx + _.random(-4, 4), y: my + _.random(-4, 4) });
+    // Ensure control points UI is expanded for this line
+    collapsedSections.controlPoints[targetIdx] = false;
+    lines = [...lines];
+    collapsedSections = { ...collapsedSections };
+    recordChange?.();
+  }
+
+  function addWait() {
+    const wait = {
+      kind: "wait",
+      id: makeId(),
+      name: "Wait",
+      durationMs: 0,
+      locked: false,
+    } as SequenceItem;
+    sequence = [...sequence, wait];
+  }
+
+  function addWaitAtStart() {
+    const wait = {
+      kind: "wait",
+      id: makeId(),
+      name: "Wait",
+      durationMs: 0,
+      locked: false,
+    } as SequenceItem;
+    sequence = [wait, ...sequence];
+  }
+
+  function addPathAtStart() {
+    const newLine: Line = {
+      id: makeId(),
+      name: `Path ${lines.length + 1}`,
+      endPoint: {
+        x: _.random(0, 144),
+        y: _.random(0, 144),
+        heading: "tangential",
+        reverse: false,
+      },
+      controlPoints: [],
+      color: getRandomColor(),
+      waitBeforeMs: 0,
+      waitAfterMs: 0,
+      waitBeforeName: "",
+      waitAfterName: "",
+    };
+    lines = [newLine, ...lines];
+    sequence = [{ kind: "path", lineId: newLine.id! }, ...sequence];
+    collapsedSections.lines = [false, ...collapsedSections.lines];
+    collapsedSections.controlPoints = [
+      true,
+      ...collapsedSections.controlPoints,
+    ];
+    recordChange();
+  }
+
+  function insertWaitAfter(seqIndex: number) {
+    const newSeq = [...sequence];
+    newSeq.splice(seqIndex + 1, 0, {
+      kind: "wait",
+      id: makeId(),
+      name: "Wait",
+      durationMs: 0,
+      locked: false,
+    });
+    sequence = newSeq;
+  }
+
+  function insertPathAfter(seqIndex: number) {
+    // Create a new line with default settings
+    const newLine: Line = {
+      id: makeId(),
+      name: `Path ${lines.length + 1}`,
+      endPoint: {
+        x: _.random(36, 108),
+        y: _.random(36, 108),
+        heading: "tangential",
+        reverse: false,
+      },
+      controlPoints: [],
+      color: getRandomColor(),
+      waitBeforeMs: 0,
+      waitAfterMs: 0,
+      waitBeforeName: "",
+      waitAfterName: "",
+    };
+
+    // Add the new line to the lines array
+    lines = [...lines, newLine];
+
+    // Insert the new path in the sequence after the wait
+    const newSeq = [...sequence];
+    newSeq.splice(seqIndex + 1, 0, { kind: "path", lineId: newLine.id! });
+    sequence = newSeq;
+
+    // Add UI state for the new line
+    collapsedSections.lines.push(false);
+    collapsedSections.controlPoints.push(true);
+
+    // Force reactivity
+    collapsedSections = { ...collapsedSections };
+    recordChange();
+  }
+
+  function syncLinesToSequence(newSeq: SequenceItem[]) {
+    const pathOrder = newSeq
+      .filter((item) => item.kind === "path")
+      .map((item) => item.lineId);
+
+    const indexedLines = lines.map((line, idx) => ({
+      line,
+      collapsed: collapsedSections.lines[idx],
+      control: collapsedSections.controlPoints[idx],
+    }));
+
+    const byId = new Map(indexedLines.map((entry) => [entry.line.id, entry]));
+    const reordered: typeof indexedLines = [];
+
+    pathOrder.forEach((id) => {
+      const entry = byId.get(id);
+      if (entry) {
+        reordered.push(entry);
+        byId.delete(id);
+      }
+    });
+
+    // Append any lines that are not currently in the sequence to preserve data
+    reordered.push(...byId.values());
+
+    lines = reordered.map((entry) => entry.line);
+    collapsedSections = {
+      ...collapsedSections,
+      lines: reordered.map((entry) => entry.collapsed ?? false),
+      controlPoints: reordered.map((entry) => entry.control ?? true),
+    };
+    // No collapsedEventMarkers to update
+  }
+
+  function moveSequenceItem(seqIndex: number, delta: number) {
+    const targetIndex = seqIndex + delta;
+    if (targetIndex < 0 || targetIndex >= sequence.length) return;
+
+    // Prevent moving if either the source or target is a locked path or a locked wait
+    const isLockedSequenceItem = (index: number) => {
+      const it = sequence[index];
+      if (!it) return false;
+      if (it.kind === "path") {
+        const ln = lines.find((l) => l.id === it.lineId);
+        return ln?.locked ?? false;
+      }
+      // wait
+      if (it.kind === "wait") {
+        return (it as any).locked ?? false;
+      }
+      return false;
+    };
+
+    if (isLockedSequenceItem(seqIndex) || isLockedSequenceItem(targetIndex))
+      return;
+
+    const newSeq = [...sequence];
+    const [item] = newSeq.splice(seqIndex, 1);
+    newSeq.splice(targetIndex, 0, item);
+    sequence = newSeq;
+
+    syncLinesToSequence(newSeq);
+    recordChange?.();
   }
 </script>
 
-<div class="flex-1 flex flex-shrink-0 flex-col justify-start items-center gap-2 h-full overflow-y-auto">
+<div class="flex-1 flex flex-col justify-start items-center gap-2 h-full">
   <div
-    class="flex flex-col justify-start items-start w-full rounded-lg bg-neutral-50 dark:bg-neutral-900 shadow-md p-4 overflow-y-scroll overflow-x-hidden h-full gap-3"
+    class="flex flex-col justify-start items-start w-full rounded-lg bg-neutral-50 dark:bg-neutral-900 shadow-md p-4 overflow-y-scroll overflow-x-hidden h-full gap-6"
   >
-    <div class="flex flex-col w-full justify-start items-start gap-0.5 text-sm">
-      <div class="font-semibold">Canvas Options</div>
-      <div class="flex flex-row justify-start items-center gap-2">
-        <div class="font-extralight">Robot Length:</div>
-        <input
-          bind:value={robotWidth}
-          on:change={() => {
-            if (settings) {
-              settings.rWidth = robotWidth;
-            }
-          }}
-          type="number"
-          class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-16"
-          step="1"
-        />
-        <div class="font-extralight">Robot Width:</div>
-        <input
-          bind:value={robotHeight}
-          on:change={() => {
-            if (settings) {
-              settings.rHeight = robotHeight;
-            }
-          }}
-          type="number"
-          class="pl-1.5 rounded-md bg-neutral-100 border-[0.5px] focus:outline-none w-16 dark:bg-neutral-950 dark:border-neutral-700"
-          step="1"
-        />
-      </div>
-    </div>
+    <!-- Obstacles removed -->
 
-    <div class="flex flex-col w-full justify-start items-start gap-0.5 text-sm">
-      <div class="font-semibold">Current Robot Position</div>
-      <div class="flex flex-row justify-start items-center gap-2">
-        <div class="font-extralight">X:</div>
-        <div class="w-16">{x.invert(robotXY.x).toFixed(3)}</div>
-        <div class="font-extralight">Y:</div>
-        <div class="w-16">{y.invert(robotXY.y).toFixed(3)}</div>
-        <div class="font-extralight">Heading:</div>
-        <div>
-          {robotHeading.toFixed(0) === "-0"
-            ? "0"
-            : -robotHeading.toFixed(0)}&deg;
-        </div>
-      </div>
-    </div>
+    <RobotPositionDisplay {robotXY} {robotHeading} {x} {y} />
 
-    <div class="flex flex-col w-full justify-start items-start gap-0.5">
-      <div class="font-semibold">Start Point</div>
-      <div class="flex flex-row justify-start items-center gap-2">
-        <div class="font-extralight">X:</div>
-        <input
-          bind:value={startPoint.x}
-          min="0"
-          max="144"
-          type="number"
-          class="pl-1.5 rounded-md bg-neutral-100 border-[0.5px] focus:outline-none w-28 dark:bg-neutral-950 dark:border-neutral-700"
-          step="0.1"
-        />
-        <div class="font-extralight">Y:</div>
-        <input
-          bind:value={startPoint.y}
-          min="0"
-          max="144"
-          type="number"
-          class="pl-1.5 rounded-md bg-neutral-100 border-[0.5px] focus:outline-none w-28 dark:bg-neutral-950 dark:border-neutral-700"
-          step="0.1"
-        />
-      </div>
-    </div>
+    <StartingPointSection bind:startPoint {addPathAtStart} {addWaitAtStart} />
 
-    {#each lines as line, idx}
-      <div class="flex flex-col w-full justify-start items-start gap-1">
-        <div class="flex flex-row w-full justify-between">
-          <div
-            class="font-semibold flex flex-row justify-start items-center gap-2"
-          >
-            <input
-              bind:value={line.name}
-              placeholder="Path {idx + 1}"
-              class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm font-semibold"
+    <!-- Unified sequence render: paths and waits -->
+    {#each sequence as item, sIdx}
+      <div class="w-full">
+        {#if item.kind === "path"}
+          {#each lines.filter((l) => l.id === item.lineId) as ln (ln.id)}
+            <PathLineSection
+              bind:line={ln}
+              idx={lines.findIndex((l) => l.id === ln.id)}
+              bind:lines
+              bind:collapsed={
+                collapsedSections.lines[lines.findIndex((l) => l.id === ln.id)]
+              }
+              
+              bind:collapsedControlPoints={
+                collapsedSections.controlPoints[
+                  lines.findIndex((l) => l.id === ln.id)
+                ]
+              }
+              onRemove={() =>
+                removeLine(lines.findIndex((l) => l.id === ln.id))}
+              onInsertAfter={() => addControlPointToLine(sIdx)}
+              onInsertMidpoint={() => insertMidpointAfter(sIdx)}
+              onAddWaitAfter={() => insertWaitAfter(sIdx)}
+              onMoveUp={() => moveSequenceItem(sIdx, -1)}
+              onMoveDown={() => moveSequenceItem(sIdx, 1)}
+              canMoveUp={sIdx !== 0}
+              canMoveDown={sIdx !== sequence.length - 1}
+              {recordChange}
             />
-            <div
-              class="size-2.5 rounded-full shadow-md"
-              style={`background: ${line.color}`}
-            />
-          </div>
-          <div class="flex flex-row justify-end items-center gap-1">
-            <button
-              title="Add Control Point"
-              on:click={() => {
-                line.controlPoints = [
-                  ...line.controlPoints,
-                  {
-                    x: _.random(36, 108),
-                    y: _.random(36, 108),
-                  },
-                ];
-              }}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width={2}
-                class="size-5 stroke-green-500"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M12 4.5v15m7.5-7.5h-15"
-                />
-              </svg>
-            </button>
-            {#if lines.length > 1}
-              <button
-                title="Remove Line"
-                on:click={() => {
-                  let _lns = lines;
-                  _lns.splice(idx, 1);
-                  lines = _lns;
-                  // ensure waits still reference the correct preceding path
-                  updateWaitPositions();
-                }}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke-width={2}
-                  class="size-5 stroke-red-500"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M15 12H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-                  />
-                </svg>
-              </button>
-            {/if}
-            <button
-              title="Move Up"
-              on:click={() => {
-                if (idx <= 0) return;
-                const _lns = lines.slice();
-                const tmp = _lns[idx - 1];
-                _lns[idx - 1] = _lns[idx];
-                _lns[idx] = tmp;
-                lines = _lns;
-                updateWaitPositions();
-              }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} class="size-5 stroke-yellow-400">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
-              </svg>
-            </button>
-            <button
-              title="Move Down"
-              on:click={() => {
-                if (idx >= lines.length - 1) return;
-                const _lns = lines.slice();
-                const tmp = _lns[idx + 1];
-                _lns[idx + 1] = _lns[idx];
-                _lns[idx] = tmp;
-                lines = _lns;
-                updateWaitPositions();
-              }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} class="size-5 stroke-yellow-400">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-          </div>
-        </div>
-        <div class={`h-[0.75px] w-full`} style={`background: ${line.color}`} />
-        {#if line.waitMs === undefined}
-        <div class="flex flex-col justify-start items-start">
-          <div class="font-light">End Point:</div>
-          <div class="flex flex-row justify-start items-center gap-2">
-            <div class="font-extralight">X:</div>
-            <input
-              class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
-              step="0.1"
-              type="number"
-              min="0"
-              max="144"
-              bind:value={line.endPoint.x}
-            />
-            <div class="font-extralight">Y:</div>
-            <input
-              class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
-              step="0.1"
-              min="0"
-              max="144"
-              type="number"
-              bind:value={line.endPoint.y}
-            />
-
-            <select
-              bind:value={line.endPoint.heading}
-              class=" rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28 text-sm"
-              title="The heading style of the robot.
-With constant heading, the robot maintains the same heading throughout the line.
-With linear heading, heading changes linearly between given start and end angles.
-With tangential heading, the heading follows the direction of the line."
-            >
-              <option value="constant">Constant</option>
-              <option value="linear">Linear</option>
-              <option value="tangential">Tangential</option>
-            </select>
-
-            {#if line.endPoint.heading === "linear"}
-              <input
-                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-14"
-                step="1"
-                type="number"
-                min="-180"
-                max="180"
-                bind:value={line.endPoint.startDeg}
-                title="The heading the robot starts this line at (in degrees)"
-              />
-              <input
-                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-14"
-                step="1"
-                type="number"
-                min="-180"
-                max="180"
-                bind:value={line.endPoint.endDeg}
-                title="The heading the robot ends this line at (in degrees)"
-              />
-            {:else if line.endPoint.heading === "constant"}
-              <input
-                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-14"
-                step="1"
-                type="number"
-                min="-180"
-                max="180"
-                bind:value={line.endPoint.degrees}
-                title="The constant heading the robot maintains throughout this line (in degrees)"
-              />
-            {:else if line.endPoint.heading === "tangential"}
-              <p class="text-sm font-extralight">Reverse:</p>
-              <input type="checkbox" bind:checked={line.endPoint.reverse} title="Reverse the direction the robot faces along the tangential path" />
-            {/if}
-          </div>
-        </div>
+          {/each}
         {:else}
-        <div class="flex flex-col justify-start items-start">
-          <div class="font-light">Wait</div>
-          <div class="flex flex-row justify-start items-center gap-2">
-            <div class="font-extralight">Duration (ms):</div>
-            <input
-              class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
-              step="10"
-              type="number"
-              min="0"
-              bind:value={line.waitMs}
-              on:change={() => { line.waitMs = Number(line.waitMs) || 0 }}
-            />
-            <div class="font-extralight">(Robot pauses at previous point)</div>
-          </div>
-        </div>
+          <WaitRow
+            name={getWait(item).name}
+            durationMs={getWait(item).durationMs}
+            locked={getWait(item).locked ?? false}
+            onToggleLock={() => {
+              const newSeq = [...sequence];
+              newSeq[sIdx] = {
+                ...getWait(item),
+                locked: !(getWait(item).locked ?? false),
+              };
+              sequence = newSeq;
+              recordChange?.();
+            }}
+            onChange={(newName, newDuration) => {
+              const newSeq = [...sequence];
+              newSeq[sIdx] = {
+                ...getWait(item),
+                name: newName,
+                durationMs: Math.max(0, Number(newDuration) || 0),
+              };
+              sequence = newSeq;
+            }}
+            onRemove={() => {
+              const newSeq = [...sequence];
+              newSeq.splice(sIdx, 1);
+              sequence = newSeq;
+            }}
+            onInsertAfter={() => {
+              const newSeq = [...sequence];
+              newSeq.splice(sIdx + 1, 0, {
+                kind: "wait",
+                id: makeId(),
+                name: "Wait",
+                durationMs: 0,
+                locked: false,
+              });
+              sequence = newSeq;
+            }}
+            onAddPathAfter={() => insertPathAfter(sIdx)}
+            onMoveUp={() => moveSequenceItem(sIdx, -1)}
+            onMoveDown={() => moveSequenceItem(sIdx, 1)}
+            canMoveUp={sIdx !== 0}
+            canMoveDown={sIdx !== sequence.length - 1}
+          />
         {/if}
-        {#each line.controlPoints as point, idx1}
-          <div class="flex flex-col justify-start items-start">
-            <div class="font-light">Control Point {idx1 + 1}:</div>
-            <div class="flex flex-row justify-start items-center gap-2">
-              <div class="font-extralight">X:</div>
-              <input
-                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
-                step="0.1"
-                type="number"
-                bind:value={point.x}
-                min="0"
-                max="144"
-              />
-              <div class="font-extralight">Y:</div>
-              <input
-                class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
-                step="0.1"
-                type="number"
-                bind:value={point.y}
-                min="0"
-                max="144"
-              />
-              <button
-                title="Remove Control Point"
-                on:click={() => {
-                  let _pts = line.controlPoints;
-                  _pts.splice(idx1, 1);
-                  line.controlPoints = _pts;
-                }}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke-width={2}
-                  class="size-5 stroke-red-500"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M15 12H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-        {/each}
       </div>
     {/each}
-    <div class="flex flex-row gap-2">
-    <button
-      on:click={() => {
-        lines = [
-          ...lines,
-          {
-            name: `Path ${lines.length + 1}`,
-            endPoint: {
-              x: _.random(0, 144),
-              y: _.random(0, 144),
-              heading: "tangential",
-              reverse: false,
-            },
-            controlPoints: [],
-            color: getRandomColor(),
-          },
-        ];
-      }}
-      class="font-semibold text-green-500 text-sm flex flex-row justify-center items-center gap-1 h-8 px-3"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke-width={2}
-        stroke="currentColor"
-        class="size-5"
+
+    <!-- Add Line Button -->
+    <div class="flex flex-row items-center gap-4">
+      <button
+        on:click={addLine}
+        class="font-semibold text-green-500 text-sm flex flex-row justify-start items-center gap-1"
       >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M12 4.5v15m7.5-7.5h-15"
-        />
-      </svg>
-      <p>Add Line</p>
-    </button>
-    <button
-      on:click={() => {
-        // Add a wait entry: keep endPoint equal to last end point (or startPoint)
-        const lastEnd = lines.length > 0 ? lines[lines.length - 1].endPoint : startPoint;
-        lines = [
-          ...lines,
-          {
-            name: `Wait ${lines.length + 1}`,
-            endPoint: { x: lastEnd.x, y: lastEnd.y, heading: "constant", degrees: 0 },
-            controlPoints: [],
-            color: '#888888',
-            waitMs: 1000,
-          },
-        ];
-      }}
-      class="font-semibold text-yellow-500 text-sm flex flex-row justify-center items-center gap-1 h-8 px-3"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12M6 12h12" />
-      </svg>
-      <p>Add Wait</p>
-    </button>
-    </div>
-  </div>
-  <div
-    class="w-full bg-neutral-50 dark:bg-neutral-900 rounded-lg p-3 flex flex-row justify-start items-center gap-3 shadow-lg"
-  >
-    <button
-      title="Play/Pause"
-      on:click={() => {
-        if (playing) {
-          pause();
-        } else {
-          play();
-        }
-      }}
-    >
-      {#if !playing}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
-          stroke-width="2"
+          stroke-width={2}
           stroke="currentColor"
-          class="size-6 stroke-green-500"
+          class="size-5"
         >
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
-            d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"
+            d="M12 4.5v15m7.5-7.5h-15"
           />
         </svg>
-      {:else}
+        <p>Add Path</p>
+      </button>
+
+      <button
+        on:click={addWait}
+        class="font-semibold text-amber-500 text-sm flex flex-row justify-start items-center gap-1"
+      >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          fill="none"
           viewBox="0 0 24 24"
-          stroke-width="2"
+          fill="none"
           stroke="currentColor"
-          class="size-6 stroke-green-500"
+          stroke-width="2"
+          class="size-5"
         >
+          <circle cx="12" cy="12" r="9" />
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
-            d="M15.75 5.25v13.5m-7.5-13.5v13.5"
+            d="M12 7v5l3 2"
           />
         </svg>
-      {/if}
-    </button>
-    <input
-      bind:value={percent}
-      type="range"
-      min="0"
-      max="100"
-      step="0.000001"
-      class="w-full appearance-none slider focus:outline-none"
-    />
-    <div class="text-sm font-extralight ml-2">
-      {#if playElapsedMs}
-        {formatMs(playElapsedMs)}
-      {:else}
-        0.000s
-      {/if}
+        <p>Add Wait</p>
+      </button>
     </div>
   </div>
+
+  <PlaybackControls
+    bind:playing
+    {play}
+    {pause}
+    bind:percent
+    {handleSeek}
+    bind:loopAnimation
+    {markers}
+    totalTime={timePrediction?.totalTime ?? 0}
+  />
 </div>

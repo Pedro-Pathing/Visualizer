@@ -1,4 +1,4 @@
-const VERSION = "v3";
+const VERSION = "v2";
 const CACHE_NAME = `pedro-visualizer-${VERSION}`;
 
 const APP_STATIC_RESOURCES = [
@@ -48,31 +48,10 @@ self.addEventListener("activate", (event) => {
 // and respond with cached responses instead of going to network
 self.addEventListener("fetch", (event) => {
   // As a single page app, direct app to always go to cached home page.
-  if (event.request.mode === "navigate") {
-    event.respondWith(caches.match("/"));
-    return;
-  }
-
-  // Allow FPA API requests to go through to the network
-  if (event.request.url.includes('fpa.pedropathing.com')) {
-    event.respondWith(
-      fetch(event.request).catch(() => {
-        // If network fails, return a custom offline response
-        return new Response(
-          JSON.stringify({ 
-            error: 'offline', 
-            message: 'You are offline. Please check your internet connection and try again.' 
-          }), 
-          { 
-            status: 503, 
-            statusText: 'Service Unavailable',
-            headers: { 'Content-Type': 'application/json' }
-          }
-        );
-      })
-    );
-    return;
-  }
+  // if (event.request.mode === "navigate") {
+  //   event.respondWith(caches.match("/"));
+  //   return;
+  // }
 
   // For all other requests, go to the cache first, and then the network.
   event.respondWith(
