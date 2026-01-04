@@ -27,10 +27,10 @@ export const AVAILABLE_FIELD_MAPS = [
  * Default settings
  */
 export const DEFAULT_SETTINGS: Settings = {
-  xVelocity: 30,
-  yVelocity: 30,
+  xVelocity: 75,
+  yVelocity: 65,
   aVelocity: Math.PI,
-  kFriction: 0.4,
+  kFriction: 0.1,
   rWidth: DEFAULT_ROBOT_WIDTH,
   rHeight: DEFAULT_ROBOT_HEIGHT,
   safetyMargin: 1,
@@ -85,6 +85,32 @@ export function getDefaultLines(): Line[] {
  * Get default shapes (field obstacles)
  */
 export function getDefaultShapes(): Shape[] {
-  // Remove default obstacles by returning an empty array.
-  return [];
+  return [
+    {
+      id: "triangle-1",
+      name: "Red Goal",
+      vertices: [
+        { x: 144, y: 70 },
+        { x: 144, y: 144 },
+        { x: 120, y: 144 },
+        { x: 138, y: 119 },
+        { x: 138, y: 70 },
+      ],
+      color: "#dc2626",
+      fillColor: "#fca5a5",
+    },
+    {
+      id: "triangle-2",
+      name: "Blue Goal",
+      vertices: [
+        { x: 6, y: 119 },
+        { x: 25, y: 144 },
+        { x: 0, y: 144 },
+        { x: 0, y: 70 },
+        { x: 7, y: 70 },
+      ],
+      color: "#0b08d9",
+      fillColor: "#fca5a5",
+    },
+  ];
 }

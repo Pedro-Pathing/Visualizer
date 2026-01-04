@@ -9,6 +9,7 @@
   } from "../types";
   import _ from "lodash";
   import { getRandomColor } from "../utils";
+  import ObstaclesSection from "./components/ObstaclesSection.svelte";
   import RobotPositionDisplay from "./components/RobotPositionDisplay.svelte";
   import StartingPointSection from "./components/StartingPointSection.svelte";
   import PathLineSection from "./components/PathLineSection.svelte";
@@ -76,9 +77,14 @@
   // Reactive statements to update UI state when lines or shapes change from file load
   $: if (lines.length !== collapsedSections.lines.length) {
     collapsedSections = {
+      obstacles: shapes.map(() => true),
       lines: lines.map(() => false),
       controlPoints: lines.map(() => true),
     };
+  }
+
+  $: if (shapes.length !== collapsedSections.obstacles.length) {
+    collapsedSections.obstacles = shapes.map(() => true);
   }
 
   const makeId = () =>
@@ -107,7 +113,12 @@
     if (nextPathSeqIndex !== -1) {
       const nextLineId = (sequence[nextPathSeqIndex] as any).lineId;
       const nextLine = lines.find((l) => l.id === nextLineId);
-      if (nextLine && nextLine.endPoint && currentLine && currentLine.endPoint) {
+      if (
+        nextLine &&
+        nextLine.endPoint &&
+        currentLine &&
+        currentLine.endPoint
+      ) {
         const a = currentLine.endPoint;
         const b = nextLine.endPoint;
         const midX = (Number(a.x) + Number(b.x)) / 2;
@@ -283,7 +294,10 @@
     const endPt = line.endPoint || { x: 72, y: 72 };
     const mx = ((prevPt?.x ?? 72) + (endPt?.x ?? 72)) / 2;
     const my = ((prevPt?.y ?? 72) + (endPt?.y ?? 72)) / 2;
-    line.controlPoints.push({ x: mx + _.random(-4, 4), y: my + _.random(-4, 4) });
+    line.controlPoints.push({
+      x: mx + _.random(-4, 4),
+      y: my + _.random(-4, 4),
+    });
     collapsedSections.controlPoints[lineIndex] = false;
     lines = [...lines];
     collapsedSections = { ...collapsedSections };
@@ -299,7 +313,9 @@
     }
 
     // Prefer adding to the first line whose control points are expanded (user is focusing it)
-    let targetIdx = collapsedSections.controlPoints.findIndex((v) => v === false);
+    let targetIdx = collapsedSections.controlPoints.findIndex(
+      (v) => v === false,
+    );
     if (targetIdx === -1) targetIdx = lines.length - 1;
 
     const line = lines[targetIdx];
@@ -309,7 +325,10 @@
     const endPt = line.endPoint || { x: 72, y: 72 };
     const mx = ((prevPt?.x ?? 72) + (endPt?.x ?? 72)) / 2;
     const my = ((prevPt?.y ?? 72) + (endPt?.y ?? 72)) / 2;
-    line.controlPoints.push({ x: mx + _.random(-4, 4), y: my + _.random(-4, 4) });
+    line.controlPoints.push({
+      x: mx + _.random(-4, 4),
+      y: my + _.random(-4, 4),
+    });
     // Ensure control points UI is expanded for this line
     collapsedSections.controlPoints[targetIdx] = false;
     lines = [...lines];
@@ -502,7 +521,6 @@
               bind:collapsed={
                 collapsedSections.lines[lines.findIndex((l) => l.id === ln.id)]
               }
-              
               bind:collapsedControlPoints={
                 collapsedSections.controlPoints[
                   lines.findIndex((l) => l.id === ln.id)
