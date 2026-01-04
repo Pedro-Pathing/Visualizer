@@ -2,6 +2,24 @@ import prettier from "prettier";
 import type { Point, Line, BasePoint } from "../types";
 import { getCurvePoint } from "./math";
 
+// Lazy-load Prettier's Java plugin; fall back gracefully if unavailable
+let cachedJavaPlugin: any | null = null;
+async function loadJavaPlugin() {
+  if (cachedJavaPlugin !== null) return cachedJavaPlugin;
+  const candidates = ["prettier/plugins/java.js", "prettier/plugins/java"];
+  for (const path of candidates) {
+    try {
+      const mod = await import(path);
+      cachedJavaPlugin = (mod as any).default ?? mod;
+      return cachedJavaPlugin;
+    } catch (err) {
+      // ignore and try next
+    }
+  }
+  cachedJavaPlugin = null;
+  return null;
+}
+
 /**
  * Generate Java code from path data
  */
@@ -176,8 +194,10 @@ export async function generateJavaCode(
   }
 
   try {
+    const javaPlugin = await loadJavaPlugin();
     const formattedCode = await prettier.format(file, {
       parser: "java",
+      plugins: javaPlugin ? [javaPlugin] : [],
     });
     return formattedCode;
   } catch (error) {
@@ -489,9 +509,10 @@ ${commands.join(",\n")});
 `;
 
   try {
+    const javaPlugin = await loadJavaPlugin();
     const formattedCode = await prettier.format(sequentialCommandCode, {
       parser: "java",
-      plugins: [prettierJavaPlugin],
+      plugins: javaPlugin ? [javaPlugin] : [],
     });
     return formattedCode;
   } catch (error) {

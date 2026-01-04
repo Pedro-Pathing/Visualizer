@@ -1,6 +1,20 @@
 <script lang="ts">
+  import type { Shape } from "../../types";
   import { createTriangle } from "../../utils";
   import { snapToGrid, showGrid, gridSize } from "../../stores";
+
+  const colorChoices = [
+    { label: "Red", color: "#dc2626", fill: "#ff6b6b" },
+    { label: "Blue", color: "#2563eb", fill: "#60a5fa" },
+  ];
+
+  function setPresetColor(shape: Shape, color: string) {
+    const choice = colorChoices.find((c) => c.color === color);
+    if (choice) {
+      shape.color = choice.color;
+      shape.fillColor = choice.fill;
+    }
+  }
 
   export let shapes: Shape[];
   export let collapsedObstacles: boolean[];
@@ -85,17 +99,15 @@
             placeholder="Obstacle {shapeIdx + 1}"
             class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm font-medium"
           />
-          <div
-            class="relative size-5 rounded-full overflow-hidden shadow-sm border border-neutral-300 dark:border-neutral-600 shrink-0"
-            style="background-color: {shape.color}"
+          <select
+            class="rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] px-2 py-1 text-sm font-medium"
+            bind:value={shape.color}
+            on:change={(e) => setPresetColor(shape, e.currentTarget.value)}
           >
-            <input
-              type="color"
-              bind:value={shape.color}
-              class="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-              title="Change Obstacle Color"
-            />
-          </div>
+            {#each colorChoices as c}
+              <option value={c.color}>{c.label}</option>
+            {/each}
+          </select>
         </div>
 
         <div class="flex flex-row gap-1">

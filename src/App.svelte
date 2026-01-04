@@ -798,6 +798,7 @@
         lines,
         shapes,
         sequence,
+        settings,
         version: "1.2.1",
         timestamp: new Date().toISOString(),
       },
@@ -957,11 +958,14 @@
       const elem = document.elementFromPoint(evt.clientX, evt.clientY);
 
       if (isDown && currentElem) {
-        const hitLine = Number(currentElem.split("-")[1]) - 1;
+        const parts = currentElem.split("-");
+        const isPathPoint = parts[0] === "point";
+        const isShapePoint = parts[0] === "shape";
 
-        // Skip dragging if the line is locked
-        if (hitLine >= 0 && lines[hitLine]?.locked) {
-          return;
+        // Skip dragging locked paths
+        if (isPathPoint) {
+          const hitLine = Number(parts[1]) - 1;
+          if (hitLine >= 0 && lines[hitLine]?.locked) return;
         }
 
         // Use simple bounding rect math to match D3 scales which are bound to clientWidth/Height
@@ -1001,6 +1005,7 @@
 
           shapes[shapeIdx].vertices[vertexIdx].x = inchX;
           shapes[shapeIdx].vertices[vertexIdx].y = inchY;
+          shapes = [...shapes];
         } else {
           // Handle path point dragging
           const line = Number(currentElem.split("-")[1]) - 1;
@@ -1036,7 +1041,6 @@
     two.renderer.domElement.addEventListener("mousedown", (evt: MouseEvent) => {
       isDown = true;
 
-      // Calculate drag offset when clicking to prevent snapping center to mouse
       if (currentElem) {
         const rect = two.renderer.domElement.getBoundingClientRect();
         const mouseX = x.invert(evt.clientX - rect.left);
@@ -1064,11 +1068,9 @@
             if (point === 0 && lines[line].endPoint) {
               objectX = lines[line].endPoint.x;
               objectY = lines[line].endPoint.y;
-            } else {
-              if (lines[line].controlPoints[point - 1]) {
-                objectX = lines[line].controlPoints[point - 1].x;
-                objectY = lines[line].controlPoints[point - 1].y;
-              }
+            } else if (lines[line].controlPoints[point - 1]) {
+              objectX = lines[line].controlPoints[point - 1].x;
+              objectY = lines[line].controlPoints[point - 1].y;
             }
           }
         }
@@ -1161,6 +1163,7 @@
           lines,
           shapes,
           sequence,
+          settings,
           version: "1.2.1",
           timestamp: new Date().toISOString(),
         },
@@ -1228,6 +1231,13 @@
       // Load shapes with defaults
       shapes = data.shapes || [];
 
+      // Load settings (including robot size) if present
+      if (data.settings) {
+        settings = { ...settings, ...data.settings };
+        robotWidth = settings.rWidth;
+        robotHeight = settings.rHeight;
+      }
+
       isUnsaved.set(false);
       recordChange();
 
@@ -1273,6 +1283,13 @@
 
     // Load shapes with defaults
     shapes = data.shapes || [];
+
+    // Load settings (including robot size) if present
+    if (data.settings) {
+      settings = { ...settings, ...data.settings };
+      robotWidth = settings.rWidth;
+      robotHeight = settings.rHeight;
+    }
 
     isUnsaved.set(false);
     recordChange();

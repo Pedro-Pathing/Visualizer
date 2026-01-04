@@ -97,7 +97,7 @@ export function getDefaultShapes(): Shape[] {
         { x: 138, y: 70 },
       ],
       color: "#dc2626",
-      fillColor: "#fca5a5",
+      fillColor: "#ff6b6b",
     },
     {
       id: "triangle-2",
@@ -109,8 +109,8 @@ export function getDefaultShapes(): Shape[] {
         { x: 0, y: 70 },
         { x: 7, y: 70 },
       ],
-      color: "#0b08d9",
-      fillColor: "#fca5a5",
+      color: "#2563eb",
+      fillColor: "#60a5fa",
     },
   ];
 }

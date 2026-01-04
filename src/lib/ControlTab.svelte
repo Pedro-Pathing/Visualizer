@@ -70,21 +70,33 @@
 
   // State for collapsed sections
   let collapsedSections = {
+    obstacles: shapes.map(() => true),
     lines: lines.map(() => false),
     controlPoints: lines.map(() => true), // Start with control points collapsed
   };
 
+  // Collapsed state for obstacles (default collapsed)
+  let collapsedObstacles = shapes.map(() => true);
+
   // Reactive statements to update UI state when lines or shapes change from file load
   $: if (lines.length !== collapsedSections.lines.length) {
     collapsedSections = {
-      obstacles: shapes.map(() => true),
+      obstacles: collapsedSections.obstacles ?? shapes.map(() => true),
       lines: lines.map(() => false),
       controlPoints: lines.map(() => true),
     };
   }
 
-  $: if (shapes.length !== collapsedSections.obstacles.length) {
-    collapsedSections.obstacles = shapes.map(() => true);
+  // Keep obstacle collapse state aligned with shapes list
+  $: if (shapes.length !== collapsedObstacles.length) {
+    collapsedObstacles = shapes.map(() => true);
+  }
+
+  $: if (!collapsedSections.obstacles || shapes.length !== collapsedSections.obstacles.length) {
+    collapsedSections = {
+      ...collapsedSections,
+      obstacles: shapes.map(() => true),
+    };
   }
 
   const makeId = () =>
@@ -503,7 +515,7 @@
   <div
     class="flex flex-col justify-start items-start w-full rounded-lg bg-neutral-50 dark:bg-neutral-900 shadow-md p-4 overflow-y-scroll overflow-x-hidden h-full gap-6"
   >
-    <!-- Obstacles removed -->
+    <ObstaclesSection bind:shapes bind:collapsedObstacles />
 
     <RobotPositionDisplay {robotXY} {robotHeading} {x} {y} />
 
