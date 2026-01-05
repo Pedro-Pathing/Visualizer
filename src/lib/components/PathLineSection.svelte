@@ -31,7 +31,7 @@
 </script>
 
 <div class="flex flex-col w-full justify-start items-start gap-1">
-  <div class="flex flex-row w-full justify-between items-center">
+  <div class="flex flex-row w-full items-center gap-3 flex-wrap">
     <div class="flex flex-row items-center gap-2">
       <button
         on:click={toggleCollapsed}
@@ -177,7 +177,7 @@
       </div>
     </div>
 
-    <div class="flex flex-row justify-end items-center gap-1">
+    <div class="flex flex-row items-center gap-1">
       <!-- Optimize whole path -->
       <button
         class="px-2 py-1 text-xs font-semibold text-neutral-700 dark:text-neutral-200 bg-neutral-200/80 dark:bg-neutral-800/80 border border-neutral-300 dark:border-neutral-700 rounded disabled:opacity-40 disabled:cursor-not-allowed"
@@ -187,7 +187,9 @@
       >
         {optimizing ? "Optimizing…" : "Optimize"}
       </button>
+    </div>
 
+    <div class="flex flex-row items-center gap-1 ml-auto">
       <!-- Add Point After Button -->
       <button
         title="Add Point After This Line"
