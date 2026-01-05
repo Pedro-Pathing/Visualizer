@@ -22,7 +22,6 @@
   export let shapes: Shape[];
   export let sequence: SequenceItem[];
 
-  let currentDirectory = "";
   let files: FileInfo[] = [];
   let loading = false;
   let newFileName = "";
@@ -809,21 +808,6 @@
             />
           </svg>
         </button>
-      </div>
-
-      <!-- Directory Info with Stats -->
-      <div class="mb-4">
-        <div class="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
-          <div class="font-medium mb-1">Current Directory:</div>
-          <div
-            class="font-mono text-xs bg-neutral-100 dark:bg-neutral-800 p-2 rounded overflow-x-auto whitespace-nowrap"
-            title={currentDirectory}
-          >
-            {currentDirectory.includes("/GitHub/")
-              ? "..." + currentDirectory.split("/GitHub/")[1]
-              : currentDirectory}
-          </div>
-        </div>
       </div>
 
       <!-- Error Message -->

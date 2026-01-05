@@ -17,7 +17,7 @@ export function createTriangle(existingShapesCount: number): Shape {
       { x: 72, y: 84 },
     ],
     color: "#dc2626",
-    fillColor: "#fca5a5",
+    fillColor: "#ff6b6b",
   };
 }
 
@@ -35,7 +35,7 @@ export function createRectangle(existingShapesCount: number): Shape {
       { x: 30, y: 50 },
     ],
     color: "#dc2626",
-    fillColor: "#fca5a5",
+    fillColor: "#ff6b6b",
   };
 }
 
@@ -61,7 +61,7 @@ export function createNGon(sides: number, existingShapesCount: number): Shape {
     name: `Obstacle ${existingShapesCount + 1}`,
     vertices,
     color: "#dc2626",
-    fillColor: "#fca5a5",
+    fillColor: "#ff6b6b",
   };
 }
 
