@@ -40,6 +40,8 @@
   export let recordChange: () => any;
   export let canUndo: boolean;
   export let canRedo: boolean;
+  export let optimizeAllLines: () => Promise<void>;
+  export let optimizingAll: boolean = false;
 
   let fileManagerOpen = false;
   let settingsOpen = false;
@@ -150,6 +152,37 @@
     document.removeEventListener("click", handleClickOutside);
     document.removeEventListener("keydown", handleKeyDown);
   });
+
+  type GlowButtonEl = HTMLElement & { dataset: DOMStringMap & { prevOverflow?: string } };
+
+  function handleOptimizeEnter(event: MouseEvent) {
+    const el = event.currentTarget as GlowButtonEl;
+    el.style.background =
+      "linear-gradient(120deg, #ff5f6d, #ffc371, #47e1a8, #5f8bff, #c471ed, #f64f59)";
+    el.style.backgroundSize = "400% 400%";
+    el.style.animation = "rainbow-glow 1.2s ease infinite";
+    el.style.boxShadow =
+      "0 0 18px rgba(255,255,255,0.9), 0 0 40px rgba(255,255,255,0.45)";
+    el.dataset.prevOverflow = el.style.overflow;
+    el.style.overflow = "hidden";
+  }
+
+  function handleOptimizeMove(event: MouseEvent) {
+    const el = event.currentTarget as GlowButtonEl;
+    const rect = el.getBoundingClientRect();
+    const xPct = ((event.clientX - rect.left) / rect.width) * 100;
+    const yPct = ((event.clientY - rect.top) / rect.height) * 100;
+    el.style.backgroundPosition = `${xPct}% ${yPct}%`;
+  }
+
+  function handleOptimizeLeave(event: MouseEvent) {
+    const el = event.currentTarget as GlowButtonEl;
+    el.style.background = "";
+    el.style.backgroundPosition = "";
+    el.style.animation = "";
+    el.style.boxShadow = "0 0 8px rgba(255,255,255,0.2)";
+    el.style.overflow = el.dataset.prevOverflow || "hidden";
+  }
 </script>
 
 {#if fileManagerOpen}
@@ -245,6 +278,21 @@
             ({(timePrediction?.totalDistance ?? 0).toFixed(0)} in)
         </div>
       </div>
+
+      <!-- Optimize All -->
+      <button
+        class="px-4 py-2 text-sm font-semibold text-neutral-700 dark:text-neutral-200 bg-neutral-200/80 dark:bg-neutral-800/80 border border-neutral-300 dark:border-neutral-700 rounded-full disabled:opacity-40 disabled:cursor-not-allowed relative overflow-hidden transition duration-300"
+        title="Optimize all paths"
+        on:click={optimizeAllLines}
+        disabled={optimizingAll}
+        style="box-shadow: 0 0 8px rgba(255,255,255,0.2);"
+        on:mouseenter={handleOptimizeEnter}
+        on:mousemove={handleOptimizeMove}
+        on:mouseleave={handleOptimizeLeave}
+      >
+        {optimizingAll ? "Optimizing All…" : "Optimize All"}
+      </button>
+
       <!-- Undo / Redo -->
       <div class="flex items-center gap-2">
         <button
@@ -745,3 +793,17 @@
     </div>
   </div>
 </div>
+
+<style>
+  @keyframes rainbow-glow {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+</style>

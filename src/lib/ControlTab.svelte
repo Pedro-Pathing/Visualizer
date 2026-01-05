@@ -33,6 +33,8 @@
   export let settings: Settings;
   export let handleSeek: (percent: number) => void;
   export let loopAnimation: boolean;
+  export let optimizeLine: (lineId: string, targetControlPointIndex?: number) => void;
+  export let optimizingLineIds: Record<string, boolean> = {};
 
   export let shapes: Shape[];
   export let recordChange: () => void;
@@ -67,6 +69,7 @@
 
     return _markers;
   })();
+
 
   // State for collapsed sections
   let collapsedSections = {
@@ -547,6 +550,8 @@
               onMoveDown={() => moveSequenceItem(sIdx, 1)}
               canMoveUp={sIdx !== 0}
               canMoveDown={sIdx !== sequence.length - 1}
+              optimizeLine={optimizeLine}
+              optimizing={optimizingLineIds?.[ln.id ?? ""] ?? false}
               {recordChange}
             />
           {/each}
