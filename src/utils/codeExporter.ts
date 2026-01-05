@@ -34,14 +34,6 @@ export async function generateJavaCode(
     tangential: "setTangentHeadingInterpolation",
   };
 
-  // Collect all unique event marker names
-  const eventMarkerNames = new Set<string>();
-  lines.forEach((line) => {
-    line.eventMarkers?.forEach((event) => {
-      eventMarkerNames.add(event.name);
-    });
-  });
-
   let pathsClass = `
   public static class Paths {
     ${lines
@@ -49,7 +41,10 @@ export async function generateJavaCode(
         const variableName = line.name
           ? line.name.replace(/[^a-zA-Z0-9]/g, "")
           : `line${idx + 1}`;
-        return `public PathChain ${variableName};`;
+        // declare waits as doubles, paths as PathChain
+        return (line as any).waitMs !== undefined
+          ? `public double ${variableName};`
+          : `public PathChain ${variableName};`;
       })
       .join("\n")}
     
@@ -59,10 +54,16 @@ export async function generateJavaCode(
           const variableName = line.name
             ? line.name.replace(/[^a-zA-Z0-9]/g, "")
             : `line${idx + 1}`;
+          
+          if ((line as any).waitMs !== undefined) {
+            // assign wait duration (ms) to double
+            return `${variableName} = ${Number((line as any).waitMs)};`;
+          }
+
           const start =
             idx === 0
-              ? `new Pose(${startPoint.x.toFixed(3)}, ${startPoint.y.toFixed(3)})`
-              : `new Pose(${lines[idx - 1].endPoint.x.toFixed(3)}, ${lines[idx - 1].endPoint.y.toFixed(3)})`;
+              ? `new Pose(${startPoint.x.toFixed(3)}, ${startPoint.y.toFixed(3)}),`
+              : `new Pose(${lines[idx - 1].endPoint.x.toFixed(3)}, ${lines[idx - 1].endPoint.y.toFixed(3)}),`;
 
           const controlPoints =
             line.controlPoints.length > 0
@@ -92,7 +93,7 @@ export async function generateJavaCode(
 
           return `${variableName} = follower.pathBuilder().addPath(
           ${curveType}(
-            ${start},
+            ${start}
             ${controlPoints}
             new Pose(${line.endPoint.x.toFixed(3)}, ${line.endPoint.y.toFixed(3)})
           )
@@ -105,31 +106,9 @@ export async function generateJavaCode(
   }
   `;
 
-  // Add NamedCommands registration instructions
-  let namedCommandsSection = "";
-  if (eventMarkerNames.size > 0) {
-    namedCommandsSection = `
-    
-    // ===== NAMED COMMANDS REGISTRATION =====
-    // In your RobotContainer class, register named commands like this:
-    // 
-    // NamedCommands.registerCommand("CommandName", yourCommand);
-    // 
-    // Example for the event markers in this path:
-    ${Array.from(eventMarkerNames)
-      .map(
-        (name) =>
-          `// NamedCommands.registerCommand("${name}", your${name.replace(/_/g, "")}Command);`,
-      )
-      .join("\n    ")}
-    
-    // Make sure to register all named commands BEFORE creating any paths or autos.
-    `;
-  }
-
   let file = "";
   if (!exportFullCode) {
-    file = pathsClass + namedCommandsSection;
+    file = pathsClass;
   } else {
     file = `
     package org.firstinspires.ftc.teamcode;
@@ -144,7 +123,6 @@ export async function generateJavaCode(
     import com.pedropathing.follower.Follower;
     import com.pedropathing.paths.PathChain;
     import com.pedropathing.geometry.Pose;
-    ${eventMarkerNames.size > 0 ? "import com.pedropathing.NamedCommands;" : ""}
     
     @Autonomous(name = "Pedro Pathing Autonomous", group = "Autonomous")
     @Configurable // Panels
@@ -183,12 +161,11 @@ export async function generateJavaCode(
       ${pathsClass}
 
       public int autonomousPathUpdate() {
-          // Event markers will automatically trigger at their positions
-          // Make sure to register NamedCommands in your RobotContainer
+          // Add your state machine Here
+          // Access paths with paths.pathName
+          // Refer to the Pedro Pathing Docs (Auto Example) for an example state machine
           return pathState;
       }
-      
-      ${namedCommandsSection}
     }
     `;
   }

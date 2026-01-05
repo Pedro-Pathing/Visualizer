@@ -957,6 +957,15 @@
     let isDown = false;
     let dragOffset = { x: 0, y: 0 }; // Store offset to prevent snapping to center
 
+    const isLockedPathElem = (id: string | null): boolean => {
+      if (!id || !id.startsWith("point")) return false;
+      const parts = id.split("-");
+      const lineIdx = Number(parts[1]) - 1;
+      if (Number.isNaN(lineIdx)) return false;
+      if (lineIdx < 0) return false; // startPoint currently not lockable
+      return !!lines[lineIdx]?.locked;
+    };
+
     two.renderer.domElement.addEventListener("mousemove", (evt: MouseEvent) => {
       const elem = document.elementFromPoint(evt.clientX, evt.clientY);
 
@@ -1031,7 +1040,10 @@
           }
         }
       } else {
-        if (elem?.id.startsWith("point") || elem?.id.startsWith("obstacle")) {
+        if (
+          (elem?.id.startsWith("point") && !isLockedPathElem(elem.id)) ||
+          elem?.id.startsWith("obstacle")
+        ) {
           two.renderer.domElement.style.cursor = "pointer";
           currentElem = elem.id;
         } else {
@@ -1042,6 +1054,11 @@
     });
 
     two.renderer.domElement.addEventListener("mousedown", (evt: MouseEvent) => {
+      if (currentElem && isLockedPathElem(currentElem)) {
+        isDown = false;
+        return;
+      }
+
       isDown = true;
 
       if (currentElem) {
