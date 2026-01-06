@@ -107,9 +107,12 @@
     lineId: ln.id!,
   }));
   let shapes: Shape[] = getDefaultShapes();
+  let optimizingLineIds: Record<string, boolean> = {};
+  let optimizingAll = false;
 
   const history = createHistory();
   const { canUndoStore, canRedoStore } = history;
+  const OPTIMIZER_BASE_URL = "https://fpa.pedropathing.com";
 
   function getAppState(): AppState {
     return {
@@ -954,6 +957,15 @@
     let isDown = false;
     let dragOffset = { x: 0, y: 0 }; // Store offset to prevent snapping to center
 
+    const isLockedPathElem = (id: string | null): boolean => {
+      if (!id || !id.startsWith("point")) return false;
+      const parts = id.split("-");
+      const lineIdx = Number(parts[1]) - 1;
+      if (Number.isNaN(lineIdx)) return false;
+      if (lineIdx < 0) return false; // startPoint currently not lockable
+      return !!lines[lineIdx]?.locked;
+    };
+
     two.renderer.domElement.addEventListener("mousemove", (evt: MouseEvent) => {
       const elem = document.elementFromPoint(evt.clientX, evt.clientY);
 
@@ -1028,7 +1040,10 @@
           }
         }
       } else {
-        if (elem?.id.startsWith("point") || elem?.id.startsWith("obstacle")) {
+        if (
+          (elem?.id.startsWith("point") && !isLockedPathElem(elem.id)) ||
+          elem?.id.startsWith("obstacle")
+        ) {
           two.renderer.domElement.style.cursor = "pointer";
           currentElem = elem.id;
         } else {
@@ -1039,6 +1054,11 @@
     });
 
     two.renderer.domElement.addEventListener("mousedown", (evt: MouseEvent) => {
+      if (currentElem && isLockedPathElem(currentElem)) {
+        isDown = false;
+        return;
+      }
+
       isDown = true;
 
       if (currentElem) {
@@ -1295,6 +1315,192 @@
     recordChange();
   }
 
+  function toHeadingDegrees(point: Point, position: "start" | "end"): number {
+    if (!point) return 0;
+    if (point.heading === "linear") {
+      return position === "start" ? point.startDeg ?? 0 : point.endDeg ?? 0;
+    }
+    if (point.heading === "constant") {
+      return point.degrees ?? 0;
+    }
+    return 0;
+  }
+
+  function buildOptimizationPayload(lineIndex: number) {
+    const line = lines[lineIndex];
+    if (!line) throw new Error("Line not found");
+
+    const startPt = lineIndex === 0 ? startPoint : lines[lineIndex - 1]?.endPoint;
+    if (!startPt) throw new Error("Missing start point for optimization");
+
+    const waypoints = [startPt, ...line.controlPoints, line.endPoint].map((p) => [p.x, p.y]);
+
+    return {
+      waypoints,
+      start_heading_degrees: toHeadingDegrees(startPt, "start"),
+      end_heading_degrees: toHeadingDegrees(line.endPoint, "end"),
+      x_velocity: settings.xVelocity,
+      y_velocity: settings.yVelocity,
+      angular_velocity: settings.aVelocity,
+      friction_coefficient: settings.kFriction,
+      robot_width: settings.rWidth,
+      robot_height: settings.rHeight,
+      min_coord_field: 0,
+      max_coord_field: FIELD_SIZE,
+      interpolation:
+        line.endPoint.heading === "tangential"
+          ? "tangent"
+          : line.endPoint.heading === "constant"
+            ? "constant"
+            : "linear",
+    };
+  }
+
+  function sleep(ms: number) {
+    return new Promise((res) => setTimeout(res, ms));
+  }
+
+  async function createOptimizationTask(payload: any) {
+    const response = await fetch(`${OPTIMIZER_BASE_URL}/optimize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.status === 503) {
+      const errorData = await response.json().catch(() => ({}));
+      if ((errorData as any).error === "offline") {
+        throw new Error(`OFFLINE: ${(errorData as any).message || "Service unavailable"}`);
+      }
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new Error(`Optimizer request failed (${response.status}): ${errorText || response.statusText}`);
+    }
+
+    const data = await response.json();
+    if (!data?.job_id) throw new Error("Optimizer did not return a job id");
+    return data.job_id as string;
+  }
+
+  async function pollOptimizationResult(jobId: string, pollInterval = 1000, maxTries = 60) {
+    for (let i = 0; i < maxTries; i++) {
+      const response = await fetch(`${OPTIMIZER_BASE_URL}/job/${jobId}`);
+
+      if (response.status === 503) {
+        const errorData = await response.json().catch(() => ({}));
+        if ((errorData as any).error === "offline") {
+          throw new Error(`OFFLINE: ${(errorData as any).message || "Service unavailable"}`);
+        }
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "");
+        throw new Error(`Optimizer status failed (${response.status}): ${errorText || response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (data?.status === "completed" && data.result) {
+        return data.result;
+      }
+      if (data?.status === "error") {
+        throw new Error("Optimization failed with server error.");
+      }
+
+      await sleep(pollInterval);
+    }
+
+    throw new Error("Timed out waiting for optimization result.");
+  }
+
+  async function runOptimization(payload: any, pollInterval = 1000, maxTries = 60) {
+    const jobId = await createOptimizationTask(payload);
+    return pollOptimizationResult(jobId, pollInterval, maxTries);
+  }
+
+  async function optimizeLine(lineId: string, targetControlPointIndex?: number) {
+    const lineIndex = lines.findIndex((l) => l.id === lineId);
+    if (lineIndex === -1) {
+      alert("Could not find line to optimize.");
+      return;
+    }
+
+    if (optimizingLineIds[lineId]) return;
+    optimizingLineIds = { ...optimizingLineIds, [lineId]: true };
+
+    try {
+      const payload = buildOptimizationPayload(lineIndex);
+      const result = await runOptimization(payload);
+
+      const optimizedWaypoints = Array.isArray(result?.optimized_waypoints)
+        ? result.optimized_waypoints
+        : Array.isArray(result)
+          ? result
+          : null;
+
+      if (!optimizedWaypoints || optimizedWaypoints.length < 2) {
+        throw new Error("Unexpected optimizer response format.");
+      }
+
+      const interior = optimizedWaypoints
+        .slice(1, optimizedWaypoints.length - 1)
+        .map((p: number[]) => ({ x: p[0], y: p[1] }));
+
+      const newLines = [...lines];
+      const current = newLines[lineIndex];
+
+      if (typeof targetControlPointIndex === "number") {
+        // Only replace the targeted control point; keep others and endpoint untouched
+        const replacement =
+          interior[targetControlPointIndex] ?? interior[interior.length - 1];
+        if (replacement) {
+          const cps = [...current.controlPoints];
+          if (cps[targetControlPointIndex]) {
+            cps[targetControlPointIndex] = replacement;
+            newLines[lineIndex] = {
+              ...current,
+              controlPoints: cps,
+            };
+            lines = normalizeLines(newLines);
+            recordChange();
+          }
+        }
+      } else {
+        // Replace entire line (control points and endpoint)
+        newLines[lineIndex] = {
+          ...current,
+          endPoint: {
+            ...current.endPoint,
+            x: optimizedWaypoints[optimizedWaypoints.length - 1][0],
+            y: optimizedWaypoints[optimizedWaypoints.length - 1][1],
+          },
+          controlPoints: interior,
+        };
+        lines = normalizeLines(newLines);
+        recordChange();
+      }
+    } catch (err) {
+      console.error(err);
+      alert((err as Error).message || "Optimization failed.");
+    } finally {
+      optimizingLineIds = { ...optimizingLineIds, [lineId]: false };
+    }
+  }
+
+  async function optimizeAllLines() {
+    if (optimizingAll) return;
+    optimizingAll = true;
+    try {
+      for (const ln of lines) {
+        if (!ln?.id) continue;
+        await optimizeLine(ln.id);
+      }
+    } finally {
+      optimizingAll = false;
+    }
+  }
+
   function loadRobot(evt: Event) {
     loadRobotImage(evt, () => updateRobotImageDisplay());
   }
@@ -1452,6 +1658,8 @@
   {recordChange}
   {canUndo}
   {canRedo}
+  {optimizeAllLines}
+  {optimizingAll}
 />
 <!--   {saveFile} -->
 <div
@@ -1550,5 +1758,9 @@ pointer-events: none;`}
     bind:loopAnimation
     {resetAnimation}
     {recordChange}
+    {optimizeLine}
+    {optimizingLineIds}
+    {optimizeAllLines}
+    {optimizingAll}
   />
 </div>

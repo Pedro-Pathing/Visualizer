@@ -40,10 +40,13 @@
   export let recordChange: () => any;
   export let canUndo: boolean;
   export let canRedo: boolean;
+  export let optimizeAllLines: () => Promise<void>;
+  export let optimizingAll: boolean = false;
 
   let fileManagerOpen = false;
   let settingsOpen = false;
   let exportMenuOpen = false;
+  let exportDialogOpen = false;
   let exportDialog: ExportCodeDialog;
   // Hide sequential export UI by default; backend generator remains available
   const showSequentialExport = false;
@@ -54,6 +57,16 @@
 
   let selectedGridSize = 12;
   const gridSizeOptions = [1, 3, 6, 12, 24];
+
+  // Ensure File Manager and Export dialog are mutually exclusive
+  $: if (fileManagerOpen && exportDialogOpen) {
+    exportDialogOpen = false;
+  }
+
+  // Ensure save dropdown and export menu are mutually exclusive
+  $: if (saveDropdownOpen && exportMenuOpen) {
+    exportMenuOpen = false;
+  }
 
   $: timePrediction = calculatePathTime(startPoint, lines, settings, sequence);
   $: elapsedSeconds = (percent / 100) * (timePrediction?.totalTime || 0);
@@ -68,14 +81,30 @@
     };
   });
 
-  function handleGridSizeChange(event: Event) {
-    const value = Number((event.target as HTMLSelectElement).value);
-    selectedGridSize = value;
-    gridSize.set(value);
+  function cycleGridSize() {
+    if (!$showGrid) {
+      // Grid is off, turn it on with first size
+      showGrid.set(true);
+      selectedGridSize = gridSizeOptions[0];
+      gridSize.set(selectedGridSize);
+    } else {
+      // Grid is on, cycle to next size or turn off
+      const currentIndex = gridSizeOptions.indexOf(selectedGridSize);
+      const nextIndex = currentIndex + 1;
+      if (nextIndex >= gridSizeOptions.length) {
+        // We're at the last size, turn off
+        showGrid.set(false);
+      } else {
+        // Move to next size
+        selectedGridSize = gridSizeOptions[nextIndex];
+        gridSize.set(selectedGridSize);
+      }
+    }
   }
 
   function handleExport(format: "java" | "points" | "sequential") {
     exportMenuOpen = false;
+    fileManagerOpen = false; // ensure file manager is closed before opening export dialog
     exportDialog.openWithFormat(format);
   }
 
@@ -150,6 +179,37 @@
     document.removeEventListener("click", handleClickOutside);
     document.removeEventListener("keydown", handleKeyDown);
   });
+
+  type GlowButtonEl = HTMLElement & { dataset: DOMStringMap & { prevOverflow?: string } };
+
+  function handleOptimizeEnter(event: MouseEvent) {
+    const el = event.currentTarget as GlowButtonEl;
+    el.style.background =
+      "linear-gradient(120deg, #ff5f6d, #ffc371, #47e1a8, #5f8bff, #c471ed, #f64f59)";
+    el.style.backgroundSize = "400% 400%";
+    el.style.animation = "rainbow-glow 1.2s ease infinite";
+    el.style.boxShadow =
+      "0 0 18px rgba(255,255,255,0.9), 0 0 40px rgba(255,255,255,0.45)";
+    el.dataset.prevOverflow = el.style.overflow;
+    el.style.overflow = "hidden";
+  }
+
+  function handleOptimizeMove(event: MouseEvent) {
+    const el = event.currentTarget as GlowButtonEl;
+    const rect = el.getBoundingClientRect();
+    const xPct = ((event.clientX - rect.left) / rect.width) * 100;
+    const yPct = ((event.clientY - rect.top) / rect.height) * 100;
+    el.style.backgroundPosition = `${xPct}% ${yPct}%`;
+  }
+
+  function handleOptimizeLeave(event: MouseEvent) {
+    const el = event.currentTarget as GlowButtonEl;
+    el.style.background = "";
+    el.style.backgroundPosition = "";
+    el.style.animation = "";
+    el.style.boxShadow = "0 0 8px rgba(255,255,255,0.2)";
+    el.style.overflow = el.dataset.prevOverflow || "hidden";
+  }
 </script>
 
 {#if fileManagerOpen}
@@ -164,6 +224,7 @@
 
 <ExportCodeDialog
   bind:this={exportDialog}
+  bind:isOpen={exportDialogOpen}
   bind:startPoint
   bind:lines
   bind:sequence
@@ -178,7 +239,13 @@
   <div class="font-semibold flex flex-col justify-start items-start">
     <div class="flex flex-row items-center gap-2">
       <!-- File manager button -->
-      <button title="File Manager" on:click={() => (fileManagerOpen = true)}>
+      <button
+        title="File Manager"
+        on:click={() => {
+          exportDialogOpen = false;
+          fileManagerOpen = true;
+        }}
+      >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
@@ -245,6 +312,20 @@
             ({(timePrediction?.totalDistance ?? 0).toFixed(0)} in)
         </div>
       </div>
+
+      <button
+        class="relative px-3 py-1.5 text-sm font-semibold text-neutral-700 dark:text-neutral-200 bg-neutral-200/80 dark:bg-neutral-800/80 border border-neutral-300 dark:border-neutral-700 rounded-full shadow-sm hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        title="Optimize all paths"
+        on:click={optimizeAllLines}
+        disabled={optimizingAll}
+        style="box-shadow: 0 0 8px rgba(255,255,255,0.2)"
+        on:mouseenter={handleOptimizeEnter}
+        on:mousemove={handleOptimizeMove}
+        on:mouseleave={handleOptimizeLeave}
+      >
+        {optimizingAll ? "Optimizing All…" : "Optimize All"}
+      </button>
+
       <!-- Undo / Redo -->
       <div class="flex items-center gap-2">
         <button
@@ -336,45 +417,35 @@
     {/if}
 
     <!-- Grid toggle -->
-    <div class="relative flex flex-col items-center justify-center">
-      <button
-        title="Toggle Grid"
-        on:click={() => showGrid.update((v) => !v)}
-        class:text-blue-500={$showGrid}
+    <button
+      title={$showGrid ? `Grid: ${selectedGridSize}" (click to cycle)` : "Toggle Grid"}
+      on:click={cycleGridSize}
+      class:text-blue-500={$showGrid}
+      class="relative"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-          <line x1="3" y1="9" x2="21" y2="9"></line>
-          <line x1="3" y1="15" x2="21" y2="15"></line>
-          <line x1="9" y1="3" x2="9" y2="21"></line>
-          <line x1="15" y1="3" x2="15" y2="21"></line>
-        </svg>
-      </button>
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="3" y1="9" x2="21" y2="9"></line>
+        <line x1="3" y1="15" x2="21" y2="15"></line>
+        <line x1="9" y1="3" x2="9" y2="21"></line>
+        <line x1="15" y1="3" x2="15" y2="21"></line>
+      </svg>
       {#if $showGrid}
-        <div class="absolute top-full left-1/2 mt-2 -translate-x-1/2">
-          <select
-            class="px-2 py-1 text-sm rounded-md border border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
-            bind:value={selectedGridSize}
-            on:change={handleGridSizeChange}
-            aria-label="Select grid spacing"
-          >
-            {#each gridSizeOptions as option}
-              <option value={option}>{option}" grid</option>
-            {/each}
-          </select>
-        </div>
+        <span class="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-semibold whitespace-nowrap">
+          {selectedGridSize}"
+        </span>
       {/if}
-    </div>
+    </button>
 
     <!-- Ruler toggle -->
     <button
@@ -745,3 +816,17 @@
     </div>
   </div>
 </div>
+
+<style>
+  @keyframes rainbow-glow {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+</style>

@@ -6,6 +6,8 @@
   export let lineIdx: number;
   export let collapsed: boolean;
   export let recordChange: () => void;
+  export let optimizeLine: (lineId: string, targetControlPointIndex?: number) => void;
+  export let optimizing: boolean = false;
 
   $: snapToGridTitle =
     $snapToGrid && $showGrid ? `Snapping to ${$gridSize} grid` : "No snapping";
@@ -41,7 +43,6 @@
       </svg>
       Control Points ({line.controlPoints.length})
     </button>
-    <!-- Blue inline Add Control Point button removed; use global green plus instead -->
   </div>
 
   <!-- Control Points list (shown when expanded) -->
@@ -129,6 +130,21 @@
           <div class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
             Line {lineIdx + 1}, Control Point {idx1 + 1}
           </div>
+          <!-- Optimize button (temporarily hidden) -->
+          <!-- <div class="mt-1">
+            <button
+              class="px-2 py-1 text-xs font-semibold text-neutral-700 dark:text-neutral-200 bg-neutral-200/80 dark:bg-neutral-800/80 border border-neutral-300 dark:border-neutral-700 rounded disabled:opacity-40 disabled:cursor-not-allowed"
+              title={line.locked ? "Path locked" : "Optimize path with this point"}
+              on:click={() =>
+                line.id &&
+                optimizeLine &&
+                optimizeLine(line.id, idx1)
+              }
+              disabled={!line.id || line.locked || optimizing}
+            >
+              {optimizing ? "Optimizing…" : "Optimize"}
+            </button>
+          </div> -->
         </div>
       {/each}
     </div>

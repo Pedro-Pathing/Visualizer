@@ -69,8 +69,12 @@
     const rect = twoElement.getBoundingClientRect();
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
-    const inchX = x.invert(mouseX);
-    const inchY = y.invert(mouseY);
+    let inchX = x.invert(mouseX);
+    let inchY = y.invert(mouseY);
+
+    // Clamp to field boundaries
+    inchX = Math.max(0, Math.min(FIELD_SIZE, inchX));
+    inchY = Math.max(0, Math.min(FIELD_SIZE, inchY));
 
     if (rulerDragging === "start") {
       rulerStart = { x: inchX, y: inchY };
@@ -96,6 +100,7 @@
       );
       protractorRadius = clampedRadius;
       const angleRadians = Math.atan2(centerY - mouseY, mouseX - centerX);
+      // keep resize angle updated for handle position
       protractorResizeAngle = angleRadians * (180 / Math.PI);
     }
   }
@@ -382,21 +387,13 @@
           : "Drag to move protractor"}
         on:mousedown={(e) => {
           if ($protractorLockToRobot) {
+            // Locked: center click does nothing; unlock via navbar toggle only
             e.stopPropagation();
-            protractorLockToRobot.set(false);
-          } else {
-            handleMouseDown(e, "protractor-move");
+            return;
           }
+          handleMouseDown(e, "protractor-move");
         }}
       />
-      {#if $protractorLockToRobot}
-        <text
-          x="0"
-          y="3"
-          class="fill-white text-[10px] font-bold pointer-events-none"
-          text-anchor="middle">x</text
-        >
-      {/if}
     </g>
   </svg>
 {/if}
