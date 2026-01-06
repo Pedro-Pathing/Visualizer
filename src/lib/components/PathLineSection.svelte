@@ -178,15 +178,14 @@
     </div>
 
     <div class="flex flex-row items-center gap-1">
-      <!-- Optimize whole path (temporarily hidden) -->
-      <!-- <button
+      <button
         class="px-2 py-1 text-xs font-semibold text-neutral-700 dark:text-neutral-200 bg-neutral-200/80 dark:bg-neutral-800/80 border border-neutral-300 dark:border-neutral-700 rounded disabled:opacity-40 disabled:cursor-not-allowed"
         title={line.locked ? "Path locked" : "Optimize this path"}
         on:click={() => line.id && optimizeLine && optimizeLine(line.id)}
         disabled={!line.id || line.locked || optimizing}
       >
         {optimizing ? "Optimizing…" : "Optimize"}
-      </button> -->
+      </button>
     </div>
 
     <div class="flex flex-row items-center gap-1 ml-auto">

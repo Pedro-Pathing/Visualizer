@@ -313,8 +313,7 @@
         </div>
       </div>
 
-      <!-- Optimize All (temporarily hidden) -->
-      <!-- <button
+      <button
         class="relative px-3 py-1.5 text-sm font-semibold text-neutral-700 dark:text-neutral-200 bg-neutral-200/80 dark:bg-neutral-800/80 border border-neutral-300 dark:border-neutral-700 rounded-full shadow-sm hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
         title="Optimize all paths"
         on:click={optimizeAllLines}
@@ -325,7 +324,7 @@
         on:mouseleave={handleOptimizeLeave}
       >
         {optimizingAll ? "Optimizing All…" : "Optimize All"}
-      </button> -->
+      </button>
 
       <!-- Undo / Redo -->
       <div class="flex items-center gap-2">
