@@ -1318,7 +1318,7 @@
   function toHeadingDegrees(point: Point, position: "start" | "end"): number {
     if (!point) return 0;
     if (point.heading === "linear") {
-      return position === "start" ? point.startDeg ?? 0 : point.endDeg ?? 0;
+      return position === "start" ? (point.startDeg ?? 0) : (point.endDeg ?? 0);
     }
     if (point.heading === "constant") {
       return point.degrees ?? 0;
@@ -1330,10 +1330,13 @@
     const line = lines[lineIndex];
     if (!line) throw new Error("Line not found");
 
-    const startPt = lineIndex === 0 ? startPoint : lines[lineIndex - 1]?.endPoint;
+    const startPt =
+      lineIndex === 0 ? startPoint : lines[lineIndex - 1]?.endPoint;
     if (!startPt) throw new Error("Missing start point for optimization");
 
-    const waypoints = [startPt, ...line.controlPoints, line.endPoint].map((p) => [p.x, p.y]);
+    const waypoints = [startPt, ...line.controlPoints, line.endPoint].map(
+      (p) => [p.x, p.y],
+    );
 
     return {
       waypoints,
@@ -1353,6 +1356,7 @@
           : line.endPoint.heading === "constant"
             ? "constant"
             : "linear",
+      obstacles: shapes.map((shape) => shape.vertices.map((v) => [v.x, v.y])),
     };
   }
 
@@ -1360,66 +1364,36 @@
     return new Promise((res) => setTimeout(res, ms));
   }
 
-  async function createOptimizationTask(payload: any) {
-    const response = await fetch(`${OPTIMIZER_BASE_URL}/optimize`, {
+  async function runOptimization(payload: any) {
+    const response = await fetch(`${OPTIMIZER_BASE_URL}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
-    if (response.status === 503) {
-      const errorData = await response.json().catch(() => ({}));
-      if ((errorData as any).error === "offline") {
-        throw new Error(`OFFLINE: ${(errorData as any).message || "Service unavailable"}`);
-      }
-    }
-
     if (!response.ok) {
       const errorText = await response.text().catch(() => "");
-      throw new Error(`Optimizer request failed (${response.status}): ${errorText || response.statusText}`);
+      throw new Error(
+        `Optimizer request failed (${response.status}): ${errorText || response.statusText}`,
+      );
     }
 
     const data = await response.json();
-    if (!data?.job_id) throw new Error("Optimizer did not return a job id");
-    return data.job_id as string;
-  }
-
-  async function pollOptimizationResult(jobId: string, pollInterval = 1000, maxTries = 60) {
-    for (let i = 0; i < maxTries; i++) {
-      const response = await fetch(`${OPTIMIZER_BASE_URL}/job/${jobId}`);
-
-      if (response.status === 503) {
-        const errorData = await response.json().catch(() => ({}));
-        if ((errorData as any).error === "offline") {
-          throw new Error(`OFFLINE: ${(errorData as any).message || "Service unavailable"}`);
-        }
-      }
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => "");
-        throw new Error(`Optimizer status failed (${response.status}): ${errorText || response.statusText}`);
-      }
-
-      const data = await response.json();
-      if (data?.status === "completed" && data.result) {
-        return data.result;
-      }
-      if (data?.status === "error") {
-        throw new Error("Optimization failed with server error.");
-      }
-
-      await sleep(pollInterval);
+    if (data?.status === "completed" && data.result) {
+      return data.result;
     }
-
-    throw new Error("Timed out waiting for optimization result.");
+    if (data?.status === "error") {
+      throw new Error(
+        `Optimization failed: ${data.message || "Unknown error"}`,
+      );
+    }
+    throw new Error("Unexpected API response format");
   }
 
-  async function runOptimization(payload: any, pollInterval = 1000, maxTries = 60) {
-    const jobId = await createOptimizationTask(payload);
-    return pollOptimizationResult(jobId, pollInterval, maxTries);
-  }
-
-  async function optimizeLine(lineId: string, targetControlPointIndex?: number) {
+  async function optimizeLine(
+    lineId: string,
+    targetControlPointIndex?: number,
+  ) {
     const lineIndex = lines.findIndex((l) => l.id === lineId);
     if (lineIndex === -1) {
       alert("Could not find line to optimize.");
