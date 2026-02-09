@@ -2,6 +2,100 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
+/* Global text selection styling to avoid white flash */
+*::selection {
+  background-color: rgba(34, 197, 94, 0.3);
+  color: inherit;
+}
+
+*::-moz-selection {
+  background-color: rgba(34, 197, 94, 0.3);
+  color: inherit;
+}
+
+// Modern animations
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// Smooth button transitions
+button {
+  @apply transition-colors duration-300 outline-none ring-0;
+
+  &:not(:disabled):hover {
+    background-color: rgba(0, 0, 0, 0.03);
+  }
+}
+
+// Smooth input transitions
+input,
+textarea,
+select {
+  @apply transition-all duration-300 outline-none ring-0;
+
+  &:focus {
+    @apply ring-offset-0 ring-0 outline-none;
+  }
+
+  /* Remove white flashing on text selection */
+  &::selection {
+    background-color: rgba(34, 197, 94, 0.3);
+    color: inherit;
+  }
+
+  &::-moz-selection {
+    background-color: rgba(34, 197, 94, 0.3);
+    color: inherit;
+  }
+}
+
+// Card hover effects
+.card-hover {
+  @apply transition-all duration-300 ease-out;
+
+  &:hover {
+    @apply shadow-lg transform -translate-y-1;
+  }
+}
+
 .slider {
   @apply dark:bg-neutral-900
   [&::-webkit-slider-runnable-track]:rounded-full 
@@ -12,11 +106,14 @@
   [&::-webkit-slider-thumb]:h-5 
   [&::-webkit-slider-thumb]:w-5 
   [&::-webkit-slider-thumb]:rounded-full 
-  [&::-webkit-slider-thumb]:bg-green-500;
-}
+  [&::-webkit-slider-thumb]:bg-green-500
+  [&::-webkit-slider-thumb]:transition-all
+  [&::-webkit-slider-thumb]:duration-200
+  [&::-webkit-slider-thumb]:cursor-pointer;
 
-code.hljs {
-  @apply rounded-md max-h-[42rem] overflow-scroll;
+  &::-webkit-slider-thumb:hover {
+    @apply shadow-lg;
+  }
 }
 
 @font-face {

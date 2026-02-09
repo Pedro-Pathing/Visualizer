@@ -9,7 +9,7 @@
   import { fade, fly } from "svelte/transition";
   import type { FileInfo, Point, Line, Shape, SequenceItem } from "../types";
   import * as browserFileStore from "../utils/browserFileStore";
-  import { currentFilePath, isUnsaved } from "../stores";
+  import { currentFilePath, isUnsaved, dualPathMode, secondFilePath } from "../stores";
   import { getRandomColor } from "../utils";
   import {
     saveAutoPathsDirectory,
@@ -21,8 +21,13 @@
   export let lines: Line[];
   export let shapes: Shape[];
   export let sequence: SequenceItem[];
+  export let secondStartPoint: Point | null = null;
+  export let secondLines: Line[] = [];
+  export let secondShapes: Shape[] = [];
+  export let secondSequence: SequenceItem[] = [];
 
   let files: FileInfo[] = [];
+  let selectedFile2: FileInfo | null = null;
   let loading = false;
   let newFileName = "";
   let creatingNewFile = false;
@@ -244,6 +249,45 @@
       selectedFile = file;
 
       showToast(`Loaded: ${file.name}`, "success");
+    } catch (error) {
+      const errMsg = getErrorMessage(error);
+      const message = errMsg.includes("Invalid file format")
+        ? "Invalid file format. This may not be a valid path file."
+        : `Error loading file: ${errMsg}`;
+
+      showToast(message, "error");
+      errorMessage = message;
+    }
+  }
+
+  async function loadSecondFile(file: FileInfo) {
+    if (file.error) {
+      showToast(`Cannot load file: ${file.error}`, "error");
+      return;
+    }
+
+    try {
+      const content = await browserFileStore.readFile(file.path);
+      const data = JSON.parse(content);
+
+      // Validate the loaded data
+      if (!data.startPoint || !data.lines) {
+        throw new Error("Invalid file format: missing required fields");
+      }
+
+      // Update the second path state
+      secondStartPoint = data.startPoint;
+      const normalizedLines = normalizeLines(data.lines || []);
+      secondLines = normalizedLines;
+      secondShapes = data.shapes || [];
+      secondSequence = deriveSequence(data, normalizedLines);
+
+      // Update Global Store State
+      secondFilePath.set(file.path);
+
+      selectedFile2 = file;
+
+      showToast(`Loaded second path: ${file.name}`, "success");
     } catch (error) {
       const errMsg = getErrorMessage(error);
       const message = errMsg.includes("Invalid file format")
@@ -531,12 +575,10 @@
       );
       await refreshDirectory();
 
-      // Select the new file
+      // Select and load the new file
       const newFile = files.find((f) => f.name === newFileName);
       if (newFile) {
-        selectedFile = newFile;
-        currentFilePath.set(newFile.path);
-        isUnsaved.set(false);
+        await loadFile(newFile);
       }
 
       showToast(`Duplicated: ${newFileName}`, "success");
@@ -581,12 +623,10 @@
       );
       await refreshDirectory();
 
-      // Select the new file
+      // Select and load the new file
       const newFile = files.find((f) => f.name === newFileName);
       if (newFile) {
-        selectedFile = newFile;
-        currentFilePath.set(newFile.path);
-        isUnsaved.set(false);
+        await loadFile(newFile);
       }
 
       showToast(`Created mirrored: ${newFileName}`, "success");
@@ -776,21 +816,21 @@
 
   <!-- Sidebar -->
   <div
-    class="w-96 h-full bg-white dark:bg-neutral-900 shadow-xl transform transition-transform duration-300 ease-in-out flex flex-col"
+    class="w-80 md:w-96 h-full bg-white dark:bg-neutral-900 shadow-xl transform transition-transform duration-300 ease-in-out flex flex-col"
     class:translate-x-0={isOpen}
     class:-translate-x-full={!isOpen}
   >
     <!-- Header -->
     <div
-      class="flex-shrink-0 p-4 border-b border-neutral-200 dark:border-neutral-700"
+      class="flex-shrink-0 p-3 border-b border-neutral-200 dark:border-neutral-700"
     >
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-lg font-semibold text-neutral-900 dark:text-white">
-          File Manager
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-semibold text-neutral-900 dark:text-white">
+          Files
         </h2>
         <button
           on:click={() => (isOpen = false)}
-          class="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+          class="p-1 rounded transition-colors duration-250"
           title="Close"
         >
           <svg
@@ -823,20 +863,20 @@
 
     <!-- New File Section -->
     <div
-      class="flex-shrink-0 p-4 border-b border-neutral-200 dark:border-neutral-700"
+      class="flex-shrink-0 px-3 py-2 border-b border-neutral-200 dark:border-neutral-700"
     >
       {#if creatingNewFile}
         <div class="space-y-2">
           <input
             bind:value={newFileName}
             placeholder="Enter file name (e.g., my_path.pp)..."
-            class="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full px-2 py-1.5 text-sm border border-neutral-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
             on:keydown={(e) => e.key === "Enter" && createNewFile()}
           />
           <div class="flex gap-2">
             <button
               on:click={createNewFile}
-              class="flex-1 px-3 py-2 text-sm bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors"
+              class="flex-1 px-3 py-1.5 text-sm bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors"
             >
               Create
             </button>
@@ -845,7 +885,7 @@
                 creatingNewFile = false;
                 newFileName = "";
               }}
-              class="flex-1 px-3 py-2 text-sm bg-neutral-500 hover:bg-neutral-600 text-white rounded-md transition-colors"
+              class="flex-1 px-3 py-1.5 text-sm bg-neutral-500 hover:bg-neutral-600 text-white rounded-md transition-colors"
             >
               Cancel
             </button>
@@ -854,7 +894,7 @@
       {:else}
         <button
           on:click={() => (creatingNewFile = true)}
-          class="w-full px-3 py-2 text-sm bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors flex items-center justify-center gap-2"
+          class="w-full px-3 py-1.5 text-sm bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors flex items-center justify-center gap-2"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -887,14 +927,14 @@
           </div>
         </div>
       {:else if errorMessage && files.length === 0}
-        <div class="flex flex-col items-center justify-center h-32 p-4">
+        <div class="flex flex-col items-center justify-center h-32 p-3">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
             stroke-width={1}
             stroke="currentColor"
-            class="size-12 mx-auto mb-2 text-red-500"
+            class="size-10 mx-auto mb-2 text-red-500"
           >
             <path
               stroke-linecap="round"
@@ -902,25 +942,19 @@
               d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
             />
           </svg>
-          <div class="text-center text-neutral-600 dark:text-neutral-400">
+          <div class="text-center text-xs text-neutral-600 dark:text-neutral-400">
             {errorMessage}
           </div>
-          <button
-            on:click={changeDirectory}
-            class="mt-3 px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors"
-          >
-            Select Directory
-          </button>
         </div>
       {:else if files.length === 0}
-        <div class="flex flex-col items-center justify-center h-32 p-4">
+        <div class="flex flex-col items-center justify-center h-32 p-3">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
             stroke-width={1}
             stroke="currentColor"
-            class="size-12 mx-auto mb-2 opacity-50"
+            class="size-10 mx-auto mb-2 opacity-50"
           >
             <path
               stroke-linecap="round"
@@ -928,98 +962,105 @@
               d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
             />
           </svg>
-          <div class="text-center text-neutral-500 dark:text-neutral-400">
-            No path files (.pp) found
+          <div class="text-center text-xs text-neutral-500 dark:text-neutral-400 mb-2">
+            No files yet
           </div>
           <button
             on:click={() => (creatingNewFile = true)}
-            class="mt-3 px-3 py-1 text-sm bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors"
+            class="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
           >
-            Create First File
+            Create First
           </button>
         </div>
       {:else}
         <div class="h-full overflow-y-auto">
           <div
-            class="sticky top-0 bg-white dark:bg-neutral-900 px-3 py-2 border-b border-neutral-200 dark:border-neutral-700 text-xs text-neutral-500 dark:text-neutral-400"
+            class="sticky top-0 bg-white dark:bg-neutral-900 px-3 py-1 border-b border-neutral-200 dark:border-neutral-700 text-xs text-neutral-500 dark:text-neutral-400"
           >
             Showing {files.length} file{files.length !== 1 ? "s" : ""}
           </div>
 
           {#each files as file (file.path)}
             <div
-              class="p-3 border-b border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer file-item"
-              on:click={() => loadFile(file)}
+              class="px-3 py-1.5 border-b border-neutral-200 dark:border-neutral-700 transition-colors duration-250 cursor-pointer file-item group"
+              on:click={() => {
+                if ($dualPathMode && selectedFile2?.path !== file.path && selectedFile?.path !== file.path) {
+                  loadSecondFile(file);
+                } else {
+                  loadFile(file);
+                }
+              }}
               role="button"
               tabindex="0"
               on:keydown={(e) => {
-                if (e.key === "Enter" || e.key === " ") loadFile(file);
+                if (e.key === "Enter" || e.key === " ") {
+                  if ($dualPathMode && selectedFile2?.path !== file.path && selectedFile?.path !== file.path) {
+                    loadSecondFile(file);
+                  } else {
+                    loadFile(file);
+                  }
+                }
               }}
               aria-label={`Open ${file.name}`}
               class:bg-blue-50={selectedFile?.path === file.path}
               class:dark:bg-blue-900={selectedFile?.path === file.path}
+              class:bg-purple-50={selectedFile2?.path === file.path}
+              class:dark:bg-purple-900={selectedFile2?.path === file.path}
             >
-              <div class="flex items-start justify-between">
-                <div class="flex-1 min-w-0">
-                  {#if renamingFile?.path === file.path}
-                    <!-- Rename Input -->
-                    <div class="space-y-2">
-                      <input
-                        bind:value={renameInputValue}
-                        class="w-full px-2 py-1 text-sm border border-blue-300 dark:border-blue-600 rounded bg-white dark:bg-neutral-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        on:keydown={(e) => {
-                          if (e.key === "Enter") renameFile();
-                          if (e.key === "Escape") cancelRename();
-                        }}
-                      />
-                      <div class="flex gap-2">
-                        <button
-                          on:click|stopPropagation={renameFile}
-                          class="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+              {#if renamingFile?.path === file.path}
+                <!-- Rename Input -->
+                <div class="space-y-2">
+                  <input
+                    bind:value={renameInputValue}
+                    class="w-full px-2 py-1 text-sm border border-blue-300 dark:border-blue-600 rounded bg-white dark:bg-neutral-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    on:keydown={(e) => {
+                      if (e.key === "Enter") renameFile();
+                      if (e.key === "Escape") cancelRename();
+                    }}
+                  />
+                  <div class="flex gap-2">
+                    <button
+                      on:click|stopPropagation={renameFile}
+                      class="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+                    >
+                      Save
+                    </button>
+                    <button
+                      on:click|stopPropagation={cancelRename}
+                      class="px-2 py-1 text-xs bg-neutral-500 hover:bg-neutral-600 text-white rounded transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              {:else}
+                <!-- Normal File Display -->
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex-1 min-w-0">
+                    <div
+                      class="font-medium text-sm truncate text-neutral-900 dark:text-white"
+                      title={file.name}
+                    >
+                      {file.name}
+                      {#if file.error}
+                        <span class="ml-2 text-xs text-red-500"
+                          >({file.error})</span
                         >
-                          Save
-                        </button>
-                        <button
-                          on:click|stopPropagation={cancelRename}
-                          class="px-2 py-1 text-xs bg-neutral-500 hover:bg-neutral-600 text-white rounded transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  {:else}
-                    <!-- Normal File Display -->
-                    <div class="flex items-center gap-2 mb-1">
-                      <div
-                        class="font-medium text-sm truncate text-neutral-900 dark:text-white"
-                        title={file.name}
-                      >
-                        {file.name}
-                        {#if file.error}
-                          <span class="ml-2 text-xs text-red-500"
-                            >({file.error})</span
-                          >
-                        {/if}
-                      </div>
+                      {/if}
                     </div>
                     <div
-                      class="text-xs text-neutral-500 dark:text-neutral-400 space-y-1"
+                      class="text-xs text-neutral-500 dark:text-neutral-400 group-hover:block hidden"
+                      title="{formatFileSize(file.size)} • {formatDate(file.modified)}"
                     >
-                      <div class="flex items-center gap-2">
-                        <span>{formatFileSize(file.size)}</span>
-                        <span>•</span>
-                        <span>Modified: {formatDate(file.modified)}</span>
-                      </div>
+                      {formatFileSize(file.size)} • {formatDate(file.modified)}
                     </div>
-                  {/if}
-                </div>
+                  </div>
 
-                {#if renamingFile?.path !== file.path}
-                  <div class="flex items-center gap-1">
+                  <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <!-- Rename Button -->
                     <button
                       on:click|stopPropagation={() => startRename(file)}
-                      class="p-1 rounded hover:bg-blue-500 hover:text-white transition-colors flex-shrink-0 opacity-60 hover:opacity-100"
+                      class="p-1.5 rounded hover:bg-blue-500 hover:text-white transition-colors flex-shrink-0"
                       title="Rename file"
                     >
                       <svg
@@ -1041,7 +1082,7 @@
                     <!-- Delete Button -->
                     <button
                       on:click|stopPropagation={() => deleteFile(file)}
-                      class="p-1 rounded hover:bg-red-500 hover:text-white transition-colors ml-2 flex-shrink-0 opacity-60 hover:opacity-100"
+                      class="p-1.5 rounded hover:bg-red-500 hover:text-white transition-colors flex-shrink-0"
                       title="Delete file"
                     >
                       <svg
@@ -1060,8 +1101,8 @@
                       </svg>
                     </button>
                   </div>
-                {/if}
-              </div>
+                </div>
+              {/if}
             </div>
           {/each}
         </div>
@@ -1071,26 +1112,17 @@
     <!-- Current File Actions -->
     {#if selectedFile}
       <div
-        class="flex-shrink-0 p-4 border-t border-neutral-200 dark:border-neutral-700 space-y-3"
+        class="flex-shrink-0 p-3 border-t border-neutral-200 dark:border-neutral-700 space-y-2 bg-neutral-50 dark:bg-neutral-950"
       >
-        <div class="space-y-2">
-          <div
-            class="text-sm font-medium text-neutral-900 dark:text-white truncate"
-            title={selectedFile.name}
-          >
-            {selectedFile.name}
-          </div>
-          <div class="text-xs text-neutral-500 dark:text-neutral-400">
-            {formatFileSize(selectedFile.size)} • {formatDate(
-              selectedFile.modified,
-            )}
-          </div>
+        <div class="text-xs font-medium text-neutral-700 dark:text-neutral-300 px-1">
+          {selectedFile.name}
         </div>
 
-        <div class="grid grid-cols-2 gap-2">
+        <!-- File Operations (Rename, Delete, Duplicate, Mirror) -->
+        <div class="grid grid-cols-4 gap-1">
           <button
             on:click={() => selectedFile && startRename(selectedFile)}
-            class="px-3 py-2 text-sm bg-amber-500 hover:bg-amber-600 text-white rounded-md transition-colors flex items-center justify-center gap-2"
+            class="px-2 py-1.5 text-xs bg-amber-500 hover:bg-amber-600 text-white rounded transition-colors flex items-center justify-center gap-1"
             title="Rename this file"
           >
             <svg
@@ -1099,7 +1131,7 @@
               viewBox="0 0 24 24"
               stroke-width={2}
               stroke="currentColor"
-              class="size-4"
+              class="size-3.5"
             >
               <path
                 stroke-linecap="round"
@@ -1107,12 +1139,11 @@
                 d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
               />
             </svg>
-            Rename
           </button>
 
           <button
             on:click={() => selectedFile && deleteFile(selectedFile)}
-            class="px-3 py-2 text-sm bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors flex items-center justify-center gap-2"
+            class="px-2 py-1.5 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition-colors flex items-center justify-center gap-1"
             title="Delete this file"
           >
             <svg
@@ -1121,7 +1152,7 @@
               viewBox="0 0 24 24"
               stroke-width={2}
               stroke="currentColor"
-              class="size-4"
+              class="size-3.5"
             >
               <path
                 stroke-linecap="round"
@@ -1129,37 +1160,12 @@
                 d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
               />
             </svg>
-            Delete
-          </button>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2">
-          <button
-            on:click={duplicateAndMirrorFile}
-            class="px-3 py-2 text-sm bg-purple-500 hover:bg-purple-600 text-white rounded-md transition-colors flex items-center justify-center gap-2"
-            title="Create a mirrored copy of this file (flipped horizontally)"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width={2}
-              stroke="currentColor"
-              class="size-4"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"
-              />
-            </svg>
-            Mirror
           </button>
 
           <button
             on:click={duplicateFile}
-            class="px-3 py-2 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors flex items-center justify-center gap-2"
-            title="Create a copy of this file"
+            class="px-2 py-1.5 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors flex items-center justify-center gap-1"
+            title="Duplicate this file"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -1167,7 +1173,7 @@
               viewBox="0 0 24 24"
               stroke-width={2}
               stroke="currentColor"
-              class="size-4"
+              class="size-3.5"
             >
               <path
                 stroke-linecap="round"
@@ -1175,72 +1181,130 @@
                 d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"
               />
             </svg>
-            Duplicate
+          </button>
+
+          <button
+            on:click={duplicateAndMirrorFile}
+            class="px-2 py-1.5 text-xs bg-purple-500 hover:bg-purple-600 text-white rounded transition-colors flex items-center justify-center gap-1"
+            title="Duplicate mirrored (flipped)"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width={2}
+              stroke="currentColor"
+              class="size-3.5"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"
+              />
+            </svg>
           </button>
         </div>
 
-        <div class="space-y-2">
-          <div class="grid grid-cols-1 gap-2">
+        <!-- Saving Operations -->
+        <div class="space-y-1">
+          <div class="text-xs font-medium text-neutral-600 dark:text-neutral-400 px-1">
+            Save Options
+          </div>
+          <div class="grid grid-cols-2 gap-1">
             <button
               on:click={saveCurrentToFile}
-              class="w-full px-3 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-colors flex items-center justify-center gap-2"
+              class="px-2 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded transition-colors flex items-center justify-center gap-1"
               disabled={!selectedFile}
-              title="Overwrite the selected file in the project storage"
+              title="Save into selected file (overwrite)"
             >
-              <!-- overwrite icon -->
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-3.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5A2.25 2.25 0 0 1 5.25 5.25h13.5A2.25 2.25 0 0 1 21 7.5v9a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 16.5v-9zM7.5 11.25h9M7.5 14.25h6" />
               </svg>
-              Save into selected file (overwrite)
+              Overwrite
             </button>
-            <div class="text-xs text-neutral-500 dark:text-neutral-400 px-2">Overwrite the currently selected project file in the app's storage with the current path data.</div>
-
             <button
               on:click={() => (creatingNewFile = true)}
-              class="w-full px-3 py-2 text-sm bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors flex items-center justify-center gap-2"
-              title="Create a new .pp file in the project storage and save into it"
+              class="px-2 py-1.5 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors flex items-center justify-center gap-1"
+              title="Create new file and save"
             >
-              <!-- create new icon -->
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-3.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
-              Create new file in project and save
+              New
             </button>
-            <div class="text-xs text-neutral-500 dark:text-neutral-400 px-2">Open a prompt to choose a new filename and add the file to the app's project storage, then save current path data into it.</div>
-
             <button
               on:click={downloadCurrentToDisk}
-              class="w-full px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors flex items-center justify-center gap-2"
-              title="Download current path as a .pp file to your computer (Save As...)"
+              class="px-2 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors flex items-center justify-center gap-1"
+              title="Download .pp to computer"
             >
-              <!-- download/save-as icon -->
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-3.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 3-3m-3 3-3-3M21 21H3" />
               </svg>
-              Download .pp to your computer (Save As...)
+              Download
             </button>
-            <div class="text-xs text-neutral-500 dark:text-neutral-400 px-2">Download the current path as a .pp file and choose where to save it on your computer using the browser's Save dialog.</div>
-
             <button
               on:click={pickAndOverwriteLocalFile}
-              class="w-full px-3 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors flex items-center justify-center gap-2"
-              title="Pick an existing local .pp file and overwrite it (if supported)"
+              class="px-2 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-colors flex items-center justify-center gap-1"
+              title="Save to local file"
             >
-              <!-- local overwrite icon -->
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={2} stroke="currentColor" class="size-3.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M12 12v6m0-6V6m0 6l3-3m-3 3-3-3" />
               </svg>
-              Save into an existing local file (pick & overwrite)
+              Local
             </button>
-            <div class="text-xs text-neutral-500 dark:text-neutral-400 px-2">If your browser supports the File System Access API, choose an existing file on your computer to overwrite directly. Otherwise use Download.</div>
           </div>
+        </div>
+
+        <!-- Dual Path Mode Section -->
+        <div class="space-y-2 pt-2 border-t border-neutral-200 dark:border-neutral-700">
+          <div class="flex items-center gap-2 px-1">
+            <input
+              type="checkbox"
+              id="dualPathToggle"
+              bind:checked={$dualPathMode}
+              class="w-4 h-4 rounded cursor-pointer"
+            />
+            <label for="dualPathToggle" class="text-xs font-medium text-neutral-700 dark:text-neutral-300 cursor-pointer flex-1">
+              Alliance Coordination
+            </label>
+          </div>
+
+          {#if $dualPathMode}
+            <div class="space-y-2 px-1">
+              <div class="text-xs text-neutral-600 dark:text-neutral-400">
+                Second Path:
+              </div>
+              {#if selectedFile2}
+                <div class="text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-purple-50 dark:bg-purple-900 px-2 py-1 rounded">
+                  {selectedFile2.name}
+                </div>
+                <button
+                  on:click={() => {
+                    selectedFile2 = null;
+                    secondFilePath.set(null);
+                    secondStartPoint = null;
+                    secondLines = [];
+                    secondShapes = [];
+                    secondSequence = [];
+                  }}
+                  class="w-full px-2 py-1.5 text-xs bg-purple-500 hover:bg-purple-600 text-white rounded transition-colors"
+                >
+                  Remove Second Path
+                </button>
+              {:else}
+                <div class="text-xs text-neutral-500 dark:text-neutral-400 italic">
+                  Click a file to load as second path
+                </div>
+              {/if}
+            </div>
+          {/if}
         </div>
       </div>
     {:else}
       <div
-        class="flex-shrink-0 p-4 border-t border-neutral-200 dark:border-neutral-700 text-center text-sm text-neutral-500 dark:text-neutral-400"
+        class="flex-shrink-0 p-3 border-t border-neutral-200 dark:border-neutral-700 text-center text-xs text-neutral-500 dark:text-neutral-400"
       >
-        Select a file to manage or create a new one
+        Select a file to manage
       </div>
     {/if}
   </div>

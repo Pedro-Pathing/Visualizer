@@ -28,6 +28,10 @@
   export let lines: Line[];
   export let shapes: Shape[];
   export let sequence: SequenceItem[];
+  export let secondStartPoint: Point | null = null;
+  export let secondLines: Line[] = [];
+  export let secondShapes: Shape[] = [];
+  export let secondSequence: SequenceItem[] = [];
   export let percent: number = 0;
   export let robotWidth: number;
   export let robotHeight: number;
@@ -219,6 +223,10 @@
     bind:lines
     bind:shapes
     bind:sequence
+    bind:secondStartPoint
+    bind:secondLines
+    bind:secondShapes
+    bind:secondSequence
   />
 {/if}
 
@@ -333,6 +341,7 @@
           on:click={undoAction}
           disabled={!canUndo}
           class:opacity-50={!canUndo}
+          class="disabled:cursor-not-allowed transition-all duration-250 hover:scale-105 active:scale-98"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -354,6 +363,7 @@
           on:click={redoAction}
           disabled={!canRedo}
           class:opacity-50={!canRedo}
+          class="disabled:cursor-not-allowed transition-all duration-250 hover:scale-105 active:scale-98"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -582,7 +592,7 @@
           bind:this={saveButtonRef}
           title="Save options"
           on:click={() => (saveDropdownOpen = !saveDropdownOpen)}
-          class="flex items-center gap-1 hover:bg-neutral-200 dark:hover:bg-neutral-800 px-2 py-1 rounded transition-colors"
+          class="flex items-center gap-1 px-2 py-1 rounded transition-colors duration-250"
           aria-expanded={saveDropdownOpen}
           aria-label="Save options"
         >
@@ -606,7 +616,7 @@
             viewBox="0 0 24 24"
             stroke-width="2"
             stroke="currentColor"
-            class="size-4 transition-transform"
+            class="size-4 transition-transform duration-200"
             class:rotate-180={saveDropdownOpen}
           >
             <path
@@ -621,7 +631,7 @@
         {#if saveDropdownOpen}
           <div
             bind:this={saveDropdownRef}
-            class="absolute right-0 mt-2 w-48 bg-white dark:bg-neutral-800 rounded-md shadow-lg py-1 z-50 border border-neutral-200 dark:border-neutral-700"
+            class="absolute right-0 mt-2 w-48 bg-white dark:bg-neutral-800 rounded-md shadow-lg py-1 z-50 border border-neutral-200 dark:border-neutral-700 animate-in fade-in slide-in-from-top-2 duration-300"
             role="menu"
           >
             <!-- Save option -->
@@ -630,7 +640,7 @@
                 saveProject();
                 saveDropdownOpen = false;
               }}
-              class="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+              class="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 transition-colors duration-250"
               role="menuitem"
               title="Save to current file"
             >
@@ -666,7 +676,7 @@
                 saveFileAs();
                 saveDropdownOpen = false;
               }}
-              class="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+              class="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 transition-colors duration-250"
               role="menuitem"
               title="Save as new file"
             >
@@ -737,20 +747,20 @@
           >
             <button
               on:click={() => handleExport("java")}
-              class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+              class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 transition-colors duration-250"
             >
               Java Code
             </button>
             <button
               on:click={() => handleExport("points")}
-              class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+              class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 transition-colors duration-250"
             >
               Points Array
             </button>
             {#if showSequentialExport}
               <button
                 on:click={() => handleExport("sequential")}
-                class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 transition-colors duration-250"
               >
                 Sequential Command
               </button>

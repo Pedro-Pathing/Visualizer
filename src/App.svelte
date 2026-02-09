@@ -14,6 +14,8 @@
     currentFilePath,
     isUnsaved,
     showGrid,
+    dualPathMode,
+    secondFilePath,
   } from "./stores";
   import Two from "two.js";
   import type { Path } from "two.js/src/path";
@@ -21,6 +23,8 @@
   import ControlTab from "./lib/ControlTab.svelte";
   import Navbar from "./lib/Navbar.svelte";
   import MathTools from "./lib/MathTools.svelte";
+  import SaveDialog from "./lib/components/SaveDialog.svelte";
+  import DualPathSaveDialog from "./lib/components/DualPathSaveDialog.svelte";
   import _ from "lodash";
   import hotkeys from "hotkeys-js";
   import { createAnimationController } from "./utils/animation";
@@ -98,6 +102,10 @@
   let animationFrame: number;
   let startTime: number | null = null;
   let previousTime: number | null = null;
+  // Save dialog state
+  let showSaveDialog = false;
+  let showDualPathSaveDialog = false;
+  let isSaving = false;
   // Path data
   let settings: Settings = { ...DEFAULT_SETTINGS };
   let startPoint: Point = getDefaultStartPoint();
@@ -109,6 +117,12 @@
   let shapes: Shape[] = getDefaultShapes();
   let optimizingLineIds: Record<string, boolean> = {};
   let optimizingAll = false;
+
+  // Second path data (for alliance coordination)
+  let secondStartPoint: Point | null = null;
+  let secondLines: Line[] = [];
+  let secondSequence: SequenceItem[] = [];
+  let secondShapes: Shape[] = [];
 
   const history = createHistory();
   const { canUndoStore, canRedoStore } = history;
@@ -181,6 +195,19 @@
   let animationController: ReturnType<typeof createAnimationController>;
   $: timePrediction = calculatePathTime(startPoint, lines, settings, sequence);
   $: animationDuration = getAnimationDuration(timePrediction.totalTime / 1000);
+  
+  // Second path timeline (for dual path mode)
+  $: secondTimePrediction = $dualPathMode && secondStartPoint && secondLines.length > 0 
+    ? calculatePathTime(secondStartPoint, secondLines, settings, secondSequence)
+    : null;
+  
+  // Use the longer animation duration for dual path mode
+  $: effectiveAnimationDuration = $dualPathMode && secondTimePrediction && secondTimePrediction.totalTime > timePrediction.totalTime
+    ? getAnimationDuration(secondTimePrediction.totalTime / 1000)
+    : animationDuration;
+  
+  let secondRobotXY: BasePoint = { x: 0, y: 0 };
+  let secondRobotHeading: number = 0;
   /**
    * Converter for X axis from inches to pixels.
    */
@@ -287,7 +314,7 @@
           x(POINT_RADIUS),
         );
         pointElem.id = `obstacle-${shapeIdx}-${vertexIdx}-background`;
-        pointElem.fill = "#991b1b"; // Match obstacle color
+        pointElem.fill = shape.fillColor; // Match obstacle fill color
         pointElem.noStroke();
 
         let pointText = new Two.Text(
@@ -308,6 +335,66 @@
         _points.push(pointGroup);
       });
     });
+
+    // Add second path points (for dual path mode)
+    if ($dualPathMode && secondStartPoint && secondLines.length > 0) {
+      let secondStartPointElem = new Two.Circle(
+        x(secondStartPoint.x),
+        y(secondStartPoint.y),
+        x(POINT_RADIUS),
+      );
+      secondStartPointElem.id = `second-point-0-0`;
+      secondStartPointElem.fill = secondLines[0]?.color || "#888";
+      secondStartPointElem.noStroke();
+      _points.push(secondStartPointElem);
+
+      secondLines.forEach((line, idx) => {
+        if (!line || !line.endPoint) return;
+        [line.endPoint, ...line.controlPoints].forEach((point, idx1) => {
+          if (idx1 > 0) {
+            let pointGroup = new Two.Group();
+            pointGroup.id = `second-point-${idx + 1}-${idx1}`;
+
+            let pointElem = new Two.Circle(
+              x(point.x),
+              y(point.y),
+              x(POINT_RADIUS),
+            );
+            pointElem.id = `second-point-${idx + 1}-${idx1}-background`;
+            pointElem.fill = line.color;
+            pointElem.noStroke();
+
+            let pointText = new Two.Text(
+              `${idx1}`,
+              x(point.x),
+              y(point.y - 0.15),
+              x(POINT_RADIUS),
+            );
+            pointText.id = `second-point-${idx + 1}-${idx1}-text`;
+            pointText.size = x(1.55);
+            pointText.leading = 1;
+            pointText.family = "ui-sans-serif, system-ui, sans-serif";
+            pointText.alignment = "center";
+            pointText.baseline = "middle";
+            pointText.fill = "white";
+            pointText.noStroke();
+
+            pointGroup.add(pointElem, pointText);
+            _points.push(pointGroup);
+          } else {
+            let pointElem = new Two.Circle(
+              x(point.x),
+              y(point.y),
+              x(POINT_RADIUS),
+            );
+            pointElem.id = `second-point-${idx + 1}-${idx1}`;
+            pointElem.fill = line.color;
+            pointElem.noStroke();
+            _points.push(pointElem);
+          }
+        });
+      });
+    }
 
     return _points;
   })();
@@ -414,6 +501,113 @@
 
     return _path;
   })();
+
+  // Second path rendering (for dual path mode)
+  $: secondPath = (() => {
+    if (!$dualPathMode || !secondStartPoint || secondLines.length === 0) {
+      return [];
+    }
+
+    let _path: (Path | PathLine)[] = [];
+
+    secondLines.forEach((line, idx) => {
+      if (!line || !line.endPoint) return;
+      let _startPoint =
+        idx === 0 ? secondStartPoint : secondLines[idx - 1]?.endPoint || null;
+      if (!_startPoint) return;
+
+      let lineElem: Path | PathLine;
+      if (line.controlPoints.length > 2) {
+        const samples = 100;
+        const cps = [_startPoint, ...line.controlPoints, line.endPoint];
+        let points = [
+          new Two.Anchor(
+            x(_startPoint.x),
+            y(_startPoint.y),
+            0,
+            0,
+            0,
+            0,
+            Two.Commands.move,
+          ),
+        ];
+        for (let i = 1; i <= samples; ++i) {
+          const point = getCurvePoint(i / samples, cps);
+          points.push(
+            new Two.Anchor(
+              x(point.x),
+              y(point.y),
+              0,
+              0,
+              0,
+              0,
+              Two.Commands.line,
+            ),
+          );
+        }
+        points.forEach((point) => (point.relative = false));
+        lineElem = new Two.Path(points);
+        lineElem.automatic = false;
+      } else if (line.controlPoints.length > 0) {
+        let cp1 = line.controlPoints[1]
+          ? line.controlPoints[0]
+          : quadraticToCubic(_startPoint, line.controlPoints[0], line.endPoint)
+              .Q1;
+        let cp2 =
+          line.controlPoints[1] ??
+          quadraticToCubic(_startPoint, line.controlPoints[0], line.endPoint)
+            .Q2;
+        let points = [
+          new Two.Anchor(
+            x(_startPoint.x),
+            y(_startPoint.y),
+            x(_startPoint.x),
+            y(_startPoint.y),
+            x(cp1.x),
+            y(cp1.y),
+            Two.Commands.move,
+          ),
+          new Two.Anchor(
+            x(line.endPoint.x),
+            y(line.endPoint.y),
+            x(cp2.x),
+            y(cp2.y),
+            x(line.endPoint.x),
+            y(line.endPoint.y),
+            Two.Commands.curve,
+          ),
+        ];
+        points.forEach((point) => (point.relative = false));
+
+        lineElem = new Two.Path(points);
+        lineElem.automatic = false;
+      } else {
+        lineElem = new Two.Line(
+          x(_startPoint.x),
+          y(_startPoint.y),
+          x(line.endPoint.x),
+          y(line.endPoint.y),
+        );
+      }
+
+      lineElem.id = `second-line-${idx + 1}`;
+      lineElem.stroke = line.color;
+      lineElem.linewidth = x(LINE_WIDTH);
+      lineElem.noFill();
+      if (line.locked) {
+        lineElem.dashes = [x(2), x(2)];
+        lineElem.opacity = 0.7;
+      } else {
+        lineElem.dashes = [];
+        lineElem.opacity = 1;
+      }
+
+      _path.push(lineElem);
+    });
+
+    return _path;
+  })();
+
   $: shapeElements = (() => {
     // Obstacles removed: return empty array for shape elements
     let _shapes: Path[] = [];
@@ -553,6 +747,75 @@
     return ghostPath;
   })();
 
+  // Second ghost path for dual path mode
+  $: secondGhostPathElement = (() => {
+    let ghostPath: Path | null = null;
+
+    if ($dualPathMode && settings.showGhostPaths && secondLines.length > 0 && secondStartPoint) {
+      const ghostPoints = generateGhostPathPoints(
+        secondStartPoint,
+        secondLines,
+        settings.rWidth,
+        settings.rHeight,
+        50,
+      );
+
+      if (ghostPoints.length >= 3) {
+        let vertices = [];
+
+        vertices.push(
+          new Two.Anchor(
+            x(ghostPoints[0].x),
+            y(ghostPoints[0].y),
+            0,
+            0,
+            0,
+            0,
+            Two.Commands.move,
+          ),
+        );
+
+        for (let i = 1; i < ghostPoints.length; i++) {
+          vertices.push(
+            new Two.Anchor(
+              x(ghostPoints[i].x),
+              y(ghostPoints[i].y),
+              0,
+              0,
+              0,
+              0,
+              Two.Commands.line,
+            ),
+          );
+        }
+
+        vertices.push(
+          new Two.Anchor(
+            x(ghostPoints[0].x),
+            y(ghostPoints[0].y),
+            0,
+            0,
+            0,
+            0,
+            Two.Commands.close,
+          ),
+        );
+
+        vertices.forEach((point) => (point.relative = false));
+
+        ghostPath = new Two.Path(vertices);
+        ghostPath.id = "ghost-path-2";
+        ghostPath.stroke = "#fca5a5"; // Light red/pink for second robot
+        ghostPath.fill = "#fca5a5";
+        ghostPath.opacity = 0.15;
+        ghostPath.linewidth = x(0.5);
+        ghostPath.automatic = false;
+      }
+    }
+
+    return ghostPath;
+  })();
+
   $: onionLayerElements = (() => {
     let onionLayers: Path[] = [];
 
@@ -663,6 +926,111 @@
     return onionLayers;
   })();
 
+  // Second onion layers for dual path mode
+  $: secondOnionLayerElements = (() => {
+    let onionLayers: Path[] = [];
+
+    if ($dualPathMode && settings.showOnionLayers && secondLines.length > 0 && secondStartPoint) {
+      const spacing = settings.onionLayerSpacing || 6;
+      let layers = generateOnionLayers(
+        secondStartPoint,
+        secondLines,
+        settings.rWidth,
+        settings.rHeight,
+        spacing,
+      );
+
+      // If user requested onion layers only for the next point, filter to the relevant line
+      if (
+        settings.onionNextPointOnly &&
+        secondTimePrediction &&
+        secondTimePrediction.timeline
+      ) {
+        const currentTime = (secondTimePrediction.totalTime || 0) * (percent / 100);
+        const travelEvents = (secondTimePrediction.timeline || []).filter(
+          (ev) => ev.type === "travel",
+        );
+
+        let selectedLineIndex: number | null = null;
+
+        const currentTravel = travelEvents.find(
+          (ev) => ev.startTime <= currentTime && ev.endTime >= currentTime,
+        );
+        if (currentTravel) {
+          selectedLineIndex = currentTravel.lineIndex as number;
+        } else {
+          const nextTravel = travelEvents.find(
+            (ev) => ev.startTime > currentTime,
+          );
+          if (nextTravel) selectedLineIndex = nextTravel.lineIndex as number;
+          else if (travelEvents.length)
+            selectedLineIndex = travelEvents[travelEvents.length - 1]
+              .lineIndex as number;
+        }
+
+        if (selectedLineIndex !== null) {
+          layers = layers.filter((l: any) => l.lineIndex === selectedLineIndex);
+        }
+      }
+
+      layers.forEach((layer, idx) => {
+        let vertices: any[] = [];
+
+        vertices.push(
+          new Two.Anchor(
+            x(layer.corners[0].x),
+            y(layer.corners[0].y),
+            0,
+            0,
+            0,
+            0,
+            Two.Commands.move,
+          ),
+        );
+
+        for (let i = 1; i < layer.corners.length; i++) {
+          vertices.push(
+            new Two.Anchor(
+              x(layer.corners[i].x),
+              y(layer.corners[i].y),
+              0,
+              0,
+              0,
+              0,
+              Two.Commands.line,
+            ),
+          );
+        }
+
+        vertices.push(
+          new Two.Anchor(
+            x(layer.corners[0].x),
+            y(layer.corners[0].y),
+            0,
+            0,
+            0,
+            0,
+            Two.Commands.close,
+          ),
+        );
+
+        vertices.forEach((point) => (point.relative = false));
+
+        let onionRect = new Two.Path(vertices);
+        onionRect.id = `second-onion-layer-${idx}`;
+        onionRect.stroke = "#fca5a5"; // Light red/pink for second path
+        onionRect.noFill();
+        onionRect.opacity = 0.9;
+        onionRect.linewidth = x(0.28);
+        onionRect.automatic = false;
+
+        onionLayers.push(onionRect);
+      });
+    }
+
+    return onionLayers;
+  })();
+
   let isLoaded = false;
   // Reactively trigger when any saveable data changes
   $: {
@@ -715,7 +1083,7 @@
     );
   });
   $: if (animationController) {
-    animationController.setDuration(animationDuration);
+    animationController.setDuration(effectiveAnimationDuration);
   }
 
   $: if (animationController) {
@@ -738,13 +1106,29 @@
   // Keyboard shortcut for save
   hotkeys("cmd+s, ctrl+s", function (event, handler) {
     event.preventDefault();
-    saveProject();
+    if ($dualPathMode && secondStartPoint && secondLines.length > 0) {
+      showDualPathSaveDialog = true;
+    } else {
+      showSaveDialog = true;
+    }
   });
   $: {
     // This handles both 'travel' (movement) and 'wait' (stationary rotation) events.
     if (timePrediction && timePrediction.timeline && lines.length > 0) {
+      let primaryPercent = percent;
+      if ($dualPathMode && secondTimePrediction) {
+        const firstDurationSecs = timePrediction.totalTime / 1000;
+        const secondDurationSecs = secondTimePrediction.totalTime / 1000;
+        if (firstDurationSecs > 0 && secondDurationSecs > 0) {
+          if (firstDurationSecs < secondDurationSecs) {
+            const scaledPercent = percent * (secondDurationSecs / firstDurationSecs);
+            primaryPercent = Math.min(scaledPercent, 100);
+          }
+        }
+      }
+
       const state = calculateRobotState(
-        percent,
+        primaryPercent,
         timePrediction.timeline,
         lines,
         startPoint,
@@ -762,6 +1146,45 @@
       else if (startPoint.heading === "constant")
         robotHeading = -startPoint.degrees;
       else robotHeading = 0;
+    }
+  }
+
+  // Second robot state calculation (for dual path mode)
+  $: {
+    if (
+      $dualPathMode &&
+      timePrediction &&
+      secondTimePrediction &&
+      secondTimePrediction.timeline &&
+      secondLines.length > 0 &&
+      secondStartPoint
+    ) {
+      // Scale percent so shorter path finishes early, then waits at the end.
+      let secondPercent = percent;
+      const firstDurationSecs = timePrediction.totalTime / 1000;
+      const secondDurationSecs = secondTimePrediction.totalTime / 1000;
+      if (firstDurationSecs > 0 && secondDurationSecs > 0) {
+        if (secondDurationSecs < firstDurationSecs) {
+          const scaledPercent = percent * (firstDurationSecs / secondDurationSecs);
+          secondPercent = Math.min(scaledPercent, 100);
+        }
+      }
+
+      const state = calculateRobotState(
+        secondPercent,
+        secondTimePrediction.timeline,
+        secondLines,
+        secondStartPoint,
+        settings,
+        x,
+        y,
+      );
+      secondRobotXY = { x: state.x, y: state.y };
+      secondRobotHeading = state.heading;
+    } else {
+      // Fallback or not in dual mode
+      secondRobotXY = { x: 0, y: 0 };
+      secondRobotHeading = 0;
     }
   }
 
@@ -785,10 +1208,19 @@
     if (ghostPathElement) {
       two.add(ghostPathElement);
     }
+    if (secondGhostPathElement) {
+      two.add(secondGhostPathElement);
+    }
     if (onionLayerElements.length > 0) {
       two.add(...onionLayerElements);
     }
+    if (secondOnionLayerElements.length > 0) {
+      two.add(...secondOnionLayerElements);
+    }
     two.add(...path);
+    if ($dualPathMode && secondPath.length > 0) {
+      two.add(...secondPath);
+    }
     two.add(...points);
 
     two.update();
@@ -1018,6 +1450,30 @@
           shapes[shapeIdx].vertices[vertexIdx].x = inchX;
           shapes[shapeIdx].vertices[vertexIdx].y = inchY;
           shapes = [...shapes];
+        } else if (currentElem.startsWith("second-point-")) {
+          // Handle second path point dragging
+          const parts = currentElem.split("-");
+          const line = Number(parts[2]) - 1;
+          const point = Number(parts[3]);
+
+          if (line === -1) {
+            // This is the second starting point
+            if (secondStartPoint?.locked) return;
+            if (secondStartPoint) {
+              secondStartPoint.x = inchX;
+              secondStartPoint.y = inchY;
+            }
+          } else if (secondLines[line]) {
+            if (point === 0 && secondLines[line].endPoint) {
+              secondLines[line].endPoint.x = inchX;
+              secondLines[line].endPoint.y = inchY;
+            } else {
+              if (secondLines[line]?.locked) return;
+              secondLines[line].controlPoints[point - 1].x = inchX;
+              secondLines[line].controlPoints[point - 1].y = inchY;
+            }
+          }
+          secondLines = [...secondLines];
         } else {
           // Handle path point dragging
           const line = Number(currentElem.split("-")[1]) - 1;
@@ -1042,6 +1498,7 @@
       } else {
         if (
           (elem?.id.startsWith("point") && !isLockedPathElem(elem.id)) ||
+          elem?.id.startsWith("second-point") ||
           elem?.id.startsWith("obstacle")
         ) {
           two.renderer.domElement.style.cursor = "pointer";
@@ -1076,6 +1533,25 @@
           if (shapes[shapeIdx]?.vertices[vertexIdx]) {
             objectX = shapes[shapeIdx].vertices[vertexIdx].x;
             objectY = shapes[shapeIdx].vertices[vertexIdx].y;
+          }
+        } else if (currentElem.startsWith("second-point-")) {
+          const parts = currentElem.split("-");
+          const line = Number(parts[2]) - 1;
+          const point = Number(parts[3]);
+
+          if (line === -1) {
+            if (secondStartPoint) {
+              objectX = secondStartPoint.x;
+              objectY = secondStartPoint.y;
+            }
+          } else if (secondLines[line]) {
+            if (point === 0 && secondLines[line].endPoint) {
+              objectX = secondLines[line].endPoint.x;
+              objectY = secondLines[line].endPoint.y;
+            } else if (secondLines[line].controlPoints[point - 1]) {
+              objectX = secondLines[line].controlPoints[point - 1].x;
+              objectY = secondLines[line].controlPoints[point - 1].y;
+            }
           }
         } else {
           const line = Number(currentElem.split("-")[1]) - 1;
@@ -1611,6 +2087,112 @@
         }
       }, 1500);
     }
+
+    // Handle save dialog event
+    const handleSaveDialog = async (event: any) => {
+      const { fileName } = event.detail;
+      isSaving = true;
+      try {
+        // Create a full file path with .pp extension if not present
+        const fullFileName = fileName.endsWith(".pp") ? fileName : fileName + ".pp";
+        
+        // Call the file manager's save function through the browser file store
+        const fileData = JSON.stringify({
+          startPoint,
+          lines,
+          shapes,
+          sequence,
+          settings,
+        });
+        
+        await browserFileStore.writeFile(fullFileName, fileData);
+        currentFilePath.set(fullFileName);
+        isUnsaved.set(false);
+        
+        // Show success feedback
+        showSaveDialog = false;
+      } catch (error) {
+        console.error("Save failed:", error);
+        alert("Failed to save file: " + (error instanceof Error ? error.message : String(error)));
+      } finally {
+        isSaving = false;
+      }
+    };
+
+    window.addEventListener("save", handleSaveDialog);
+
+    // Handle dual path save dialog event
+    const handleDualPathSave = async (event: any) => {
+      const { target } = event.detail;
+      isSaving = true;
+      try {
+        if (target === "first" && $currentFilePath) {
+          const fileData = JSON.stringify({
+            startPoint,
+            lines,
+            shapes,
+            sequence,
+            settings,
+            version: "1.2.1",
+            timestamp: new Date().toISOString(),
+          });
+          await browserFileStore.writeFile($currentFilePath, fileData);
+          isUnsaved.set(false);
+        } else if (target === "second" && $secondFilePath) {
+          const fileData = JSON.stringify({
+            startPoint: secondStartPoint,
+            lines: secondLines,
+            shapes: secondShapes,
+            sequence: secondSequence,
+            settings,
+            version: "1.2.1",
+            timestamp: new Date().toISOString(),
+          });
+          await browserFileStore.writeFile($secondFilePath, fileData);
+        } else if (target === "both") {
+          // Save first path
+          if ($currentFilePath) {
+            const fileData1 = JSON.stringify({
+              startPoint,
+              lines,
+              shapes,
+              sequence,
+              settings,
+              version: "1.2.1",
+              timestamp: new Date().toISOString(),
+            });
+            await browserFileStore.writeFile($currentFilePath, fileData1);
+          }
+          // Save second path
+          if ($secondFilePath) {
+            const fileData2 = JSON.stringify({
+              startPoint: secondStartPoint,
+              lines: secondLines,
+              shapes: secondShapes,
+              sequence: secondSequence,
+              settings,
+              version: "1.2.1",
+              timestamp: new Date().toISOString(),
+            });
+            await browserFileStore.writeFile($secondFilePath, fileData2);
+          }
+          isUnsaved.set(false);
+        }
+        showDualPathSaveDialog = false;
+      } catch (error) {
+        console.error("Dual path save failed:", error);
+        alert("Failed to save: " + (error instanceof Error ? error.message : String(error)));
+      } finally {
+        isSaving = false;
+      }
+    };
+
+    window.addEventListener("saveDualPath", handleDualPathSave);
+
+    return () => {
+      window.removeEventListener("save", handleSaveDialog);
+      window.removeEventListener("saveDualPath", handleDualPathSave);
+    };
   });
 </script>
 
@@ -1619,6 +2201,10 @@
   bind:startPoint
   bind:shapes
   bind:sequence
+  bind:secondStartPoint
+  bind:secondLines
+  bind:secondShapes
+  bind:secondSequence
   bind:settings
   bind:robotWidth
   bind:robotHeight
@@ -1635,6 +2221,15 @@
   {optimizeAllLines}
   {optimizingAll}
 />
+
+<SaveDialog
+  bind:isOpen={showSaveDialog}
+  bind:isSaving
+  fileName={$currentFilePath?.split(/[\\/]/).pop()?.replace(/\.pp$/, "") || "my_path"}
+/>
+
+<DualPathSaveDialog bind:isOpen={showDualPathSaveDialog} />
+
 <!--   {saveFile} -->
 <div
   class="w-screen h-screen pt-20 p-2 flex flex-row justify-center items-center gap-2"
@@ -1709,6 +2304,22 @@ pointer-events: none;`}
         on:dragstart={(e) => e.preventDefault()}
         on:selectstart={(e) => e.preventDefault()}
       />
+      {#if $dualPathMode}
+        <img
+          src={settings.robotImage || "/robot.png"}
+          alt="Robot 2"
+          style={`position: absolute; top: ${secondRobotXY.y}px;
+left: ${secondRobotXY.x}px; transform: translate(-50%, -50%) rotate(${secondRobotHeading}deg); z-index: 19; width: ${x(robotWidth)}px; height: ${x(robotHeight)}px;user-select: none; -webkit-user-select: none; -moz-user-select: none;-ms-user-select: none;
+pointer-events: none; opacity: 0.8;`}
+          draggable="false"
+          on:error={(e) => {
+            console.error("Failed to load robot image:", settings.robotImage);
+            e.target.src = "/robot.png";
+          }}
+          on:dragstart={(e) => e.preventDefault()}
+          on:selectstart={(e) => e.preventDefault()}
+        />
+      {/if}
     </div>
   </div>
   <ControlTab

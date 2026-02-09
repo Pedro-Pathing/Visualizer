@@ -23,3 +23,7 @@ export const gridSize = writable(12);
 export const currentFilePath = writable<string | null>(null);
 export const isUnsaved = writable(false);
 export const snapToGrid = writable(true);
+
+// Dual path mode stores
+export const dualPathMode = writable(false);
+export const secondFilePath = writable<string | null>(null);

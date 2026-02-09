@@ -37,7 +37,7 @@
   <div class="flex items-center gap-2 w-full">
     <button
       on:click={toggleAllObstacles}
-      class="flex items-center gap-2 font-semibold hover:bg-neutral-200 dark:hover:bg-neutral-800 px-2 py-1 rounded transition-colors"
+      class="flex items-center gap-2 font-semibold px-2 py-1 rounded transition-colors duration-250"
       title="{collapsedObstacles.every((c) => c)
         ? 'Expand all'
         : 'Collapse all'} obstacles"
@@ -70,7 +70,7 @@
         <div class="flex flex-row items-center gap-2">
           <button
             on:click={() => toggleObstacle(shapeIdx)}
-            class="flex items-center gap-2 font-medium text-sm hover:bg-neutral-200 dark:hover:bg-neutral-800 px-2 py-1 rounded transition-colors"
+            class="flex items-center gap-2 font-medium text-sm px-2 py-1 rounded transition-colors duration-250"
             title="{collapsedObstacles[shapeIdx]
               ? 'Expand'
               : 'Collapse'} obstacle"
