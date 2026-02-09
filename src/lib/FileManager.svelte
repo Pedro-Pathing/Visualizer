@@ -15,6 +15,7 @@
     saveAutoPathsDirectory,
     getSavedAutoPathsDirectory,
   } from "../utils/directorySettings";
+  import NameDialog from "./components/NameDialog.svelte";
 
   export let isOpen = false;
   export let startPoint: Point;
@@ -45,6 +46,12 @@
 
   // Add file type filtering
   const supportedFileTypes = [".pp"];
+
+  // Name dialog state
+  let nameDialogOpen = false;
+  let nameDialogTitle = "";
+  let nameDialogDefault = "";
+  let pendingMirrorData: any = null;
 
 
 
@@ -605,21 +612,39 @@
       mirroredData.sequence = deriveSequence(mirroredData, mirroredData.lines);
 
       const baseName = selectedFile.name.replace(/\.pp$/, "");
-      let newFileName = `${baseName}_mirrored.pp`;
+      const defaultName = `${baseName}_mirrored`;
+      
+      // Store the mirrored data and open custom dialog
+      pendingMirrorData = mirroredData;
+      nameDialogTitle = "Name Mirrored Path";
+      nameDialogDefault = defaultName;
+      nameDialogOpen = true;
+    } catch (error) {
+      console.error("Error duplicating and mirroring file:", error);
+      errorMessage = `Failed to create mirrored file: ${getErrorMessage(error)}`;
+      showToast("Failed to create mirrored file", "error");
+    }
+  }
+
+  async function handleMirrorNameConfirm(userInput: string) {
+    if (!pendingMirrorData) return;
+
+    try {
+      // Remove .pp extension if user added it
+      userInput = userInput.replace(/\.pp$/, "");
+      
+      let newFileName = `${userInput}.pp`;
       let counter = 1;
 
-      // Find a unique name
-      while (
-        await browserFileStore.fileExists(newFileName)
-      ) {
-        newFileName = `${baseName}_mirrored${counter}.pp`;
+      // Find a unique name if the chosen name already exists
+      while (await browserFileStore.fileExists(newFileName)) {
+        newFileName = `${userInput}${counter}.pp`;
         counter++;
       }
 
-      const newFilePath = newFileName;
       await browserFileStore.writeFile(
-        newFilePath,
-        JSON.stringify(mirroredData, null, 2),
+        newFileName,
+        JSON.stringify(pendingMirrorData, null, 2),
       );
       await refreshDirectory();
 
@@ -631,10 +656,16 @@
 
       showToast(`Created mirrored: ${newFileName}`, "success");
     } catch (error) {
-      console.error("Error duplicating and mirroring file:", error);
-      errorMessage = `Failed to create mirrored file: ${getErrorMessage(error)}`;
-      showToast("Failed to create mirrored file", "error");
+      console.error("Error saving mirrored file:", error);
+      errorMessage = `Failed to save mirrored file: ${getErrorMessage(error)}`;
+      showToast("Failed to save mirrored file", "error");
+    } finally {
+      pendingMirrorData = null;
     }
+  }
+
+  function handleMirrorNameCancel() {
+    pendingMirrorData = null;
   }
 
   function mirrorPointHeading(point: Point): Point {
@@ -1309,6 +1340,15 @@
     {/if}
   </div>
 </div>
+
+<NameDialog
+  bind:isOpen={nameDialogOpen}
+  title={nameDialogTitle}
+  defaultValue={nameDialogDefault}
+  placeholder="Enter name..."
+  onConfirm={handleMirrorNameConfirm}
+  onCancel={handleMirrorNameCancel}
+/>
 
 <style>
   /* Add smooth transitions */

@@ -16,6 +16,7 @@
     showGrid,
     dualPathMode,
     secondFilePath,
+    activePaths,
   } from "./stores";
   import Two from "two.js";
   import type { Path } from "two.js/src/path";
@@ -118,11 +119,23 @@
   let optimizingLineIds: Record<string, boolean> = {};
   let optimizingAll = false;
 
-  // Second path data (for alliance coordination)
+  // Second path data (for alliance coordination) - DEPRECATED, use additionalPaths
   let secondStartPoint: Point | null = null;
   let secondLines: Line[] = [];
   let secondSequence: SequenceItem[] = [];
   let secondShapes: Shape[] = [];
+
+  // Multiple paths data (new system - supports up to 4 paths total)
+  interface AdditionalPathData {
+    filePath: string;
+    startPoint: Point | null;
+    lines: Line[];
+    sequence: SequenceItem[];
+    shapes: Shape[];
+    settings: Settings;
+    color?: string; // Optional custom color for this path
+  }
+  let additionalPaths: AdditionalPathData[] = [];
 
   const history = createHistory();
   const { canUndoStore, canRedoStore } = history;
@@ -201,10 +214,85 @@
     ? calculatePathTime(secondStartPoint, secondLines, settings, secondSequence)
     : null;
   
-  // Use the longer animation duration for dual path mode
-  $: effectiveAnimationDuration = $dualPathMode && secondTimePrediction && secondTimePrediction.totalTime > timePrediction.totalTime
-    ? getAnimationDuration(secondTimePrediction.totalTime / 1000)
-    : animationDuration;
+  // Calculate max duration across all paths for playbar scaling
+  $: effectiveAnimationDuration = (() => {
+    // In multi-path mode, only use additional paths for duration
+    if ($activePaths.length > 0) {
+      let maxTime = 0;
+      additionalPaths.forEach((pathData) => {
+        if (pathData.startPoint && pathData.lines.length > 0) {
+          const pathTime = calculatePathTime(
+            pathData.startPoint,
+            pathData.lines,
+            pathData.settings,
+            pathData.sequence
+          );
+          if (pathTime) {
+            maxTime = Math.max(maxTime, pathTime.totalTime);
+          }
+        }
+      });
+      return maxTime > 0 ? getAnimationDuration(maxTime / 1000) : animationDuration;
+    }
+    
+    // In normal/dual mode, check main path and second path
+    let maxTime = timePrediction.totalTime;
+    
+    if ($dualPathMode && secondTimePrediction) {
+      maxTime = Math.max(maxTime, secondTimePrediction.totalTime);
+    }
+    
+    return getAnimationDuration(maxTime / 1000);
+  })();
+  
+  // Load additional paths when activePaths changes
+  $: {
+    loadAdditionalPaths($activePaths);
+  }
+
+  async function loadAdditionalPaths(paths: string[]) {
+    const newAdditionalPaths: AdditionalPathData[] = [];
+    
+    // Multi-path mode is isolated - turn off old dual path mode
+    if (paths.length > 0) {
+      dualPathMode.set(false);
+      secondStartPoint = null;
+      secondLines = [];
+      secondShapes = [];
+      secondSequence = [];
+      secondFilePath.set(null);
+    }
+    
+    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A']; // Red, Teal, Blue, Salmon
+
+    for (let i = 0; i < Math.min(paths.length, 4); i++) {
+      const filePath = paths[i];
+      try {
+        const content = await browserFileStore.readFile(filePath);
+        const data = JSON.parse(content);
+
+        if (data.startPoint && data.lines) {
+          const normalizedLines = normalizeLines(data.lines || []);
+          newAdditionalPaths.push({
+            filePath,
+            startPoint: data.startPoint,
+            lines: normalizedLines,
+            shapes: data.shapes || [],
+            sequence: data.sequence || normalizedLines.map((ln: Line) => ({
+              kind: "path",
+              lineId: ln.id!,
+            })),
+            settings: data.settings || { ...DEFAULT_SETTINGS },
+            color: colors[i],
+          });
+        }
+      } catch (error) {
+        console.error(`Failed to load additional path ${filePath}:`, error);
+      }
+    }
+
+    additionalPaths = newAdditionalPaths;
+  }
   
   let secondRobotXY: BasePoint = { x: 0, y: 0 };
   let secondRobotHeading: number = 0;
@@ -245,63 +333,68 @@
 
   $: points = (() => {
     let _points = [];
-    let startPointElem = new Two.Circle(
-      x(startPoint.x),
-      y(startPoint.y),
-      x(POINT_RADIUS),
-    );
-    startPointElem.id = `point-0-0`;
-    startPointElem.fill = lines[0].color;
-    startPointElem.noStroke();
+    
+    // Only show main path points when NOT in multi-path mode
+    if ($activePaths.length === 0) {
+      let startPointElem = new Two.Circle(
+        x(startPoint.x),
+        y(startPoint.y),
+        x(POINT_RADIUS),
+      );
+      startPointElem.id = `point-0-0`;
+      startPointElem.fill = lines[0].color;
+      startPointElem.noStroke();
 
-    _points.push(startPointElem);
+      _points.push(startPointElem);
 
-    lines.forEach((line, idx) => {
-      if (!line || !line.endPoint) return; // Skip invalid lines or lines without endPoint
-      [line.endPoint, ...line.controlPoints].forEach((point, idx1) => {
-        if (idx1 > 0) {
-          let pointGroup = new Two.Group();
-          pointGroup.id = `point-${idx + 1}-${idx1}`;
+      lines.forEach((line, idx) => {
+        if (!line || !line.endPoint) return; // Skip invalid lines or lines without endPoint
+        [line.endPoint, ...line.controlPoints].forEach((point, idx1) => {
+          if (idx1 > 0) {
+            let pointGroup = new Two.Group();
+            pointGroup.id = `point-${idx + 1}-${idx1}`;
 
-          let pointElem = new Two.Circle(
-            x(point.x),
-            y(point.y),
-            x(POINT_RADIUS),
-          );
-          pointElem.id = `point-${idx + 1}-${idx1}-background`;
-          pointElem.fill = line.color;
-          pointElem.noStroke();
+            let pointElem = new Two.Circle(
+              x(point.x),
+              y(point.y),
+              x(POINT_RADIUS),
+            );
+            pointElem.id = `point-${idx + 1}-${idx1}-background`;
+            pointElem.fill = line.color;
+            pointElem.noStroke();
 
-          let pointText = new Two.Text(
-            `${idx1}`,
-            x(point.x),
-            y(point.y - 0.15),
-            x(POINT_RADIUS),
-          );
-          pointText.id = `point-${idx + 1}-${idx1}-text`;
-          pointText.size = x(1.55);
-          pointText.leading = 1;
-          pointText.family = "ui-sans-serif, system-ui, sans-serif";
-          pointText.alignment = "center";
-          pointText.baseline = "middle";
-          pointText.fill = "white";
-          pointText.noStroke();
+            let pointText = new Two.Text(
+              `${idx1}`,
+              x(point.x),
+              y(point.y - 0.15),
+              x(POINT_RADIUS),
+            );
+            pointText.id = `point-${idx + 1}-${idx1}-text`;
+            pointText.size = x(1.55);
+            pointText.leading = 1;
+            pointText.family = "ui-sans-serif, system-ui, sans-serif";
+            pointText.alignment = "center";
+            pointText.baseline = "middle";
+            pointText.fill = "white";
+            pointText.noStroke();
 
-          pointGroup.add(pointElem, pointText);
-          _points.push(pointGroup);
-        } else {
-          let pointElem = new Two.Circle(
-            x(point.x),
-            y(point.y),
-            x(POINT_RADIUS),
-          );
-          pointElem.id = `point-${idx + 1}-${idx1}`;
-          pointElem.fill = line.color;
-          pointElem.noStroke();
-          _points.push(pointElem);
-        }
+            pointGroup.add(pointElem, pointText);
+            _points.push(pointGroup);
+          } else {
+            let pointElem = new Two.Circle(
+              x(point.x),
+              y(point.y),
+              x(POINT_RADIUS),
+            );
+            pointElem.id = `point-${idx + 1}-${idx1}`;
+            pointElem.fill = line.color;
+            pointElem.noStroke();
+            _points.push(pointElem);
+          }
+        });
       });
-    });
+    }
+    
     // Add obstacle vertices as draggable points
     shapes.forEach((shape, shapeIdx) => {
       shape.vertices.forEach((vertex, vertexIdx) => {
@@ -336,8 +429,8 @@
       });
     });
 
-    // Add second path points (for dual path mode)
-    if ($dualPathMode && secondStartPoint && secondLines.length > 0) {
+    // Add second path points (for dual path mode) - not in multi-path mode
+    if ($activePaths.length === 0 && $dualPathMode && secondStartPoint && secondLines.length > 0) {
       let secondStartPointElem = new Two.Circle(
         x(secondStartPoint.x),
         y(secondStartPoint.y),
@@ -396,10 +489,87 @@
       });
     }
 
+    // Add all control points for additional paths (full editing support)
+    if ($activePaths.length > 0) {
+      additionalPaths.forEach((pathData, pathIdx) => {
+        if (!pathData.startPoint || !pathData.lines.length) return;
+        
+        // Add starting point
+        let startPointElem = new Two.Circle(
+          x(pathData.startPoint.x),
+          y(pathData.startPoint.y),
+          x(POINT_RADIUS * 0.9),
+        );
+        startPointElem.id = `additional-path-${pathIdx}-point-0-0`;
+        startPointElem.fill = pathData.color || pathData.lines[0]?.color || "#888";
+        startPointElem.noStroke();
+        startPointElem.opacity = 0.8;
+        _points.push(startPointElem);
+        
+        // Add all line points and control points
+        pathData.lines.forEach((line, lineIdx) => {
+          if (!line || !line.endPoint) return;
+          
+          [line.endPoint, ...line.controlPoints].forEach((point, pointIdx) => {
+            if (pointIdx > 0) {
+              // Control point with number
+              let pointGroup = new Two.Group();
+              pointGroup.id = `additional-path-${pathIdx}-point-${lineIdx + 1}-${pointIdx}`;
+
+              let pointElem = new Two.Circle(
+                x(point.x),
+                y(point.y),
+                x(POINT_RADIUS * 0.9),
+              );
+              pointElem.id = `additional-path-${pathIdx}-point-${lineIdx + 1}-${pointIdx}-background`;
+              pointElem.fill = pathData.color || line.color;
+              pointElem.noStroke();
+
+              let pointText = new Two.Text(
+                `${pointIdx}`,
+                x(point.x),
+                y(point.y - 0.15),
+                x(POINT_RADIUS * 0.9),
+              );
+              pointText.id = `additional-path-${pathIdx}-point-${lineIdx + 1}-${pointIdx}-text`;
+              pointText.size = x(1.4);
+              pointText.leading = 1;
+              pointText.family = "ui-sans-serif, system-ui, sans-serif";
+              pointText.alignment = "center";
+              pointText.baseline = "middle";
+              pointText.fill = "white";
+              pointText.noStroke();
+
+              pointGroup.add(pointElem, pointText);
+              pointGroup.opacity = 0.8;
+              _points.push(pointGroup);
+            } else {
+              // End point without number
+              let pointElem = new Two.Circle(
+                x(point.x),
+                y(point.y),
+                x(POINT_RADIUS * 0.9),
+              );
+              pointElem.id = `additional-path-${pathIdx}-point-${lineIdx + 1}-${pointIdx}`;
+              pointElem.fill = pathData.color || line.color;
+              pointElem.noStroke();
+              pointElem.opacity = 0.8;
+              _points.push(pointElem);
+            }
+          });
+        });
+      });
+    }
+
     return _points;
   })();
 
   $: path = (() => {
+    // Hide main path when in multi-path mode (isolated visualization)
+    if ($activePaths.length > 0) {
+      return [];
+    }
+    
     let _path: (Path | PathLine)[] = [];
 
     lines.forEach((line, idx) => {
@@ -504,7 +674,8 @@
 
   // Second path rendering (for dual path mode)
   $: secondPath = (() => {
-    if (!$dualPathMode || !secondStartPoint || secondLines.length === 0) {
+    // Don't show second path when in multi-path mode (use activePaths instead)
+    if ($activePaths.length > 0 || !$dualPathMode || !secondStartPoint || secondLines.length === 0) {
       return [];
     }
 
@@ -608,6 +779,108 @@
     return _path;
   })();
 
+  // Render all additional paths
+  $: additionalPathElements = additionalPaths.map((pathData, pathIdx) => {
+    if (!pathData.startPoint || pathData.lines.length === 0) {
+      return [];
+    }
+
+    let _path: (Path | PathLine)[] = [];
+    // All paths should be clearly visible - only slight opacity variation
+    const opacity = 1.0 - (pathIdx * 0.1);
+
+    pathData.lines.forEach((line, idx) => {
+      if (!line || !line.endPoint) return;
+      let _startPoint =
+        idx === 0 ? pathData.startPoint : pathData.lines[idx - 1]?.endPoint || null;
+      if (!_startPoint) return;
+
+      let lineElem: Path | PathLine;
+      if (line.controlPoints.length > 2) {
+        const samples = 100;
+        const cps = [_startPoint, ...line.controlPoints, line.endPoint];
+        let points = [
+          new Two.Anchor(
+            x(_startPoint.x),
+            y(_startPoint.y),
+            0,
+            0,
+            0,
+            0,
+            Two.Commands.move,
+          ),
+        ];
+        for (let i = 1; i <= samples; ++i) {
+          const point = getCurvePoint(i / samples, cps);
+          points.push(
+            new Two.Anchor(
+              x(point.x),
+              y(point.y),
+              0,
+              0,
+              0,
+              0,
+              Two.Commands.line,
+            ),
+          );
+        }
+        points.forEach((point) => (point.relative = false));
+        lineElem = new Two.Path(points);
+        lineElem.automatic = false;
+      } else if (line.controlPoints.length > 0) {
+        let cp1 = line.controlPoints[1]
+          ? line.controlPoints[0]
+          : quadraticToCubic(_startPoint, line.controlPoints[0], line.endPoint)
+              .Q1;
+        let cp2 =
+          line.controlPoints[1] ??
+          quadraticToCubic(_startPoint, line.controlPoints[0], line.endPoint)
+            .Q2;
+        let points = [
+          new Two.Anchor(
+            x(_startPoint.x),
+            y(_startPoint.y),
+            x(_startPoint.x),
+            y(_startPoint.y),
+            x(cp1.x),
+            y(cp1.y),
+            Two.Commands.move,
+          ),
+          new Two.Anchor(
+            x(line.endPoint.x),
+            y(line.endPoint.y),
+            x(cp2.x),
+            y(cp2.y),
+            x(line.endPoint.x),
+            y(line.endPoint.y),
+            Two.Commands.curve,
+          ),
+        ];
+        points.forEach((point) => (point.relative = false));
+
+        lineElem = new Two.Path(points);
+        lineElem.automatic = false;
+      } else {
+        lineElem = new Two.Line(
+          x(_startPoint.x),
+          y(_startPoint.y),
+          x(line.endPoint.x),
+          y(line.endPoint.y),
+        );
+      }
+
+      lineElem.id = `additional-path-${pathIdx}-line-${idx + 1}`;
+      lineElem.stroke = pathData.color || line.color;
+      lineElem.linewidth = x(LINE_WIDTH);
+      lineElem.noFill();
+      lineElem.opacity = opacity;
+
+      _path.push(lineElem);
+    });
+
+    return _path;
+  });
+
   $: shapeElements = (() => {
     // Obstacles removed: return empty array for shape elements
     let _shapes: Path[] = [];
@@ -678,7 +951,8 @@
   $: ghostPathElement = (() => {
     let ghostPath: Path | null = null;
 
-    if (settings.showGhostPaths && lines.length > 0) {
+    // Don't show ghost paths in multi-path mode
+    if ($activePaths.length === 0 && settings.showGhostPaths && lines.length > 0) {
       const ghostPoints = generateGhostPathPoints(
         startPoint,
         lines,
@@ -751,7 +1025,8 @@
   $: secondGhostPathElement = (() => {
     let ghostPath: Path | null = null;
 
-    if ($dualPathMode && settings.showGhostPaths && secondLines.length > 0 && secondStartPoint) {
+    // Don't show second ghost path in multi-path mode
+    if ($activePaths.length === 0 && $dualPathMode && settings.showGhostPaths && secondLines.length > 0 && secondStartPoint) {
       const ghostPoints = generateGhostPathPoints(
         secondStartPoint,
         secondLines,
@@ -816,10 +1091,86 @@
     return ghostPath;
   })();
 
+  // Ghost paths for additional paths in multi-path mode
+  $: additionalGhostPathElements = (() => {
+    let ghostPaths: Path[] = [];
+
+    if ($activePaths.length > 0 && settings.showGhostPaths) {
+      additionalPaths.forEach((pathData, pathIdx) => {
+        if (!pathData.startPoint || !pathData.lines.length) return;
+
+        const ghostPoints = generateGhostPathPoints(
+          pathData.startPoint,
+          pathData.lines,
+          settings.rWidth,
+          settings.rHeight,
+          50,
+        );
+
+        if (ghostPoints.length >= 3) {
+          let vertices = [];
+
+          vertices.push(
+            new Two.Anchor(
+              x(ghostPoints[0].x),
+              y(ghostPoints[0].y),
+              0,
+              0,
+              0,
+              0,
+              Two.Commands.move,
+            ),
+          );
+
+          for (let i = 1; i < ghostPoints.length; i++) {
+            vertices.push(
+              new Two.Anchor(
+                x(ghostPoints[i].x),
+                y(ghostPoints[i].y),
+                0,
+                0,
+                0,
+                0,
+                Two.Commands.line,
+              ),
+            );
+          }
+
+          vertices.push(
+            new Two.Anchor(
+              x(ghostPoints[0].x),
+              y(ghostPoints[0].y),
+              0,
+              0,
+              0,
+              0,
+              Two.Commands.close,
+            ),
+          );
+
+          vertices.forEach((point) => (point.relative = false));
+
+          const ghostPath = new Two.Path(vertices);
+          ghostPath.id = `ghost-path-additional-${pathIdx}`;
+          ghostPath.stroke = pathData.color || "#a78bfa";
+          ghostPath.fill = pathData.color || "#a78bfa";
+          ghostPath.opacity = 0.15;
+          ghostPath.linewidth = x(0.5);
+          ghostPath.automatic = false;
+          
+          ghostPaths.push(ghostPath);
+        }
+      });
+    }
+
+    return ghostPaths;
+  })();
+
   $: onionLayerElements = (() => {
     let onionLayers: Path[] = [];
 
-    if (settings.showOnionLayers && lines.length > 0) {
+    // Don't show onion layers in multi-path mode
+    if ($activePaths.length === 0 && settings.showOnionLayers && lines.length > 0) {
       const spacing = settings.onionLayerSpacing || 6;
       let layers = generateOnionLayers(
         startPoint,
@@ -930,7 +1281,8 @@
   $: secondOnionLayerElements = (() => {
     let onionLayers: Path[] = [];
 
-    if ($dualPathMode && settings.showOnionLayers && secondLines.length > 0 && secondStartPoint) {
+    // Don't show second onion layers in multi-path mode
+    if ($activePaths.length === 0 && $dualPathMode && settings.showOnionLayers && secondLines.length > 0 && secondStartPoint) {
       const spacing = settings.onionLayerSpacing || 6;
       let layers = generateOnionLayers(
         secondStartPoint,
@@ -1103,10 +1455,37 @@
     }
   }
 
+  // Save an additional path back to its file
+  async function saveAdditionalPath(pathIdx: number) {
+    const pathData = additionalPaths[pathIdx];
+    if (!pathData || !pathData.filePath) return;
+    
+    try {
+      const fileData = JSON.stringify({
+        startPoint: pathData.startPoint,
+        lines: pathData.lines,
+        shapes: pathData.shapes,
+        sequence: pathData.sequence,
+        settings: pathData.settings,
+        version: "1.2.1",
+        timestamp: new Date().toISOString(),
+      });
+      
+      await browserFileStore.writeFile(pathData.filePath, fileData);
+      console.log(`Auto-saved additional path: ${pathData.filePath}`);
+    } catch (error) {
+      console.error(`Failed to save additional path ${pathData.filePath}:`, error);
+      throw error;
+    }
+  }
+
   // Keyboard shortcut for save
   hotkeys("cmd+s, ctrl+s", function (event, handler) {
     event.preventDefault();
-    if ($dualPathMode && secondStartPoint && secondLines.length > 0) {
+    if ($activePaths.length > 0) {
+      // Multiple paths mode - save all modified paths
+      showDualPathSaveDialog = true;
+    } else if ($dualPathMode && secondStartPoint && secondLines.length > 0) {
       showDualPathSaveDialog = true;
     } else {
       showSaveDialog = true;
@@ -1114,21 +1493,10 @@
   });
   $: {
     // This handles both 'travel' (movement) and 'wait' (stationary rotation) events.
-    if (timePrediction && timePrediction.timeline && lines.length > 0) {
-      let primaryPercent = percent;
-      if ($dualPathMode && secondTimePrediction) {
-        const firstDurationSecs = timePrediction.totalTime / 1000;
-        const secondDurationSecs = secondTimePrediction.totalTime / 1000;
-        if (firstDurationSecs > 0 && secondDurationSecs > 0) {
-          if (firstDurationSecs < secondDurationSecs) {
-            const scaledPercent = percent * (secondDurationSecs / firstDurationSecs);
-            primaryPercent = Math.min(scaledPercent, 100);
-          }
-        }
-      }
-
+    // Don't show main robot in multi-path mode
+    if ($activePaths.length === 0 && timePrediction && timePrediction.timeline && lines.length > 0) {
       const state = calculateRobotState(
-        primaryPercent,
+        percent,
         timePrediction.timeline,
         lines,
         startPoint,
@@ -1151,7 +1519,9 @@
 
   // Second robot state calculation (for dual path mode)
   $: {
+    // Don't show second robot in multi-path mode
     if (
+      $activePaths.length === 0 &&
       $dualPathMode &&
       timePrediction &&
       secondTimePrediction &&
@@ -1159,19 +1529,17 @@
       secondLines.length > 0 &&
       secondStartPoint
     ) {
-      // Scale percent so shorter path finishes early, then waits at the end.
-      let secondPercent = percent;
-      const firstDurationSecs = timePrediction.totalTime / 1000;
-      const secondDurationSecs = secondTimePrediction.totalTime / 1000;
-      if (firstDurationSecs > 0 && secondDurationSecs > 0) {
-        if (secondDurationSecs < firstDurationSecs) {
-          const scaledPercent = percent * (firstDurationSecs / secondDurationSecs);
-          secondPercent = Math.min(scaledPercent, 100);
-        }
-      }
+      // Calculate actual percent for this path based on max duration
+      const maxDuration = effectiveAnimationDuration;
+      const thisDuration = getAnimationDuration(secondTimePrediction.totalTime / 1000);
+      const completionPercent = (thisDuration / maxDuration) * 100;
+      
+      // If this path should be complete, cap at 100% (robot waits at end)
+      const actualPercent = Math.min(percent, completionPercent);
+      const normalizedPercent = completionPercent > 0 ? (actualPercent / completionPercent) * 100 : 0;
 
       const state = calculateRobotState(
-        secondPercent,
+        normalizedPercent,
         secondTimePrediction.timeline,
         secondLines,
         secondStartPoint,
@@ -1186,6 +1554,57 @@
       secondRobotXY = { x: 0, y: 0 };
       secondRobotHeading = 0;
     }
+  }
+
+  // Calculate robot states for all additional paths
+  let additionalRobotStates: Array<{ xy: BasePoint; heading: number }> = [];
+  $: {
+    additionalRobotStates = additionalPaths.map((pathData) => {
+      if (!pathData.startPoint) {
+        return {
+          xy: { x: 0, y: 0 },
+          heading: 0,
+        };
+      }
+
+      const pathTimePrediction = calculatePathTime(
+        pathData.startPoint,
+        pathData.lines,
+        pathData.settings,
+        pathData.sequence
+      );
+      
+      if (pathTimePrediction && pathTimePrediction.timeline && pathData.lines.length > 0 && pathData.startPoint) {
+        // Calculate actual percent for this path based on max duration
+        const maxDuration = effectiveAnimationDuration;
+        const thisDuration = getAnimationDuration(pathTimePrediction.totalTime / 1000);
+        const completionPercent = (thisDuration / maxDuration) * 100;
+        
+        // If this path should be complete, cap at 100% (robot waits at end)
+        const actualPercent = Math.min(percent, completionPercent);
+        const normalizedPercent = completionPercent > 0 ? (actualPercent / completionPercent) * 100 : 0;
+
+        const state = calculateRobotState(
+          normalizedPercent,
+          pathTimePrediction.timeline,
+          pathData.lines,
+          pathData.startPoint,
+          pathData.settings,
+          x,
+          y,
+        );
+        
+        return {
+          xy: { x: state.x, y: state.y },
+          heading: state.heading,
+        };
+      }
+      
+      return {
+        xy: { x: 0, y: 0 },
+        heading: 0,
+      };
+    });
   }
 
   // Event markers removed: no runtime visualization created
@@ -1211,6 +1630,9 @@
     if (secondGhostPathElement) {
       two.add(secondGhostPathElement);
     }
+    if (additionalGhostPathElements.length > 0) {
+      two.add(...additionalGhostPathElements);
+    }
     if (onionLayerElements.length > 0) {
       two.add(...onionLayerElements);
     }
@@ -1220,6 +1642,14 @@
     two.add(...path);
     if ($dualPathMode && secondPath.length > 0) {
       two.add(...secondPath);
+    }
+    // Add all additional paths
+    if ($activePaths.length > 0) {
+      additionalPathElements.forEach((pathElements) => {
+        if (pathElements.length > 0) {
+          two.add(...pathElements);
+        }
+      });
     }
     two.add(...points);
 
@@ -1474,6 +1904,36 @@
             }
           }
           secondLines = [...secondLines];
+        } else if (currentElem.startsWith("additional-path-")) {
+          // Handle additional path point dragging
+          const parts = currentElem.split("-");
+          const pathIdx = Number(parts[2]);
+          const line = Number(parts[4]) - 1;
+          const point = Number(parts[5]);
+
+          if (!additionalPaths[pathIdx]) return;
+
+          if (line === -1) {
+            // This is the starting point
+            if (additionalPaths[pathIdx].startPoint) {
+              additionalPaths[pathIdx].startPoint.x = inchX;
+              additionalPaths[pathIdx].startPoint.y = inchY;
+              additionalPaths = [...additionalPaths];
+              // Auto-save changes to additional path files
+              saveAdditionalPath(pathIdx).catch(err => console.error('Failed to auto-save additional path:', err));
+            }
+          } else if (additionalPaths[pathIdx].lines[line]) {
+            if (point === 0 && additionalPaths[pathIdx].lines[line].endPoint) {
+              additionalPaths[pathIdx].lines[line].endPoint.x = inchX;
+              additionalPaths[pathIdx].lines[line].endPoint.y = inchY;
+            } else if (additionalPaths[pathIdx].lines[line].controlPoints[point - 1]) {
+              additionalPaths[pathIdx].lines[line].controlPoints[point - 1].x = inchX;
+              additionalPaths[pathIdx].lines[line].controlPoints[point - 1].y = inchY;
+            }
+            additionalPaths = [...additionalPaths];
+          }
+          // Auto-save changes to additional path files
+          saveAdditionalPath(pathIdx).catch(err => console.error('Failed to auto-save additional path:', err));
         } else {
           // Handle path point dragging
           const line = Number(currentElem.split("-")[1]) - 1;
@@ -1499,6 +1959,7 @@
         if (
           (elem?.id.startsWith("point") && !isLockedPathElem(elem.id)) ||
           elem?.id.startsWith("second-point") ||
+          elem?.id.startsWith("additional-path-") ||
           elem?.id.startsWith("obstacle")
         ) {
           two.renderer.domElement.style.cursor = "pointer";
@@ -1551,6 +2012,29 @@
             } else if (secondLines[line].controlPoints[point - 1]) {
               objectX = secondLines[line].controlPoints[point - 1].x;
               objectY = secondLines[line].controlPoints[point - 1].y;
+            }
+          }
+        } else if (currentElem.startsWith("additional-path-")) {
+          const parts = currentElem.split("-");
+          const pathIdx = Number(parts[2]);
+          const line = Number(parts[4]) - 1;
+          const point = Number(parts[5]);
+
+          if (additionalPaths[pathIdx]) {
+            if (line === -1) {
+              // Starting point
+              if (additionalPaths[pathIdx].startPoint) {
+                objectX = additionalPaths[pathIdx].startPoint.x;
+                objectY = additionalPaths[pathIdx].startPoint.y;
+              }
+            } else if (additionalPaths[pathIdx].lines[line]) {
+              if (point === 0 && additionalPaths[pathIdx].lines[line].endPoint) {
+                objectX = additionalPaths[pathIdx].lines[line].endPoint.x;
+                objectY = additionalPaths[pathIdx].lines[line].endPoint.y;
+              } else if (additionalPaths[pathIdx].lines[line].controlPoints[point - 1]) {
+                objectX = additionalPaths[pathIdx].lines[line].controlPoints[point - 1].x;
+                objectY = additionalPaths[pathIdx].lines[line].controlPoints[point - 1].y;
+              }
             }
           }
         } else {
@@ -2212,7 +2696,6 @@
   {saveProject}
   {saveFileAs}
   {loadFile}
-  {loadRobot}
   {undoAction}
   {redoAction}
   {recordChange}
@@ -2220,6 +2703,10 @@
   {canRedo}
   {optimizeAllLines}
   {optimizingAll}
+  {twoElement}
+  bind:playing
+  {play}
+  {pause}
 />
 
 <SaveDialog
@@ -2290,21 +2777,25 @@
         on:selectstart={(e) => e.preventDefault()}
       />
       <MathTools {x} {y} {twoElement} {robotXY} {robotHeading} />
-      <img
-        src={settings.robotImage || "/robot.png"}
-        alt="Robot"
-        style={`position: absolute; top: ${robotXY.y}px;
+      <!-- Main robot: only show in normal mode -->
+      {#if $activePaths.length === 0}
+        <img
+          src={settings.robotImage || "/robot.png"}
+          alt="Robot"
+          style={`position: absolute; top: ${robotXY.y}px;
 left: ${robotXY.x}px; transform: translate(-50%, -50%) rotate(${robotHeading}deg); z-index: 20; width: ${x(robotWidth)}px; height: ${x(robotHeight)}px;user-select: none; -webkit-user-select: none; -moz-user-select: none;-ms-user-select: none;
 pointer-events: none;`}
-        draggable="false"
-        on:error={(e) => {
-          console.error("Failed to load robot image:", settings.robotImage);
-          e.target.src = "/robot.png"; // Fallback to default
-        }}
-        on:dragstart={(e) => e.preventDefault()}
-        on:selectstart={(e) => e.preventDefault()}
-      />
-      {#if $dualPathMode}
+          draggable="false"
+          on:error={(e) => {
+            console.error("Failed to load robot image:", settings.robotImage);
+            e.target.src = "/robot.png"; // Fallback to default
+          }}
+          on:dragstart={(e) => e.preventDefault()}
+          on:selectstart={(e) => e.preventDefault()}
+        />
+      {/if}
+      <!-- Second robot: only show in dual path mode (not multi-path mode) -->
+      {#if $activePaths.length === 0 && $dualPathMode}
         <img
           src={settings.robotImage || "/robot.png"}
           alt="Robot 2"
@@ -2319,6 +2810,25 @@ pointer-events: none; opacity: 0.8;`}
           on:dragstart={(e) => e.preventDefault()}
           on:selectstart={(e) => e.preventDefault()}
         />
+      {/if}
+      <!-- Additional robots: only show in multi-path mode -->
+      {#if $activePaths.length > 0}
+        {#each additionalRobotStates as robotState, idx}
+          <img
+            src={settings.robotImage || "/robot.png"}
+            alt="Robot {idx + 1}"
+            style={`position: absolute; top: ${robotState.xy.y}px;
+left: ${robotState.xy.x}px; transform: translate(-50%, -50%) rotate(${robotState.heading}deg); z-index: ${20 - idx}; width: ${x(robotWidth)}px; height: ${x(robotHeight)}px;user-select: none; -webkit-user-select: none; -moz-user-select: none;-ms-user-select: none;
+pointer-events: none; opacity: ${1.0 - idx * 0.15};`}
+            draggable="false"
+            on:error={(e) => {
+              console.error("Failed to load robot image:", settings.robotImage);
+              e.target.src = "/robot.png";
+            }}
+            on:dragstart={(e) => e.preventDefault()}
+            on:selectstart={(e) => e.preventDefault()}
+          />
+        {/each}
       {/if}
     </div>
   </div>

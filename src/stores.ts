@@ -24,6 +24,7 @@ export const currentFilePath = writable<string | null>(null);
 export const isUnsaved = writable(false);
 export const snapToGrid = writable(true);
 
-// Dual path mode stores
-export const dualPathMode = writable(false);
-export const secondFilePath = writable<string | null>(null);
+// Multiple paths visualization stores
+export const activePaths = writable<string[]>([]);
+export const dualPathMode = writable(false); // Deprecated - kept for backwards compatibility
+export const secondFilePath = writable<string | null>(null); // Deprecated - kept for backwards compatibility

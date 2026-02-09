@@ -10,6 +10,8 @@
     currentFilePath,
     isUnsaved,
     snapToGrid,
+    dualPathMode,
+    activePaths,
   } from "../stores";
   import { getRandomColor } from "../utils";
   import {
@@ -20,7 +22,11 @@
   import FileManager from "./FileManager.svelte";
   import SettingsDialog from "./components/SettingsDialog.svelte";
   import ExportCodeDialog from "./components/ExportCodeDialog.svelte";
+  import ProgressDialog from "./components/ProgressDialog.svelte";
+  import MultiplePathsDialog from "./components/MultiplePathsDialog.svelte";
   import { calculatePathTime, formatTime } from "../utils";
+  import html2canvas from "html2canvas";
+  import GIF from "gif.js";
 
   export let loadFile: (evt: any) => any;
 
@@ -46,12 +52,17 @@
   export let canRedo: boolean;
   export let optimizeAllLines: () => Promise<void>;
   export let optimizingAll: boolean = false;
+  export let twoElement: HTMLDivElement | null = null;
+  export let playing: boolean = false;
+  export let play: () => void;
+  export let pause: () => void;
 
   let fileManagerOpen = false;
   let settingsOpen = false;
   let exportMenuOpen = false;
   let exportDialogOpen = false;
   let exportDialog: ExportCodeDialog;
+  let multiplePathsDialogOpen = false;
   // Hide sequential export UI by default; backend generator remains available
   const showSequentialExport = false;
 
@@ -60,7 +71,13 @@
   let saveButtonRef: HTMLElement;
 
   let selectedGridSize = 12;
-  const gridSizeOptions = [1, 3, 6, 12, 24];
+  const gridSizeOptions = [0, 1, 3, 6, 12, 24];
+
+  // GIF export state
+  let gifExportProgress = 0;
+  let gifExportStatus = "Initializing...";
+  let gifExportOpen = false;
+  let gifCancelled = false;
 
   // Ensure File Manager and Export dialog are mutually exclusive
   $: if (fileManagerOpen && exportDialogOpen) {
@@ -87,9 +104,9 @@
 
   function cycleGridSize() {
     if (!$showGrid) {
-      // Grid is off, turn it on with first size
+      // Grid is off, turn it on with first non-zero size
       showGrid.set(true);
-      selectedGridSize = gridSizeOptions[0];
+      selectedGridSize = gridSizeOptions[1]; // Start at 1, not 0
       gridSize.set(selectedGridSize);
     } else {
       // Grid is on, cycle to next size or turn off
@@ -102,6 +119,10 @@
         // Move to next size
         selectedGridSize = gridSizeOptions[nextIndex];
         gridSize.set(selectedGridSize);
+        // If grid size is 0, hide the grid
+        if (selectedGridSize === 0) {
+          showGrid.set(false);
+        }
       }
     }
   }
@@ -110,6 +131,158 @@
     exportMenuOpen = false;
     fileManagerOpen = false; // ensure file manager is closed before opening export dialog
     exportDialog.openWithFormat(format);
+  }
+
+  async function exportFieldAsImage() {
+    exportMenuOpen = false;
+    if (!twoElement) {
+      alert("Canvas not ready. Please try again.");
+      return;
+    }
+
+    try {
+      // Use html2canvas to capture the entire field including background, paths, and robots
+      const canvas = await html2canvas(twoElement, {
+        backgroundColor: null,
+        scale: 2, // 2x resolution for better quality
+        logging: false,
+        useCORS: true, // Allow cross-origin images
+        allowTaint: true,
+      });
+
+      // Convert canvas to blob and download
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const downloadUrl = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          const fileName = $currentFilePath
+            ? $currentFilePath.split(/[\/\\]/).pop()?.replace(/\.pp$/, "")
+            : "field";
+          link.download = `${fileName}_field.png`;
+          link.href = downloadUrl;
+          link.click();
+          URL.revokeObjectURL(downloadUrl);
+        } else {
+          alert("Failed to create image blob.");
+        }
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      alert("Failed to export field as image: " + (error instanceof Error ? error.message : String(error)));
+    }
+  }
+
+  async function exportPathAsGIF() {
+    exportMenuOpen = false;
+    if (!twoElement) {
+      alert("Canvas not ready. Please try again.");
+      return;
+    }
+
+    // Reset state
+    gifCancelled = false;
+    gifExportProgress = 0;
+    gifExportStatus = "Initializing...";
+    gifExportOpen = true;
+
+    try {
+      // Get the bounding box
+      const bbox = twoElement.getBoundingClientRect();
+      const width = Math.floor(bbox.width);
+      const height = Math.floor(bbox.height);
+
+      // Create GIF encoder
+      const gif = new GIF({
+        workers: 2,
+        quality: 10,
+        width: width,
+        height: height,
+        workerScript: "/gif.worker.js", // We'll need to copy this to public
+      });
+
+      // Calculate frame count and duration
+      const fps = 30;
+      const duration = (timePrediction?.totalTime || 3) * 1000; // in ms
+      const frameCount = Math.ceil((duration / 1000) * fps);
+      const frameDelay = 1000 / fps;
+
+      // Store original playing state
+      const wasPlaying = playing;
+      if (wasPlaying) {
+        pause();
+      }
+
+      gifExportStatus = `Capturing ${frameCount} frames...`;
+
+      // Capture frames
+      for (let i = 0; i < frameCount; i++) {
+        if (gifCancelled) {
+          gifExportOpen = false;
+          if (!wasPlaying) pause();
+          return;
+        }
+
+        // Set animation position
+        percent = (i / (frameCount - 1)) * 100;
+
+        // Wait for render
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Capture frame
+        const canvas = await html2canvas(twoElement, {
+          backgroundColor: "#f9fafb",
+          scale: 1,
+          logging: false,
+          useCORS: true,
+          allowTaint: true,
+        });
+
+        gif.addFrame(canvas, { delay: frameDelay });
+
+        gifExportProgress = (i + 1) / frameCount * 0.8; // 80% for capturing
+        gifExportStatus = `Captured ${i + 1} / ${frameCount} frames`;
+      }
+
+      // Reset to start
+      percent = 0;
+      if (!wasPlaying) pause();
+
+      gifExportStatus = "Rendering GIF...";
+      gifExportProgress = 0.8;
+
+      // Render GIF
+      gif.on("progress", (p) => {
+        gifExportProgress = 0.8 + (p * 0.2); // 20% for rendering
+        gifExportStatus = `Rendering GIF... ${Math.round(p * 100)}%`;
+      });
+
+      gif.on("finished", (blob) => {
+        const downloadUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const fileName = $currentFilePath
+          ? $currentFilePath.split(/[\/\\]/).pop()?.replace(/\.pp$/, "")
+          : "path";
+        link.download = `${fileName}_animation.gif`;
+        link.href = downloadUrl;
+        link.click();
+        URL.revokeObjectURL(downloadUrl);
+        
+        gifExportOpen = false;
+        gifExportProgress = 1;
+      });
+
+      gif.render();
+
+    } catch (error) {
+      console.error("GIF export error:", error);
+      alert("Failed to export GIF: " + (error instanceof Error ? error.message : String(error)));
+      gifExportOpen = false;
+    }
+  }
+
+  function cancelGifExport() {
+    gifCancelled = true;
+    gifExportOpen = false;
   }
 
   function resetPath() {
@@ -556,6 +729,49 @@
       aria-hidden="true"
     ></div>
 
+    <!-- Multiple Paths Toggle -->
+    <button
+      title="Manage Multiple Paths Visualization"
+      on:click={() => (multiplePathsDialogOpen = true)}
+      class="relative px-3 py-1.5 rounded-lg font-medium text-sm transition-all duration-200 shadow-sm hover:shadow-md"
+      class:bg-purple-500={$activePaths.length > 0}
+      class:text-white={$activePaths.length > 0}
+      class:hover:bg-purple-600={$activePaths.length > 0}
+      class:bg-neutral-200={$activePaths.length === 0}
+      class:dark:bg-neutral-700={$activePaths.length === 0}
+      class:text-neutral-700={$activePaths.length === 0}
+      class:dark:text-neutral-200={$activePaths.length === 0}
+      class:hover:bg-neutral-300={$activePaths.length === 0}
+      class:dark:hover:bg-neutral-600={$activePaths.length === 0}
+    >
+      <div class="flex items-center gap-1.5">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="2"
+          stroke="currentColor"
+          class="size-5"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z"
+          />
+        </svg>
+        <span>Multiple Paths</span>
+        {#if $activePaths.length > 0}
+          <span class="ml-1 px-1.5 py-0.5 bg-white/20 text-xs font-bold rounded">{$activePaths.length}</span>
+        {/if}
+      </div>
+    </button>
+
+    <!-- Divider -->
+    <div
+      class="h-6 border-l border-neutral-300 dark:border-neutral-700 mx-4"
+      aria-hidden="true"
+    ></div>
+
     <div class="flex items-center gap-3">
       <!-- Load trajectory from file -->
       <input
@@ -765,7 +981,18 @@
                 Sequential Command
               </button>
             {/if}
-            <!-- GIF export removed temporarily -->
+            <button
+              on:click={exportFieldAsImage}
+              class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 transition-colors duration-250"
+            >
+              Field as Image
+            </button>
+            <button
+              on:click={exportPathAsGIF}
+              class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 transition-colors duration-250"
+            >
+              Path as GIF
+            </button>
           </div>
         {/if}
       </div>
@@ -826,6 +1053,15 @@
     </div>
   </div>
 </div>
+
+<ProgressDialog
+  bind:isOpen={gifExportOpen}
+  progress={gifExportProgress}
+  statusMessage={gifExportStatus}
+  onCancel={cancelGifExport}
+/>
+
+<MultiplePathsDialog bind:isOpen={multiplePathsDialogOpen} />
 
 <style>
   @keyframes rainbow-glow {

@@ -26,7 +26,7 @@ async function loadJavaPlugin() {
 export async function generateJavaCode(
   startPoint: Point,
   lines: Line[],
-  exportFullCode: boolean,
+  exportMode: "full" | "class" | "coordinates" = "class",
 ): Promise<string> {
   const headingTypeToFunctionName = {
     constant: "setConstantHeadingInterpolation",
@@ -34,139 +34,145 @@ export async function generateJavaCode(
     tangential: "setTangentHeadingInterpolation",
   };
 
-  let pathsClass = `
-  public static class Paths {
-    ${lines
-      .map((line, idx) => {
-        const variableName = line.name
-          ? line.name.replace(/[^a-zA-Z0-9]/g, "")
-          : `line${idx + 1}`;
-        // declare waits as doubles, paths as PathChain
-        return (line as any).waitMs !== undefined
-          ? `public double ${variableName};`
-          : `public PathChain ${variableName};`;
-      })
-      .join("\n")}
-    
-    public Paths(Follower follower) {
-      ${lines
-        .map((line, idx) => {
-          const variableName = line.name
-            ? line.name.replace(/[^a-zA-Z0-9]/g, "")
-            : `line${idx + 1}`;
-          
-          if ((line as any).waitMs !== undefined) {
-            // assign wait duration (ms) to double
-            return `${variableName} = ${Number((line as any).waitMs)};`;
-          }
+  // Generate field declarations with proper indentation
+  const fieldDeclarations = lines
+    .map((line, idx) => {
+      const variableName = line.name
+        ? line.name.replace(/[^a-zA-Z0-9]/g, "")
+        : `line${idx + 1}`;
+      // declare waits as doubles, paths as PathChain
+      return (line as any).waitMs !== undefined
+        ? `public double ${variableName};`
+        : `public PathChain ${variableName};`;
+    })
+    .join("\n    ");
 
-          const start =
-            idx === 0
-              ? `new Pose(${startPoint.x.toFixed(3)}, ${startPoint.y.toFixed(3)}),`
-              : `new Pose(${lines[idx - 1].endPoint.x.toFixed(3)}, ${lines[idx - 1].endPoint.y.toFixed(3)}),`;
+  // Generate path assignments with proper indentation
+  const pathAssignments = lines
+    .map((line, idx) => {
+      const variableName = line.name
+        ? line.name.replace(/[^a-zA-Z0-9]/g, "")
+        : `line${idx + 1}`;
 
-          const controlPoints =
-            line.controlPoints.length > 0
-              ? `${line.controlPoints
-                  .map(
-                    (point) =>
-                      `new Pose(${point.x.toFixed(3)}, ${point.y.toFixed(3)})`,
-                  )
-                  .join(",\n")},`
-              : "";
+      if ((line as any).waitMs !== undefined) {
+        // assign wait duration (ms) to double
+        return `${variableName} = ${Number((line as any).waitMs)};`;
+      }
 
-          const curveType =
-            line.controlPoints.length === 0
-              ? `new BezierLine`
-              : `new BezierCurve`;
+      const start =
+        idx === 0
+          ? `new Pose(${startPoint.x.toFixed(3)}, ${startPoint.y.toFixed(3)})`
+          : `new Pose(${lines[idx - 1].endPoint.x.toFixed(3)}, ${lines[idx - 1].endPoint.y.toFixed(3)})`;
 
-          const headingConfig =
-            line.endPoint.heading === "constant"
-              ? `Math.toRadians(${line.endPoint.degrees})`
-              : line.endPoint.heading === "linear"
-                ? `Math.toRadians(${line.endPoint.startDeg}), Math.toRadians(${line.endPoint.endDeg})`
-                : "";
+      const controlPoints = line.controlPoints
+        .map(
+          (point) =>
+            `new Pose(${point.x.toFixed(3)}, ${point.y.toFixed(3)})`,
+        )
+        .join(",\n            ");
 
-          const reverseConfig = line.endPoint.reverse
-            ? ".setReversed(true)"
+      const curveType =
+        line.controlPoints.length === 0 ? `BezierLine` : `BezierCurve`;
+
+      const allPoints = controlPoints
+        ? `${start},\n            ${controlPoints},\n            new Pose(${line.endPoint.x.toFixed(3)}, ${line.endPoint.y.toFixed(3)})`
+        : `${start},\n            new Pose(${line.endPoint.x.toFixed(3)}, ${line.endPoint.y.toFixed(3)})`;
+
+      const headingConfig =
+        line.endPoint.heading === "constant"
+          ? `Math.toRadians(${line.endPoint.degrees})`
+          : line.endPoint.heading === "linear"
+            ? `Math.toRadians(${line.endPoint.startDeg}), Math.toRadians(${line.endPoint.endDeg})`
             : "";
 
-          return `${variableName} = follower.pathBuilder().addPath(
-          ${curveType}(
-            ${start}
-            ${controlPoints}
-            new Pose(${line.endPoint.x.toFixed(3)}, ${line.endPoint.y.toFixed(3)})
+      const reverseConfig = line.endPoint.reverse
+        ? "\n          .setReversed(true)"
+        : "";
+
+      return `${variableName} = follower.pathBuilder()
+          .addPath(
+            new ${curveType}(
+              ${allPoints}
+            )
           )
-        ).${headingTypeToFunctionName[line.endPoint.heading]}(${headingConfig})
-        ${reverseConfig}
-        .build();`;
-        })
-        .join("\n\n")}
-    }
+          .${headingTypeToFunctionName[line.endPoint.heading]}(${headingConfig})${reverseConfig}
+          .build();`;
+    })
+    .join("\n\n      ");
+
+  // If coordinates-only mode, return just the path assignments
+  if (exportMode === "coordinates") {
+    return pathAssignments;
   }
-  `;
+
+  const pathsClass = `public static class Paths {
+    ${fieldDeclarations}
+
+    public Paths(Follower follower) {
+      ${pathAssignments}
+    }
+  }`;
 
   let file = "";
-  if (!exportFullCode) {
+  if (exportMode === "class") {
     file = pathsClass;
   } else {
-    file = `
-    package org.firstinspires.ftc.teamcode;
-    import com.qualcomm.robotcore.eventloop.opmode.OpMode;
-    import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-    import com.bylazar.configurables.annotations.Configurable;
-    import com.bylazar.telemetry.TelemetryManager;
-    import com.bylazar.telemetry.PanelsTelemetry;
-    import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
-    import com.pedropathing.geometry.BezierCurve;
-    import com.pedropathing.geometry.BezierLine;
-    import com.pedropathing.follower.Follower;
-    import com.pedropathing.paths.PathChain;
-    import com.pedropathing.geometry.Pose;
-    
-    @Autonomous(name = "Pedro Pathing Autonomous", group = "Autonomous")
-    @Configurable // Panels
-    public class PedroAutonomous extends OpMode {
-      private TelemetryManager panelsTelemetry; // Panels Telemetry instance
-      public Follower follower; // Pedro Pathing follower instance
-      private int pathState; // Current autonomous path state (state machine)
-      private Paths paths; // Paths defined in the Paths class
-      
-      @Override
-      public void init() {
-        panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
+    file = `package org.firstinspires.ftc.teamcode;
+import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.bylazar.configurables.annotations.Configurable;
+import com.bylazar.telemetry.TelemetryManager;
+import com.bylazar.telemetry.PanelsTelemetry;
+import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
+import com.pedropathing.geometry.BezierCurve;
+import com.pedropathing.geometry.BezierLine;
+import com.pedropathing.follower.Follower;
+import com.pedropathing.paths.PathChain;
+import com.pedropathing.geometry.Pose;
 
-        follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(72, 8, Math.toRadians(90)));
+@Autonomous(name = "Pedro Pathing Autonomous", group = "Autonomous")
+@Configurable // Panels
+public class PedroAutonomous extends OpMode {
+  private TelemetryManager panelsTelemetry; // Panels Telemetry instance
+  public Follower follower; // Pedro Pathing follower instance
+  private int pathState; // Current autonomous path state (state machine)
+  private Paths paths; // Paths defined in the Paths class
 
-        paths = new Paths(follower); // Build paths
+  @Override
+  public void init() {
+    panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
-        panelsTelemetry.debug("Status", "Initialized");
-        panelsTelemetry.update(telemetry);
-      }
-      
-      @Override
-      public void loop() {
-        follower.update(); // Update Pedro Pathing
-        pathState = autonomousPathUpdate(); // Update autonomous state machine
+    follower = Constants.createFollower(hardwareMap);
+    follower.setStartingPose(new Pose(72, 8, Math.toRadians(90)));
 
-        // Log values to Panels and Driver Station
-        panelsTelemetry.debug("Path State", pathState);
-        panelsTelemetry.debug("X", follower.getPose().getX());
-        panelsTelemetry.debug("Y", follower.getPose().getY());
-        panelsTelemetry.debug("Heading", follower.getPose().getHeading());
-        panelsTelemetry.update(telemetry);
-      }
+    paths = new Paths(follower); // Build paths
 
-      ${pathsClass}
+    panelsTelemetry.debug("Status", "Initialized");
+    panelsTelemetry.update(telemetry);
+  }
 
-      public void autonomousPathUpdate() {
-          // Add your state machine Here
-          // Access paths with paths.pathName
-          // Refer to the Pedro Pathing Docs (Auto Example) for an example state machine
-      }
-    }
-    `;
+  @Override
+  public void loop() {
+    follower.update(); // Update Pedro Pathing
+    pathState = autonomousPathUpdate(); // Update autonomous state machine
+
+    // Log values to Panels and Driver Station
+    panelsTelemetry.debug("Path State", pathState);
+    panelsTelemetry.debug("X", follower.getPose().getX());
+    panelsTelemetry.debug("Y", follower.getPose().getY());
+    panelsTelemetry.debug("Heading", follower.getPose().getHeading());
+    panelsTelemetry.update(telemetry);
+  }
+
+  ${pathsClass}
+
+  public int autonomousPathUpdate() {
+    // Add your state machine Here
+    // Access paths with paths.pathName
+    // Refer to the Pedro Pathing Docs (Auto Example) for an example state machine
+    return 0;
+  }
+}`;
   }
 
   try {
