@@ -11,13 +11,18 @@
 
   let inputValue = defaultValue;
   let inputElement: HTMLInputElement;
+  let lastOpenState = false;
 
-  $: if (isOpen) {
+  // Only initialize when dialog first opens, not on every reactive update
+  $: if (isOpen && !lastOpenState) {
+    lastOpenState = true;
     inputValue = defaultValue;
     setTimeout(() => {
       inputElement?.focus();
       inputElement?.select();
     }, 100);
+  } else if (!isOpen) {
+    lastOpenState = false;
   }
 
   function handleConfirm() {

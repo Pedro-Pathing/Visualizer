@@ -661,11 +661,13 @@
       showToast("Failed to save mirrored file", "error");
     } finally {
       pendingMirrorData = null;
+      nameDialogOpen = false;
     }
   }
 
   function handleMirrorNameCancel() {
     pendingMirrorData = null;
+    nameDialogOpen = false;
   }
 
   function mirrorPointHeading(point: Point): Point {
@@ -1149,8 +1151,8 @@
           {selectedFile.name}
         </div>
 
-        <!-- File Operations (Rename, Delete, Duplicate, Mirror) -->
-        <div class="grid grid-cols-4 gap-1">
+        <!-- File Operations (Rename, Delete, Duplicate) -->
+        <div class="grid grid-cols-3 gap-1">
           <button
             on:click={() => selectedFile && startRename(selectedFile)}
             class="px-2 py-1.5 text-xs bg-amber-500 hover:bg-amber-600 text-white rounded transition-colors flex items-center justify-center gap-1"
@@ -1213,28 +1215,30 @@
               />
             </svg>
           </button>
-
-          <button
-            on:click={duplicateAndMirrorFile}
-            class="px-2 py-1.5 text-xs bg-purple-500 hover:bg-purple-600 text-white rounded transition-colors flex items-center justify-center gap-1"
-            title="Duplicate mirrored (flipped)"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width={2}
-              stroke="currentColor"
-              class="size-3.5"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"
-              />
-            </svg>
-          </button>
         </div>
+
+        <!-- Mirror Button - Full Width -->
+        <button
+          on:click={duplicateAndMirrorFile}
+          class="w-full px-3 py-2.5 text-sm font-medium bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+          title="Create a mirrored copy of this path"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width={2}
+            stroke="currentColor"
+            class="size-5"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"
+            />
+          </svg>
+          <span>Duplicate &amp; Mirror Path</span>
+        </button>
 
         <!-- Saving Operations -->
         <div class="space-y-1">
