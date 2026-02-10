@@ -1285,51 +1285,6 @@
             </button>
           </div>
         </div>
-
-        <!-- Dual Path Mode Section -->
-        <div class="space-y-2 pt-2 border-t border-neutral-200 dark:border-neutral-700">
-          <div class="flex items-center gap-2 px-1">
-            <input
-              type="checkbox"
-              id="dualPathToggle"
-              bind:checked={$dualPathMode}
-              class="w-4 h-4 rounded cursor-pointer"
-            />
-            <label for="dualPathToggle" class="text-xs font-medium text-neutral-700 dark:text-neutral-300 cursor-pointer flex-1">
-              Alliance Coordination
-            </label>
-          </div>
-
-          {#if $dualPathMode}
-            <div class="space-y-2 px-1">
-              <div class="text-xs text-neutral-600 dark:text-neutral-400">
-                Second Path:
-              </div>
-              {#if selectedFile2}
-                <div class="text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-purple-50 dark:bg-purple-900 px-2 py-1 rounded">
-                  {selectedFile2.name}
-                </div>
-                <button
-                  on:click={() => {
-                    selectedFile2 = null;
-                    secondFilePath.set(null);
-                    secondStartPoint = null;
-                    secondLines = [];
-                    secondShapes = [];
-                    secondSequence = [];
-                  }}
-                  class="w-full px-2 py-1.5 text-xs bg-purple-500 hover:bg-purple-600 text-white rounded transition-colors"
-                >
-                  Remove Second Path
-                </button>
-              {:else}
-                <div class="text-xs text-neutral-500 dark:text-neutral-400 italic">
-                  Click a file to load as second path
-                </div>
-              {/if}
-            </div>
-          {/if}
-        </div>
       </div>
     {:else}
       <div
