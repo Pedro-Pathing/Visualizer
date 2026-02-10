@@ -22,11 +22,9 @@
   import FileManager from "./FileManager.svelte";
   import SettingsDialog from "./components/SettingsDialog.svelte";
   import ExportCodeDialog from "./components/ExportCodeDialog.svelte";
-  import ProgressDialog from "./components/ProgressDialog.svelte";
   import MultiplePathsDialog from "./components/MultiplePathsDialog.svelte";
   import { calculatePathTime, formatTime } from "../utils";
   import html2canvas from "html2canvas";
-  import GIF from "gif.js";
 
   export let loadFile: (evt: any) => any;
 
@@ -72,12 +70,6 @@
 
   let selectedGridSize = 12;
   const gridSizeOptions = [0, 1, 3, 6, 12, 24];
-
-  // GIF export state
-  let gifExportProgress = 0;
-  let gifExportStatus = "Initializing...";
-  let gifExportOpen = false;
-  let gifCancelled = false;
 
   // Ensure File Manager and Export dialog are mutually exclusive
   $: if (fileManagerOpen && exportDialogOpen) {
@@ -170,119 +162,6 @@
       console.error("Export error:", error);
       alert("Failed to export field as image: " + (error instanceof Error ? error.message : String(error)));
     }
-  }
-
-  async function exportPathAsGIF() {
-    exportMenuOpen = false;
-    if (!twoElement) {
-      alert("Canvas not ready. Please try again.");
-      return;
-    }
-
-    // Reset state
-    gifCancelled = false;
-    gifExportProgress = 0;
-    gifExportStatus = "Initializing...";
-    gifExportOpen = true;
-
-    try {
-      // Get the bounding box
-      const bbox = twoElement.getBoundingClientRect();
-      const width = Math.floor(bbox.width);
-      const height = Math.floor(bbox.height);
-
-      // Create GIF encoder
-      const gif = new GIF({
-        workers: 2,
-        quality: 10,
-        width: width,
-        height: height,
-        workerScript: "/gif.worker.js", // We'll need to copy this to public
-      });
-
-      // Calculate frame count and duration
-      const fps = 30;
-      const duration = (timePrediction?.totalTime || 3) * 1000; // in ms
-      const frameCount = Math.ceil((duration / 1000) * fps);
-      const frameDelay = 1000 / fps;
-
-      // Store original playing state
-      const wasPlaying = playing;
-      if (wasPlaying) {
-        pause();
-      }
-
-      gifExportStatus = `Capturing ${frameCount} frames...`;
-
-      // Capture frames
-      for (let i = 0; i < frameCount; i++) {
-        if (gifCancelled) {
-          gifExportOpen = false;
-          if (!wasPlaying) pause();
-          return;
-        }
-
-        // Set animation position
-        percent = (i / (frameCount - 1)) * 100;
-
-        // Wait for render
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        // Capture frame
-        const canvas = await html2canvas(twoElement, {
-          backgroundColor: "#f9fafb",
-          scale: 1,
-          logging: false,
-          useCORS: true,
-          allowTaint: true,
-        });
-
-        gif.addFrame(canvas, { delay: frameDelay });
-
-        gifExportProgress = (i + 1) / frameCount * 0.8; // 80% for capturing
-        gifExportStatus = `Captured ${i + 1} / ${frameCount} frames`;
-      }
-
-      // Reset to start
-      percent = 0;
-      if (!wasPlaying) pause();
-
-      gifExportStatus = "Rendering GIF...";
-      gifExportProgress = 0.8;
-
-      // Render GIF
-      gif.on("progress", (p) => {
-        gifExportProgress = 0.8 + (p * 0.2); // 20% for rendering
-        gifExportStatus = `Rendering GIF... ${Math.round(p * 100)}%`;
-      });
-
-      gif.on("finished", (blob) => {
-        const downloadUrl = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        const fileName = $currentFilePath
-          ? $currentFilePath.split(/[\/\\]/).pop()?.replace(/\.pp$/, "")
-          : "path";
-        link.download = `${fileName}_animation.gif`;
-        link.href = downloadUrl;
-        link.click();
-        URL.revokeObjectURL(downloadUrl);
-        
-        gifExportOpen = false;
-        gifExportProgress = 1;
-      });
-
-      gif.render();
-
-    } catch (error) {
-      console.error("GIF export error:", error);
-      alert("Failed to export GIF: " + (error instanceof Error ? error.message : String(error)));
-      gifExportOpen = false;
-    }
-  }
-
-  function cancelGifExport() {
-    gifCancelled = true;
-    gifExportOpen = false;
   }
 
   function resetPath() {
@@ -987,12 +866,6 @@
             >
               Field as Image
             </button>
-            <button
-              on:click={exportPathAsGIF}
-              class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 transition-colors duration-250"
-            >
-              Path as GIF
-            </button>
           </div>
         {/if}
       </div>
@@ -1053,13 +926,6 @@
     </div>
   </div>
 </div>
-
-<ProgressDialog
-  bind:isOpen={gifExportOpen}
-  progress={gifExportProgress}
-  statusMessage={gifExportStatus}
-  onCancel={cancelGifExport}
-/>
 
 <MultiplePathsDialog bind:isOpen={multiplePathsDialogOpen} />
 
