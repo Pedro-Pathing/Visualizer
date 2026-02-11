@@ -726,16 +726,8 @@
       });
     }
 
-    // Mirror shapes
-    if (mirrored.shapes && Array.isArray(mirrored.shapes)) {
-      mirrored.shapes.forEach((shape: Shape) => {
-        if (shape.vertices && Array.isArray(shape.vertices)) {
-          shape.vertices.forEach((vertex: any) => {
-            vertex.x = 144 - vertex.x;
-          });
-        }
-      });
-    }
+    // Don't mirror shapes/obstacles - they should remain in their original positions
+    // (removed mirroring logic for shapes)
 
     return mirrored;
   }
