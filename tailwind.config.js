@@ -7,6 +7,10 @@ export default {
       fontFamily: {
         poppins: ["Poppins", "ui-sans-serif", "system-ui", "sans-serif"],
       },
+      scale: {
+        98: "0.98",
+        102: "1.02",
+      },
       animation: {
         modalf: "modalf 0.15s ease-in-out",
       },

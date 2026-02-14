@@ -96,7 +96,7 @@
         <button
           on:click={() => (isOpen = false)}
           aria-label="Close settings"
-          class="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+          class="p-1 rounded transition-colors duration-250"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -151,7 +151,7 @@
           <button
             on:click={() =>
               (collapsedSections.robot = !collapsedSections.robot)}
-            class="flex items-center justify-between w-full py-2 px-3 bg-neutral-100 dark:bg-neutral-800 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+            class="flex items-center justify-between w-full py-2 px-3 bg-neutral-100 dark:bg-neutral-800 rounded-lg transition-colors duration-250"
             aria-expanded={!collapsedSections.robot}
           >
             <div class="flex items-center gap-2">
@@ -451,7 +451,7 @@
           <button
             on:click={() =>
               (collapsedSections.motion = !collapsedSections.motion)}
-            class="flex items-center justify-between w-full py-2 px-3 bg-neutral-100 dark:bg-neutral-800 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+            class="flex items-center justify-between w-full py-2 px-3 bg-neutral-100 dark:bg-neutral-800 rounded-lg transition-colors duration-250"
             aria-expanded={!collapsedSections.motion}
           >
             <div class="flex items-center gap-2">
@@ -647,7 +647,7 @@
           <button
             on:click={() =>
               (collapsedSections.theme = !collapsedSections.theme)}
-            class="flex items-center justify-between w-full py-2 px-3 bg-neutral-100 dark:bg-neutral-800 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+            class="flex items-center justify-between w-full py-2 px-3 bg-neutral-100 dark:bg-neutral-800 rounded-lg transition-colors duration-250"
             aria-expanded={!collapsedSections.theme}
           >
             <div class="flex items-center gap-2">
@@ -753,7 +753,7 @@
           <button
             on:click={() =>
               (collapsedSections.advanced = !collapsedSections.advanced)}
-            class="flex items-center justify-between w-full py-2 px-3 bg-neutral-100 dark:bg-neutral-800 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+            class="flex items-center justify-between w-full py-2 px-3 bg-neutral-100 dark:bg-neutral-800 rounded-lg transition-colors duration-250"
             aria-expanded={!collapsedSections.advanced}
           >
             <div class="flex items-center gap-2">

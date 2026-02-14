@@ -35,7 +35,7 @@
     <div class="flex flex-row items-center gap-2">
       <button
         on:click={toggleCollapsed}
-        class="flex items-center gap-2 font-semibold hover:bg-neutral-200 dark:hover:bg-neutral-800 px-2 py-1 rounded transition-colors"
+        class="flex items-center gap-2 font-semibold px-2 py-1 rounded transition-colors duration-250"
         title="{collapsed ? 'Expand' : 'Collapse'} path"
       >
         <svg
@@ -92,7 +92,7 @@
           line.locked = !line.locked;
           lines = [...lines]; // Force reactivity
         }}
-        class="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+        class="p-1 rounded transition-colors duration-250"
       >
         {#if line.locked}
           <svg

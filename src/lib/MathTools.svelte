@@ -123,6 +123,8 @@
   const FIELD_SIZE = 144;
   let spacing = 12;
   let gridPositions: number[] = [];
+  let labelInterval = 1; // Show label every N grid lines
+  let labelFontSize = "text-xs"; // Font size class for labels
 
   $: spacing = Math.max(1, $gridSize || 12);
   $: gridPositions = (() => {
@@ -135,6 +137,23 @@
     }
     return positions;
   })();
+
+  // Adjust label frequency and size based on grid density
+  $: {
+    if (spacing <= 1) {
+      labelInterval = 12; // Show every 12th label for very dense grids
+      labelFontSize = "text-[8px]";
+    } else if (spacing <= 3) {
+      labelInterval = 4; // Show every 4th label
+      labelFontSize = "text-[9px]";
+    } else if (spacing <= 6) {
+      labelInterval = 2; // Show every 2nd label
+      labelFontSize = "text-[10px]";
+    } else {
+      labelInterval = 1; // Show all labels
+      labelFontSize = "text-xs";
+    }
+  }
 </script>
 
 <svelte:window on:mousemove={handleMouseMove} on:mouseup={handleMouseUp} />
@@ -152,14 +171,16 @@
         stroke-width={i % 2 === 0 ? "1.5" : "0.5"}
         opacity="0.3"
       />
-      <text
-        x={x(position)}
-        y={y(0) + 15}
-        class="fill-gray-600 dark:fill-gray-400 text-xs"
-        text-anchor="middle"
-      >
-        {position}"
-      </text>
+      {#if i % labelInterval === 0 || position === 0 || position === FIELD_SIZE}
+        <text
+          x={x(position)}
+          y={y(0) + 15}
+          class="fill-gray-600 dark:fill-gray-400 {labelFontSize}"
+          text-anchor="middle"
+        >
+          {position}"
+        </text>
+      {/if}
     {/each}
 
     <!-- Horizontal grid lines -->
@@ -173,14 +194,16 @@
         stroke-width={i % 2 === 0 ? "1.5" : "0.5"}
         opacity="0.3"
       />
-      <text
-        x={x(position)}
-        y={y(0) - 5}
-        class="fill-gray-600 dark:fill-gray-400 text-xs"
-        text-anchor="middle"
-      >
-        {position}"
-      </text>
+      {#if i % labelInterval === 0 || position === 0 || position === FIELD_SIZE}
+        <text
+          x={x(0) - 5}
+          y={y(position) + 4}
+          class="fill-gray-600 dark:fill-gray-400 {labelFontSize}"
+          text-anchor="end"
+        >
+          {position}"
+        </text>
+      {/if}
     {/each}
   </svg>
 {/if}

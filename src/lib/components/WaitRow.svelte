@@ -59,7 +59,7 @@
       on:click|stopPropagation={() => {
         if (onToggleLock) onToggleLock();
       }}
-      class="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+      class="p-1 rounded transition-colors duration-250"
     >
       {#if locked}
         <svg

@@ -10,6 +10,8 @@
     currentFilePath,
     isUnsaved,
     snapToGrid,
+    dualPathMode,
+    activePaths,
   } from "../stores";
   import { getRandomColor } from "../utils";
   import {
@@ -20,7 +22,9 @@
   import FileManager from "./FileManager.svelte";
   import SettingsDialog from "./components/SettingsDialog.svelte";
   import ExportCodeDialog from "./components/ExportCodeDialog.svelte";
+  import MultiplePathsDialog from "./components/MultiplePathsDialog.svelte";
   import { calculatePathTime, formatTime } from "../utils";
+  import html2canvas from "html2canvas";
 
   export let loadFile: (evt: any) => any;
 
@@ -28,6 +32,10 @@
   export let lines: Line[];
   export let shapes: Shape[];
   export let sequence: SequenceItem[];
+  export let secondStartPoint: Point | null = null;
+  export let secondLines: Line[] = [];
+  export let secondShapes: Shape[] = [];
+  export let secondSequence: SequenceItem[] = [];
   export let percent: number = 0;
   export let robotWidth: number;
   export let robotHeight: number;
@@ -42,12 +50,17 @@
   export let canRedo: boolean;
   export let optimizeAllLines: () => Promise<void>;
   export let optimizingAll: boolean = false;
+  export let twoElement: HTMLDivElement | null = null;
+  export let playing: boolean = false;
+  export let play: () => void;
+  export let pause: () => void;
 
   let fileManagerOpen = false;
   let settingsOpen = false;
   let exportMenuOpen = false;
   let exportDialogOpen = false;
   let exportDialog: ExportCodeDialog;
+  let multiplePathsDialogOpen = false;
   // Hide sequential export UI by default; backend generator remains available
   const showSequentialExport = false;
 
@@ -56,7 +69,7 @@
   let saveButtonRef: HTMLElement;
 
   let selectedGridSize = 12;
-  const gridSizeOptions = [1, 3, 6, 12, 24];
+  const gridSizeOptions = [0, 1, 3, 6, 12, 24];
 
   // Ensure File Manager and Export dialog are mutually exclusive
   $: if (fileManagerOpen && exportDialogOpen) {
@@ -83,9 +96,9 @@
 
   function cycleGridSize() {
     if (!$showGrid) {
-      // Grid is off, turn it on with first size
+      // Grid is off, turn it on with first non-zero size
       showGrid.set(true);
-      selectedGridSize = gridSizeOptions[0];
+      selectedGridSize = gridSizeOptions[1]; // Start at 1, not 0
       gridSize.set(selectedGridSize);
     } else {
       // Grid is on, cycle to next size or turn off
@@ -98,6 +111,10 @@
         // Move to next size
         selectedGridSize = gridSizeOptions[nextIndex];
         gridSize.set(selectedGridSize);
+        // If grid size is 0, hide the grid
+        if (selectedGridSize === 0) {
+          showGrid.set(false);
+        }
       }
     }
   }
@@ -106,6 +123,45 @@
     exportMenuOpen = false;
     fileManagerOpen = false; // ensure file manager is closed before opening export dialog
     exportDialog.openWithFormat(format);
+  }
+
+  async function exportFieldAsImage() {
+    exportMenuOpen = false;
+    if (!twoElement) {
+      alert("Canvas not ready. Please try again.");
+      return;
+    }
+
+    try {
+      // Use html2canvas to capture the entire field including background, paths, and robots
+      const canvas = await html2canvas(twoElement, {
+        backgroundColor: null,
+        scale: 2, // 2x resolution for better quality
+        logging: false,
+        useCORS: true, // Allow cross-origin images
+        allowTaint: true,
+      });
+
+      // Convert canvas to blob and download
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const downloadUrl = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          const fileName = $currentFilePath
+            ? $currentFilePath.split(/[\/\\]/).pop()?.replace(/\.pp$/, "")
+            : "field";
+          link.download = `${fileName}_field.png`;
+          link.href = downloadUrl;
+          link.click();
+          URL.revokeObjectURL(downloadUrl);
+        } else {
+          alert("Failed to create image blob.");
+        }
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      alert("Failed to export field as image: " + (error instanceof Error ? error.message : String(error)));
+    }
   }
 
   function resetPath() {
@@ -219,6 +275,10 @@
     bind:lines
     bind:shapes
     bind:sequence
+    bind:secondStartPoint
+    bind:secondLines
+    bind:secondShapes
+    bind:secondSequence
   />
 {/if}
 
@@ -333,6 +393,7 @@
           on:click={undoAction}
           disabled={!canUndo}
           class:opacity-50={!canUndo}
+          class="disabled:cursor-not-allowed transition-all duration-250 hover:scale-105 active:scale-98"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -354,6 +415,7 @@
           on:click={redoAction}
           disabled={!canRedo}
           class:opacity-50={!canRedo}
+          class="disabled:cursor-not-allowed transition-all duration-250 hover:scale-105 active:scale-98"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -546,6 +608,49 @@
       aria-hidden="true"
     ></div>
 
+    <!-- Multiple Paths Toggle -->
+    <button
+      title="Manage Multiple Paths Visualization"
+      on:click={() => (multiplePathsDialogOpen = true)}
+      class="relative px-3 py-1.5 rounded-lg font-medium text-sm transition-all duration-200 shadow-sm hover:shadow-md"
+      class:bg-purple-500={$activePaths.length > 0}
+      class:text-white={$activePaths.length > 0}
+      class:hover:bg-purple-600={$activePaths.length > 0}
+      class:bg-neutral-200={$activePaths.length === 0}
+      class:dark:bg-neutral-700={$activePaths.length === 0}
+      class:text-neutral-700={$activePaths.length === 0}
+      class:dark:text-neutral-200={$activePaths.length === 0}
+      class:hover:bg-neutral-300={$activePaths.length === 0}
+      class:dark:hover:bg-neutral-600={$activePaths.length === 0}
+    >
+      <div class="flex items-center gap-1.5">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="2"
+          stroke="currentColor"
+          class="size-5"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z"
+          />
+        </svg>
+        <span>Multiple Paths</span>
+        {#if $activePaths.length > 0}
+          <span class="ml-1 px-1.5 py-0.5 bg-white/20 text-xs font-bold rounded">{$activePaths.length}</span>
+        {/if}
+      </div>
+    </button>
+
+    <!-- Divider -->
+    <div
+      class="h-6 border-l border-neutral-300 dark:border-neutral-700 mx-4"
+      aria-hidden="true"
+    ></div>
+
     <div class="flex items-center gap-3">
       <!-- Load trajectory from file -->
       <input
@@ -582,7 +687,7 @@
           bind:this={saveButtonRef}
           title="Save options"
           on:click={() => (saveDropdownOpen = !saveDropdownOpen)}
-          class="flex items-center gap-1 hover:bg-neutral-200 dark:hover:bg-neutral-800 px-2 py-1 rounded transition-colors"
+          class="flex items-center gap-1 px-2 py-1 rounded transition-colors duration-250"
           aria-expanded={saveDropdownOpen}
           aria-label="Save options"
         >
@@ -606,7 +711,7 @@
             viewBox="0 0 24 24"
             stroke-width="2"
             stroke="currentColor"
-            class="size-4 transition-transform"
+            class="size-4 transition-transform duration-200"
             class:rotate-180={saveDropdownOpen}
           >
             <path
@@ -621,7 +726,7 @@
         {#if saveDropdownOpen}
           <div
             bind:this={saveDropdownRef}
-            class="absolute right-0 mt-2 w-48 bg-white dark:bg-neutral-800 rounded-md shadow-lg py-1 z-50 border border-neutral-200 dark:border-neutral-700"
+            class="absolute right-0 mt-2 w-48 bg-white dark:bg-neutral-800 rounded-md shadow-lg py-1 z-50 border border-neutral-200 dark:border-neutral-700 animate-in fade-in slide-in-from-top-2 duration-300"
             role="menu"
           >
             <!-- Save option -->
@@ -630,7 +735,7 @@
                 saveProject();
                 saveDropdownOpen = false;
               }}
-              class="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+              class="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 transition-colors duration-250"
               role="menuitem"
               title="Save to current file"
             >
@@ -666,7 +771,7 @@
                 saveFileAs();
                 saveDropdownOpen = false;
               }}
-              class="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+              class="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 transition-colors duration-250"
               role="menuitem"
               title="Save as new file"
             >
@@ -737,25 +842,30 @@
           >
             <button
               on:click={() => handleExport("java")}
-              class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+              class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 transition-colors duration-250"
             >
               Java Code
             </button>
             <button
               on:click={() => handleExport("points")}
-              class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+              class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 transition-colors duration-250"
             >
               Points Array
             </button>
             {#if showSequentialExport}
               <button
                 on:click={() => handleExport("sequential")}
-                class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 transition-colors duration-250"
               >
                 Sequential Command
               </button>
             {/if}
-            <!-- GIF export removed temporarily -->
+            <button
+              on:click={exportFieldAsImage}
+              class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 transition-colors duration-250"
+            >
+              Field as Image
+            </button>
           </div>
         {/if}
       </div>
@@ -816,6 +926,8 @@
     </div>
   </div>
 </div>
+
+<MultiplePathsDialog bind:isOpen={multiplePathsDialogOpen} />
 
 <style>
   @keyframes rainbow-glow {

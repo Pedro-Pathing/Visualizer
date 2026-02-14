@@ -18,7 +18,7 @@
   export let lines: Line[];
   export let sequence: SequenceItem[];
 
-  let exportFullCode = false;
+  let exportMode: "full" | "class" | "coordinates" = "class";
   let exportFormat: "java" | "points" | "sequential" = "java";
   let sequentialClassName = "AutoPath";
   let exportedCode = "";
@@ -51,7 +51,7 @@
         exportedCode = await generateJavaCode(
           startPoint,
           lines,
-          exportFullCode,
+          exportMode,
         );
         currentLanguage = java;
       } else if (format === "points") {
@@ -105,9 +105,9 @@
     }
   }
 
-  async function handleExportFullCodeChange() {
+  async function handleExportModeChange() {
     if (exportFormat === "java") {
-      exportedCode = await generateJavaCode(startPoint, lines, exportFullCode);
+      exportedCode = await generateJavaCode(startPoint, lines, exportMode);
     }
   }
 </script>
@@ -144,17 +144,20 @@
         <div class="flex items-center gap-2">
           {#if exportFormat === "java"}
             <label
-              for="export-full-code"
+              for="export-mode"
               class="text-sm font-light text-neutral-700 dark:text-neutral-400"
-              >Export Full Code</label
+              >Export Mode:</label
             >
-            <input
-              id="export-full-code"
-              type="checkbox"
-              bind:checked={exportFullCode}
-              on:change={handleExportFullCodeChange}
-              class="cursor-pointer"
-            />
+            <select
+              id="export-mode"
+              bind:value={exportMode}
+              on:change={handleExportModeChange}
+              class="px-2 py-1 text-sm rounded-md bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            >
+              <option value="coordinates">Coordinates Only</option>
+              <option value="class">Class Only</option>
+              <option value="full">Full Code</option>
+            </select>
           {:else if exportFormat === "sequential"}
             <div class="flex items-center gap-2">
               <label

@@ -22,7 +22,7 @@
   <div class="flex items-center justify-between w-full">
     <button
       on:click={toggleCollapsed}
-      class="flex items-center gap-2 font-light hover:bg-neutral-200 dark:hover:bg-neutral-800 px-2 py-1 rounded transition-colors text-sm"
+      class="flex items-center gap-2 font-light hover:bg-neutral-100 dark:hover:bg-neutral-800/50 px-2 py-1 rounded transition-colors duration-250 text-sm"
       title="{collapsed ? 'Show' : 'Hide'} control points"
     >
       <svg
