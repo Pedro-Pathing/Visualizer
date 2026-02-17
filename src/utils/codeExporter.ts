@@ -86,7 +86,7 @@ export async function generateJavaCode(
             : "";
 
       const reverseConfig = line.endPoint.reverse
-        ? "\n          .setReversed(true)"
+        ? "\n          .setReversed()"
         : "";
 
       return `${variableName} = follower.pathBuilder()
@@ -423,7 +423,7 @@ export async function generateSequentialCommandCode(
 
       // Build reverse config
       const reverseConfig = line.endPoint.reverse
-        ? "\n            .setReversed(true)"
+        ? "\n            .setReversed()"
         : "";
 
       return `${pathName} =
