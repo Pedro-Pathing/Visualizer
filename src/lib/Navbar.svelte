@@ -10,6 +10,7 @@
     currentFilePath,
     isUnsaved,
     snapToGrid,
+    coordinateSystem,
     dualPathMode,
     activePaths,
   } from "../stores";
@@ -601,6 +602,24 @@
         <path d="M12 3v6l3.7 2.7"></path>
       </svg>
     </button>
+
+    <!-- Divider -->
+    <div
+      class="h-6 border-l border-neutral-300 dark:border-neutral-700 mx-4"
+      aria-hidden="true"
+    ></div>
+
+    <!-- Coordinate System Selector -->
+    <div class="flex items-center gap-2">
+      <span class="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">System</span>
+      <select
+        bind:value={$coordinateSystem}
+        class="bg-neutral-100 dark:bg-neutral-800 text-xs font-bold px-2 py-1 rounded-md border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:ring-1 focus:ring-purple-500 transition-colors"
+      >
+        <option value="ftc">FTC (-72 to 72)</option>
+        <option value="pedro">Pedro (0 to 144)</option>
+      </select>
+    </div>
 
     <!-- Divider -->
     <div

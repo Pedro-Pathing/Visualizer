@@ -1,6 +1,7 @@
 <script lang="ts">
   import _ from "lodash";
-  import { snapToGrid, showGrid, gridSize } from "../../stores";
+  import type { Line } from "../../types";
+  import { snapToGrid, showGrid, gridSize, coordinateSystem } from "../../stores";
 
   export let line: Line;
   export let lineIdx: number;
@@ -8,6 +9,9 @@
   export let recordChange: () => void;
   export let optimizeLine: (lineId: string, targetControlPointIndex?: number) => void;
   export let optimizing: boolean = false;
+
+  $: minCoord = $coordinateSystem === "ftc" ? -72 : 0;
+  $: maxCoord = $coordinateSystem === "ftc" ? 72 : 144;
 
   $: snapToGridTitle =
     $snapToGrid && $showGrid ? `Snapping to ${$gridSize} grid` : "No snapping";
@@ -97,8 +101,8 @@
             <input
               bind:value={point.x}
               type="number"
-              min="0"
-              max="144"
+              min={minCoord}
+              max={maxCoord}
               step={$snapToGrid && $showGrid ? $gridSize : 0.1}
               class="w-20 px-2 py-1 text-xs rounded-md bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
               on:change={() => {
@@ -114,8 +118,8 @@
             <input
               bind:value={point.y}
               type="number"
-              min="0"
-              max="144"
+              min={minCoord}
+              max={maxCoord}
               step={$snapToGrid && $showGrid ? $gridSize : 0.1}
               class="w-20 px-2 py-1 text-xs rounded-md bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
               on:change={() => {

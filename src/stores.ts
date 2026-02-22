@@ -23,6 +23,7 @@ export const gridSize = writable(12);
 export const currentFilePath = writable<string | null>(null);
 export const isUnsaved = writable(false);
 export const snapToGrid = writable(true);
+export const coordinateSystem = writable<"pedro" | "ftc">("pedro");
 
 // Multiple paths visualization stores
 export const activePaths = writable<string[]>([]);

@@ -17,6 +17,7 @@
     dualPathMode,
     secondFilePath,
     activePaths,
+    coordinateSystem,
   } from "./stores";
   import Two from "two.js";
   import type { Path } from "two.js/src/path";
@@ -301,15 +302,107 @@
    */
   $: x = d3
     .scaleLinear()
-    .domain([0, FIELD_SIZE])
-    .range([0, width || FIELD_SIZE]);
+    .domain($coordinateSystem === "ftc" ? [-72, 72] : [0, 144])
+    .range([0, width || 144]);
   /**
    * Converter for Y axis from inches to pixels.
    */
   $: y = d3
     .scaleLinear()
-    .domain([0, FIELD_SIZE])
-    .range([height || FIELD_SIZE, 0]);
+    .domain($coordinateSystem === "ftc" ? [-72, 72] : [0, 144])
+    .range([height || 144, 0]);
+
+  $: minCoord = $coordinateSystem === "ftc" ? -72 : 0;
+  $: maxCoord = $coordinateSystem === "ftc" ? 72 : 144;
+
+  function convertPoint(p: Point, from: string, to: string): Point {
+    let nx, ny;
+    if (from === "pedro" && to === "ftc") {
+      nx = 72 - p.y;
+      ny = p.x - 72;
+    } else {
+      nx = p.y + 72;
+      ny = 72 - p.x;
+    }
+
+    const shift = from === "pedro" && to === "ftc" ? 90 : -90;
+
+    if (p.heading === "linear") {
+      return {
+        ...p,
+        x: nx,
+        y: ny,
+        startDeg: (p.startDeg + shift + 360) % 360,
+        endDeg: (p.endDeg + shift + 360) % 360,
+      } as Point;
+    } else if (p.heading === "constant") {
+      return {
+        ...p,
+        x: nx,
+        y: ny,
+        degrees: (p.degrees + shift + 360) % 360,
+      } as Point;
+    } else {
+      return {
+        ...p,
+        x: nx,
+        y: ny,
+      } as Point;
+    }
+  }
+
+  let lastCoordSystem = $coordinateSystem;
+  $: if ($coordinateSystem !== lastCoordSystem) {
+    const from = lastCoordSystem;
+    const to = $coordinateSystem;
+
+    // Convert main path
+    startPoint = convertPoint(startPoint, from, to);
+    lines = lines.map((line) => ({
+      ...line,
+      endPoint: convertPoint(line.endPoint, from, to),
+      controlPoints: line.controlPoints.map((cp) => {
+        if (from === "pedro" && to === "ftc") {
+          return { ...cp, x: 72 - cp.y, y: cp.x - 72 };
+        } else {
+          return { ...cp, x: cp.y + 72, y: 72 - cp.x };
+        }
+      }),
+    }));
+
+    // Convert shapes
+    shapes = shapes.map((shape) => ({
+      ...shape,
+      vertices: shape.vertices.map((v) => {
+        if (from === "pedro" && to === "ftc") {
+          return { ...v, x: 72 - v.y, y: v.x - 72 };
+        } else {
+          return { ...v, x: v.y + 72, y: 72 - v.x };
+        }
+      }),
+    }));
+
+    // Convert second path if exists
+    if (secondStartPoint) {
+      secondStartPoint = convertPoint(secondStartPoint, from, to);
+      secondLines = secondLines.map((line) => ({
+        ...line,
+        endPoint: convertPoint(line.endPoint, from, to),
+        controlPoints: line.controlPoints.map((cp) => {
+          if (from === "pedro" && to === "ftc") {
+            return { ...cp, x: 72 - cp.y, y: cp.x - 72 };
+          } else {
+            return { ...cp, x: cp.y + 72, y: 72 - cp.x };
+          }
+        }),
+      }));
+    }
+
+    recordChange();
+    lastCoordSystem = $coordinateSystem;
+  }
+
+  $: scaleLength = (d: number) => d * ((width || 144) / 144);
   $: {
     // Calculate robot state using the Timeline
     if (timePrediction && timePrediction.timeline && lines.length > 0) {
@@ -339,7 +432,7 @@
       let startPointElem = new Two.Circle(
         x(startPoint.x),
         y(startPoint.y),
-        x(POINT_RADIUS),
+        scaleLength(POINT_RADIUS),
       );
       startPointElem.id = `point-0-0`;
       startPointElem.fill = lines[0].color;
@@ -357,7 +450,7 @@
             let pointElem = new Two.Circle(
               x(point.x),
               y(point.y),
-              x(POINT_RADIUS),
+              scaleLength(POINT_RADIUS),
             );
             pointElem.id = `point-${idx + 1}-${idx1}-background`;
             pointElem.fill = line.color;
@@ -367,10 +460,10 @@
               `${idx1}`,
               x(point.x),
               y(point.y - 0.15),
-              x(POINT_RADIUS),
+              scaleLength(POINT_RADIUS),
             );
             pointText.id = `point-${idx + 1}-${idx1}-text`;
-            pointText.size = x(1.55);
+            pointText.size = scaleLength(1.55);
             pointText.leading = 1;
             pointText.family = "ui-sans-serif, system-ui, sans-serif";
             pointText.alignment = "center";
@@ -384,7 +477,7 @@
             let pointElem = new Two.Circle(
               x(point.x),
               y(point.y),
-              x(POINT_RADIUS),
+              scaleLength(POINT_RADIUS),
             );
             pointElem.id = `point-${idx + 1}-${idx1}`;
             pointElem.fill = line.color;
@@ -404,7 +497,7 @@
         let pointElem = new Two.Circle(
           x(vertex.x),
           y(vertex.y),
-          x(POINT_RADIUS),
+          scaleLength(POINT_RADIUS),
         );
         pointElem.id = `obstacle-${shapeIdx}-${vertexIdx}-background`;
         pointElem.fill = shape.fillColor; // Match obstacle fill color
@@ -414,10 +507,10 @@
           `${vertexIdx + 1}`,
           x(vertex.x),
           y(vertex.y - 0.15),
-          x(POINT_RADIUS),
+          scaleLength(POINT_RADIUS),
         );
         pointText.id = `obstacle-${shapeIdx}-${vertexIdx}-text`;
-        pointText.size = x(1.55);
+        pointText.size = scaleLength(1.55);
         pointText.leading = 1;
         pointText.family = "ui-sans-serif, system-ui, sans-serif";
         pointText.alignment = "center";
@@ -434,7 +527,7 @@
       let secondStartPointElem = new Two.Circle(
         x(secondStartPoint.x),
         y(secondStartPoint.y),
-        x(POINT_RADIUS),
+        scaleLength(POINT_RADIUS),
       );
       secondStartPointElem.id = `second-point-0-0`;
       secondStartPointElem.fill = secondLines[0]?.color || "#888";
@@ -451,7 +544,7 @@
             let pointElem = new Two.Circle(
               x(point.x),
               y(point.y),
-              x(POINT_RADIUS),
+              scaleLength(POINT_RADIUS),
             );
             pointElem.id = `second-point-${idx + 1}-${idx1}-background`;
             pointElem.fill = line.color;
@@ -461,10 +554,10 @@
               `${idx1}`,
               x(point.x),
               y(point.y - 0.15),
-              x(POINT_RADIUS),
+              scaleLength(POINT_RADIUS),
             );
             pointText.id = `second-point-${idx + 1}-${idx1}-text`;
-            pointText.size = x(1.55);
+            pointText.size = scaleLength(1.55);
             pointText.leading = 1;
             pointText.family = "ui-sans-serif, system-ui, sans-serif";
             pointText.alignment = "center";
@@ -478,7 +571,7 @@
             let pointElem = new Two.Circle(
               x(point.x),
               y(point.y),
-              x(POINT_RADIUS),
+              scaleLength(POINT_RADIUS),
             );
             pointElem.id = `second-point-${idx + 1}-${idx1}`;
             pointElem.fill = line.color;
@@ -498,7 +591,7 @@
         let startPointElem = new Two.Circle(
           x(pathData.startPoint.x),
           y(pathData.startPoint.y),
-          x(POINT_RADIUS * 0.9),
+          scaleLength(POINT_RADIUS * 0.9),
         );
         startPointElem.id = `additional-path-${pathIdx}-point-0-0`;
         startPointElem.fill = pathData.color || pathData.lines[0]?.color || "#888";
@@ -519,7 +612,7 @@
               let pointElem = new Two.Circle(
                 x(point.x),
                 y(point.y),
-                x(POINT_RADIUS * 0.9),
+                scaleLength(POINT_RADIUS * 0.9),
               );
               pointElem.id = `additional-path-${pathIdx}-point-${lineIdx + 1}-${pointIdx}-background`;
               pointElem.fill = pathData.color || line.color;
@@ -529,10 +622,10 @@
                 `${pointIdx}`,
                 x(point.x),
                 y(point.y - 0.15),
-                x(POINT_RADIUS * 0.9),
+                scaleLength(POINT_RADIUS * 0.9),
               );
               pointText.id = `additional-path-${pathIdx}-point-${lineIdx + 1}-${pointIdx}-text`;
-              pointText.size = x(1.4);
+              pointText.size = scaleLength(1.4);
               pointText.leading = 1;
               pointText.family = "ui-sans-serif, system-ui, sans-serif";
               pointText.alignment = "center";
@@ -548,7 +641,7 @@
               let pointElem = new Two.Circle(
                 x(point.x),
                 y(point.y),
-                x(POINT_RADIUS * 0.9),
+                scaleLength(POINT_RADIUS * 0.9),
               );
               pointElem.id = `additional-path-${pathIdx}-point-${lineIdx + 1}-${pointIdx}`;
               pointElem.fill = pathData.color || line.color;
@@ -655,11 +748,11 @@
 
       lineElem.id = `line-${idx + 1}`;
       lineElem.stroke = line.color;
-      lineElem.linewidth = x(LINE_WIDTH);
+      lineElem.linewidth = scaleLength(LINE_WIDTH);
       lineElem.noFill();
       // Add a dashed line for locked paths
       if (line.locked) {
-        lineElem.dashes = [x(2), x(2)];
+        lineElem.dashes = [scaleLength(2), scaleLength(2)];
         lineElem.opacity = 0.7;
       } else {
         lineElem.dashes = [];
@@ -763,10 +856,10 @@
 
       lineElem.id = `second-line-${idx + 1}`;
       lineElem.stroke = line.color;
-      lineElem.linewidth = x(LINE_WIDTH);
+      lineElem.linewidth = scaleLength(LINE_WIDTH);
       lineElem.noFill();
       if (line.locked) {
-        lineElem.dashes = [x(2), x(2)];
+        lineElem.dashes = [scaleLength(2), scaleLength(2)];
         lineElem.opacity = 0.7;
       } else {
         lineElem.dashes = [];
@@ -871,7 +964,7 @@
 
       lineElem.id = `additional-path-${pathIdx}-line-${idx + 1}`;
       lineElem.stroke = pathData.color || line.color;
-      lineElem.linewidth = x(LINE_WIDTH);
+      lineElem.linewidth = scaleLength(LINE_WIDTH);
       lineElem.noFill();
       lineElem.opacity = opacity;
 
@@ -938,7 +1031,7 @@
         shapeElement.stroke = shape.color;
         shapeElement.fill = shape.color;
         shapeElement.opacity = 0.4;
-        shapeElement.linewidth = x(0.8);
+        shapeElement.linewidth = scaleLength(0.8);
         shapeElement.automatic = false;
 
         _shapes.push(shapeElement);
@@ -1013,7 +1106,7 @@
         ghostPath.stroke = "#a78bfa"; // Light purple/lavender
         ghostPath.fill = "#a78bfa";
         ghostPath.opacity = 0.15;
-        ghostPath.linewidth = x(0.5);
+        ghostPath.linewidth = scaleLength(0.5);
         ghostPath.automatic = false;
       }
     }
@@ -1083,7 +1176,7 @@
         ghostPath.stroke = "#fca5a5"; // Light red/pink for second robot
         ghostPath.fill = "#fca5a5";
         ghostPath.opacity = 0.15;
-        ghostPath.linewidth = x(0.5);
+        ghostPath.linewidth = scaleLength(0.5);
         ghostPath.automatic = false;
       }
     }
@@ -1155,7 +1248,7 @@
           ghostPath.stroke = pathData.color || "#a78bfa";
           ghostPath.fill = pathData.color || "#a78bfa";
           ghostPath.opacity = 0.15;
-          ghostPath.linewidth = x(0.5);
+          ghostPath.linewidth = scaleLength(0.5);
           ghostPath.automatic = false;
           
           ghostPaths.push(ghostPath);
@@ -1267,7 +1360,7 @@
         onionRect.noFill();
         // Increase opacity so colliders are more visible
         onionRect.opacity = 0.9;
-        onionRect.linewidth = x(0.28);
+        onionRect.linewidth = scaleLength(0.28);
         onionRect.automatic = false;
 
         onionLayers.push(onionRect);
@@ -1373,7 +1466,7 @@
         onionRect.stroke = "#fca5a5"; // Light red/pink for second path
         onionRect.noFill();
         onionRect.opacity = 0.9;
-        onionRect.linewidth = x(0.28);
+        onionRect.linewidth = scaleLength(0.28);
         onionRect.automatic = false;
 
         onionLayers.push(onionRect);
@@ -1866,8 +1959,8 @@
           inchY = Math.round(rawInchY / currentGridSize) * currentGridSize;
 
           // Clamp to field boundaries
-          inchX = Math.max(0, Math.min(FIELD_SIZE, inchX));
-          inchY = Math.max(0, Math.min(FIELD_SIZE, inchY));
+          inchX = Math.max(minCoord, Math.min(maxCoord, inchX));
+          inchY = Math.max(minCoord, Math.min(maxCoord, inchY));
         }
 
         // Handle path point dragging
@@ -2099,8 +2192,8 @@
       }
 
       // Clamp to field boundaries
-      inchX = Math.max(0, Math.min(FIELD_SIZE, inchX));
-      inchY = Math.max(0, Math.min(FIELD_SIZE, inchY));
+      inchX = Math.max(minCoord, Math.min(maxCoord, inchX));
+      inchY = Math.max(minCoord, Math.min(maxCoord, inchY));
 
       // Create a new line with endPoint at the clicked position
       const newLine: Line = {
@@ -2755,6 +2848,7 @@
         class="absolute top-0 left-0 w-full h-full rounded-lg z-10"
         style="
     background: transparent; 
+    transform: {$coordinateSystem === 'ftc' ? 'rotate(-90deg)' : 'none'};
     pointer-events: none; 
     user-select: none; 
     -webkit-user-select: none;
@@ -2783,7 +2877,7 @@
           src={settings.robotImage || "/robot.png"}
           alt="Robot"
           style={`position: absolute; top: ${robotXY.y}px;
-left: ${robotXY.x}px; transform: translate(-50%, -50%) rotate(${robotHeading}deg); z-index: 20; width: ${x(robotWidth)}px; height: ${x(robotHeight)}px;user-select: none; -webkit-user-select: none; -moz-user-select: none;-ms-user-select: none;
+left: ${robotXY.x}px; transform: translate(-50%, -50%) rotate(${robotHeading}deg); z-index: 20; width: ${scaleLength(robotWidth)}px; height: ${scaleLength(robotHeight)}px;user-select: none; -webkit-user-select: none; -moz-user-select: none;-ms-user-select: none;
 pointer-events: none;`}
           draggable="false"
           on:error={(e) => {
@@ -2800,7 +2894,7 @@ pointer-events: none;`}
           src={settings.robotImage || "/robot.png"}
           alt="Robot 2"
           style={`position: absolute; top: ${secondRobotXY.y}px;
-left: ${secondRobotXY.x}px; transform: translate(-50%, -50%) rotate(${secondRobotHeading}deg); z-index: 19; width: ${x(robotWidth)}px; height: ${x(robotHeight)}px;user-select: none; -webkit-user-select: none; -moz-user-select: none;-ms-user-select: none;
+left: ${secondRobotXY.x}px; transform: translate(-50%, -50%) rotate(${secondRobotHeading}deg); z-index: 19; width: ${scaleLength(robotWidth)}px; height: ${scaleLength(robotHeight)}px;user-select: none; -webkit-user-select: none; -moz-user-select: none;-ms-user-select: none;
 pointer-events: none; opacity: 0.8;`}
           draggable="false"
           on:error={(e) => {
@@ -2818,7 +2912,7 @@ pointer-events: none; opacity: 0.8;`}
             src={settings.robotImage || "/robot.png"}
             alt="Robot {idx + 1}"
             style={`position: absolute; top: ${robotState.xy.y}px;
-left: ${robotState.xy.x}px; transform: translate(-50%, -50%) rotate(${robotState.heading}deg); z-index: ${20 - idx}; width: ${x(robotWidth)}px; height: ${x(robotHeight)}px;user-select: none; -webkit-user-select: none; -moz-user-select: none;-ms-user-select: none;
+left: ${robotState.xy.x}px; transform: translate(-50%, -50%) rotate(${robotState.heading}deg); z-index: ${20 - idx}; width: ${scaleLength(robotWidth)}px; height: ${scaleLength(robotHeight)}px;user-select: none; -webkit-user-select: none; -moz-user-select: none;-ms-user-select: none;
 pointer-events: none; opacity: ${1.0 - idx * 0.15};`}
             draggable="false"
             on:error={(e) => {
@@ -2848,6 +2942,8 @@ pointer-events: none; opacity: ${1.0 - idx * 0.15};`}
     bind:shapes
     {x}
     {y}
+    {minCoord}
+    {maxCoord}
     {animationDuration}
     {handleSeek}
     bind:loopAnimation

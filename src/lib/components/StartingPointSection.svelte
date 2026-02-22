@@ -1,7 +1,12 @@
 <script lang="ts">
+  import type { Point } from "../../types";
+  import { coordinateSystem } from "../../stores";
   export let startPoint: Point;
   export let addPathAtStart: () => void;
   export let addWaitAtStart: () => void;
+
+  $: minCoord = $coordinateSystem === "ftc" ? -72 : 0;
+  $: maxCoord = $coordinateSystem === "ftc" ? 72 : 144;
 </script>
 
 <div class="flex flex-col w-full justify-start items-start gap-0.5">
@@ -56,8 +61,8 @@
     <span class="font-extralight">X:</span>
     <input
       bind:value={startPoint.x}
-      min="0"
-      max="144"
+      min={minCoord}
+      max={maxCoord}
       type="number"
       class="pl-1.5 rounded-md bg-neutral-100 border-[0.5px] focus:outline-none w-28 dark:bg-neutral-950 dark:border-neutral-700"
       step="0.1"
@@ -66,8 +71,8 @@
     <span class="font-extralight">Y:</span>
     <input
       bind:value={startPoint.y}
-      min="0"
-      max="144"
+      min={minCoord}
+      max={maxCoord}
       type="number"
       class="pl-1.5 rounded-md bg-neutral-100 border-[0.5px] focus:outline-none w-28 dark:bg-neutral-950 dark:border-neutral-700"
       step="0.1"

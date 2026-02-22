@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { BasePoint } from "../../types";
   export let robotXY: BasePoint;
   export let robotHeading: number;
   export let x: d3.ScaleLinear<number, number, number>;
