@@ -704,7 +704,7 @@
 
     // Mirror start point
     if (mirrored.startPoint) {
-      mirrored.startPoint.x = 144 - mirrored.startPoint.x;
+      mirrored.startPoint.x = -mirrored.startPoint.x;
       mirrored.startPoint = mirrorPointHeading(mirrored.startPoint);
     }
 
@@ -713,14 +713,14 @@
       mirrored.lines.forEach((line: Line) => {
         // Mirror end point
         if (line.endPoint) {
-          line.endPoint.x = 144 - line.endPoint.x;
+          line.endPoint.x = -line.endPoint.x;
           line.endPoint = mirrorPointHeading(line.endPoint);
         }
 
         // Mirror control points
         if (line.controlPoints && Array.isArray(line.controlPoints)) {
           line.controlPoints.forEach((controlPoint: any) => {
-            controlPoint.x = 144 - controlPoint.x;
+            controlPoint.x = -controlPoint.x;
           });
         }
       });
