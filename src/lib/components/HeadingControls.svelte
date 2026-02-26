@@ -7,6 +7,18 @@
 
 <select
   bind:value={endPoint.heading}
+  on:change={() => {
+    // Initialize missing properties based on the selected heading type
+    if (endPoint.heading === "constant" && endPoint.degrees === undefined) {
+      endPoint.degrees = 0;
+    } else if (endPoint.heading === "linear") {
+      if (endPoint.startDeg === undefined) endPoint.startDeg = 0;
+      if (endPoint.endDeg === undefined) endPoint.endDeg = 0;
+    } else if (endPoint.heading === "tangential") {
+      if (endPoint.reverse === undefined) endPoint.reverse = false;
+    }
+    dispatch("change");
+  }}
   class=" rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28 text-sm"
   title="The heading style of the robot. 
 With constant heading, the robot maintains the same heading throughout the line. 
