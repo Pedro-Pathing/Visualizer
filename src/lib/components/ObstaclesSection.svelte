@@ -1,7 +1,10 @@
 <script lang="ts">
   import type { Shape } from "../../types";
   import { createTriangle } from "../../utils";
-  import { snapToGrid, showGrid, gridSize } from "../../stores";
+  import { snapToGrid, showGrid, gridSize, coordinateSystem } from "../../stores";
+
+  $: minCoord = $coordinateSystem === "ftc" ? -72 : 0;
+  $: maxCoord = $coordinateSystem === "ftc" ? 72 : 144;
 
   const colorChoices = [
     { label: "Red", color: "#dc2626", fill: "#ff6b6b" },
@@ -168,8 +171,8 @@
             <input
               bind:value={vertex.x}
               type="number"
-              min="0"
-              max="144"
+              min={minCoord}
+              max={maxCoord}
               step={$snapToGrid && $showGrid ? $gridSize : 0.1}
               title={snapToGridTitle}
               class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-24 text-sm"
@@ -178,8 +181,8 @@
             <input
               bind:value={vertex.y}
               type="number"
-              min="0"
-              max="144"
+              min={minCoord}
+              max={maxCoord}
               step={$snapToGrid && $showGrid ? $gridSize : 0.1}
               class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-24 text-sm"
               title={snapToGridTitle}

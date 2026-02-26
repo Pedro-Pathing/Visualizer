@@ -1,6 +1,9 @@
 <script lang="ts">
   import type { Line } from "../../types";
-  import { snapToGrid, showGrid, gridSize } from "../../stores";
+  import { snapToGrid, showGrid, gridSize, coordinateSystem } from "../../stores";
+
+  $: minCoord = $coordinateSystem === "ftc" ? -72 : 0;
+  $: maxCoord = $coordinateSystem === "ftc" ? 72 : 144;
   import ControlPointsSection from "./ControlPointsSection.svelte";
   import HeadingControls from "./HeadingControls.svelte";
 
@@ -292,8 +295,8 @@
           class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
           step={$snapToGrid && $showGrid ? $gridSize : 0.1}
           type="number"
-          min="0"
-          max="144"
+          min={minCoord}
+          max={maxCoord}
           bind:value={line.endPoint.x}
           disabled={line.locked}
           title={snapToGridTitle}
@@ -302,8 +305,8 @@
         <input
           class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
           step={$snapToGrid && $showGrid ? $gridSize : 0.1}
-          min="0"
-          max="144"
+          min={minCoord}
+          max={maxCoord}
           type="number"
           bind:value={line.endPoint.y}
           disabled={line.locked}

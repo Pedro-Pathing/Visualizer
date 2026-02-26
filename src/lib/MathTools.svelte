@@ -5,6 +5,7 @@
     showGrid,
     protractorLockToRobot,
     gridSize,
+    coordinateSystem,
   } from "../stores";
   import type * as d3 from "d3";
 
@@ -12,6 +13,7 @@
   export let y: d3.ScaleLinear<number, number, number>;
   export let twoElement: HTMLDivElement;
   export let robotXY: { x: number; y: number };
+  export let robotHeading: number;
 
   let rulerStart = { x: 20, y: 72 };
   let rulerEnd = { x: 80, y: 72 };
@@ -37,6 +39,9 @@
     x: Math.cos(resizeHandleRadians) * protractorRadius,
     y: -Math.sin(resizeHandleRadians) * protractorRadius,
   };
+
+  $: minCoord = $coordinateSystem === "ftc" ? -72 : 0;
+  $: maxCoord = $coordinateSystem === "ftc" ? 72 : 144;
 
   function handleMouseDown(event: MouseEvent, type: string) {
     event.stopPropagation();
@@ -73,8 +78,8 @@
     let inchY = y.invert(mouseY);
 
     // Clamp to field boundaries
-    inchX = Math.max(0, Math.min(FIELD_SIZE, inchX));
-    inchY = Math.max(0, Math.min(FIELD_SIZE, inchY));
+    inchX = Math.max(minCoord, Math.min(maxCoord, inchX));
+    inchY = Math.max(minCoord, Math.min(maxCoord, inchY));
 
     if (rulerDragging === "start") {
       rulerStart = { x: inchX, y: inchY };
@@ -129,11 +134,11 @@
   $: spacing = Math.max(1, $gridSize || 12);
   $: gridPositions = (() => {
     const positions: number[] = [];
-    for (let pos = 0; pos <= FIELD_SIZE; pos += spacing) {
+    for (let pos = minCoord; pos <= maxCoord; pos += spacing) {
       positions.push(Number(pos.toFixed(6)));
     }
-    if (positions[positions.length - 1] !== FIELD_SIZE) {
-      positions.push(FIELD_SIZE);
+    if (positions[positions.length - 1] !== maxCoord) {
+      positions.push(maxCoord);
     }
     return positions;
   })();
@@ -164,17 +169,17 @@
     {#each gridPositions as position, i}
       <line
         x1={x(position)}
-        y1={y(0)}
+        y1={y(minCoord)}
         x2={x(position)}
-        y2={y(FIELD_SIZE)}
+        y2={y(maxCoord)}
         stroke={i % 2 === 0 ? "#6b7280" : "#9ca3af"}
         stroke-width={i % 2 === 0 ? "1.5" : "0.5"}
         opacity="0.3"
       />
-      {#if i % labelInterval === 0 || position === 0 || position === FIELD_SIZE}
+      {#if i % labelInterval === 0 || position === minCoord || position === maxCoord}
         <text
           x={x(position)}
-          y={y(0) + 15}
+          y={y(minCoord) - 5}
           class="fill-gray-600 dark:fill-gray-400 {labelFontSize}"
           text-anchor="middle"
         >
@@ -186,20 +191,20 @@
     <!-- Horizontal grid lines -->
     {#each gridPositions as position, i}
       <line
-        x1={x(0)}
+        x1={x(minCoord)}
         y1={y(position)}
-        x2={x(FIELD_SIZE)}
+        x2={x(maxCoord)}
         y2={y(position)}
         stroke={i % 2 === 0 ? "#6b7280" : "#9ca3af"}
         stroke-width={i % 2 === 0 ? "1.5" : "0.5"}
         opacity="0.3"
       />
-      {#if i % labelInterval === 0 || position === 0 || position === FIELD_SIZE}
+      {#if i % labelInterval === 0 || position === minCoord || position === maxCoord}
         <text
-          x={x(0) - 5}
+          x={x(minCoord) + 5}
           y={y(position) + 4}
           class="fill-gray-600 dark:fill-gray-400 {labelFontSize}"
-          text-anchor="end"
+          text-anchor="start"
         >
           {position}"
         </text>

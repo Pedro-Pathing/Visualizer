@@ -30,7 +30,10 @@
   export let robotHeading: number;
   export let x: d3.ScaleLinear<number, number, number>;
   export let y: d3.ScaleLinear<number, number, number>;
+  export let minCoord: number;
+  export let maxCoord: number;
   export let settings: Settings;
+  export let animationDuration: number;
   export let handleSeek: (percent: number) => void;
   export let loopAnimation: boolean;
   export let optimizeLine: (lineId: string, targetControlPointIndex?: number) => void;
@@ -151,15 +154,15 @@
       // fallback: random nearby point from current end
       if (currentLine && currentLine.endPoint) {
         newPoint = {
-          x: (currentLine.endPoint.x ?? 72) + _.random(-12, 12),
-          y: (currentLine.endPoint.y ?? 72) + _.random(-12, 12),
+          x: (currentLine.endPoint.x ?? (minCoord + maxCoord) / 2) + _.random(-12, 12),
+          y: (currentLine.endPoint.y ?? (minCoord + maxCoord) / 2) + _.random(-12, 12),
           heading: "tangential",
           reverse: false,
         };
       } else {
         newPoint = {
-          x: _.random(0, 144),
-          y: _.random(0, 144),
+          x: _.random(minCoord, maxCoord),
+          y: _.random(minCoord, maxCoord),
           heading: "tangential",
           reverse: false,
         };
@@ -278,8 +281,8 @@
       id: makeId(),
       name: `Path ${lines.length + 1}`,
       endPoint: {
-        x: _.random(0, 144),
-        y: _.random(0, 144),
+        x: _.random(minCoord, maxCoord),
+        y: _.random(minCoord, maxCoord),
         heading: "tangential",
         reverse: false,
       },
@@ -306,9 +309,9 @@
     const line = lines[lineIndex];
     line.controlPoints = line.controlPoints || [];
     const prevPt = lineIndex === 0 ? startPoint : lines[lineIndex - 1].endPoint;
-    const endPt = line.endPoint || { x: 72, y: 72 };
-    const mx = ((prevPt?.x ?? 72) + (endPt?.x ?? 72)) / 2;
-    const my = ((prevPt?.y ?? 72) + (endPt?.y ?? 72)) / 2;
+    const endPt = line.endPoint || { x: (minCoord + maxCoord) / 2, y: (minCoord + maxCoord) / 2 };
+    const mx = ((prevPt?.x ?? (minCoord + maxCoord) / 2) + (endPt?.x ?? (minCoord + maxCoord) / 2)) / 2;
+    const my = ((prevPt?.y ?? (minCoord + maxCoord) / 2) + (endPt?.y ?? (minCoord + maxCoord) / 2)) / 2;
     line.controlPoints.push({
       x: mx + _.random(-4, 4),
       y: my + _.random(-4, 4),
@@ -337,9 +340,9 @@
     line.controlPoints = line.controlPoints || [];
     // Insert a control point near the line midpoint for convenience
     const prevPt = targetIdx === 0 ? startPoint : lines[targetIdx - 1].endPoint;
-    const endPt = line.endPoint || { x: 72, y: 72 };
-    const mx = ((prevPt?.x ?? 72) + (endPt?.x ?? 72)) / 2;
-    const my = ((prevPt?.y ?? 72) + (endPt?.y ?? 72)) / 2;
+    const endPt = line.endPoint || { x: (minCoord + maxCoord) / 2, y: (minCoord + maxCoord) / 2 };
+    const mx = ((prevPt?.x ?? (minCoord + maxCoord) / 2) + (endPt?.x ?? (minCoord + maxCoord) / 2)) / 2;
+    const my = ((prevPt?.y ?? (minCoord + maxCoord) / 2) + (endPt?.y ?? (minCoord + maxCoord) / 2)) / 2;
     line.controlPoints.push({
       x: mx + _.random(-4, 4),
       y: my + _.random(-4, 4),
@@ -378,8 +381,8 @@
       id: makeId(),
       name: `Path ${lines.length + 1}`,
       endPoint: {
-        x: _.random(0, 144),
-        y: _.random(0, 144),
+        x: _.random(minCoord, maxCoord),
+        y: _.random(minCoord, maxCoord),
         heading: "tangential",
         reverse: false,
       },
@@ -418,8 +421,8 @@
       id: makeId(),
       name: `Path ${lines.length + 1}`,
       endPoint: {
-        x: _.random(36, 108),
-        y: _.random(36, 108),
+        x: _.random(minCoord + 36, maxCoord - 36),
+        y: _.random(minCoord + 36, maxCoord - 36),
         heading: "tangential",
         reverse: false,
       },
