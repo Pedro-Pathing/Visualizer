@@ -658,12 +658,13 @@
       lineElem.linewidth = x(LINE_WIDTH);
       lineElem.noFill();
       // Add a dashed line for locked paths
+      const baseOpacity = settings.pathOpacity || 1.0;
       if (line.locked) {
         lineElem.dashes = [x(2), x(2)];
-        lineElem.opacity = 0.7;
+        lineElem.opacity = baseOpacity * 0.7;
       } else {
         lineElem.dashes = [];
-        lineElem.opacity = 1;
+        lineElem.opacity = baseOpacity;
       }
 
       _path.push(lineElem);
@@ -765,12 +766,13 @@
       lineElem.stroke = line.color;
       lineElem.linewidth = x(LINE_WIDTH);
       lineElem.noFill();
+      const baseOpacity = settings.pathOpacity || 1.0;
       if (line.locked) {
         lineElem.dashes = [x(2), x(2)];
-        lineElem.opacity = 0.7;
+        lineElem.opacity = baseOpacity * 0.7;
       } else {
         lineElem.dashes = [];
-        lineElem.opacity = 1;
+        lineElem.opacity = baseOpacity;
       }
 
       _path.push(lineElem);
@@ -787,7 +789,8 @@
 
     let _path: (Path | PathLine)[] = [];
     // All paths should be clearly visible - only slight opacity variation
-    const opacity = 1.0 - (pathIdx * 0.1);
+    const pathOpacityBase = settings.pathOpacity || 1.0;
+    const opacity = (1.0 - (pathIdx * 0.1)) * pathOpacityBase;
 
     pathData.lines.forEach((line, idx) => {
       if (!line || !line.endPoint) return;
@@ -2680,6 +2683,13 @@
   });
 </script>
 
+<svelte:window
+  on:mousemove={(e) => {
+    // (debug window dragging removed)
+  }}
+  on:mouseup={() => {}}
+/>
+
 <Navbar
   bind:lines
   bind:startPoint
@@ -2793,6 +2803,39 @@ pointer-events: none;`}
           on:dragstart={(e) => e.preventDefault()}
           on:selectstart={(e) => e.preventDefault()}
         />
+        <!-- Heading arrow for main robot -->
+        {#if settings.showHeadingArrow}
+          <svg
+            style={`position: absolute; top: ${robotXY.y}px; left: ${robotXY.x}px; z-index: 21; pointer-events: none; overflow: visible;`}
+            width="1"
+            height="1"
+          >
+            <defs>
+              <marker
+                id="arrowhead-main"
+                markerWidth="10"
+                markerHeight="10"
+                refX="9"
+                refY="3"
+                orient="auto"
+              >
+                <polygon
+                  points="0 0, 10 3, 0 6"
+                  fill={settings.headingArrowColor || "#ffffff"}
+                />
+              </marker>
+            </defs>
+            <line
+              x1="0"
+              y1="0"
+              x2="{(settings.headingArrowLength || 65) * Math.cos(-robotHeading * Math.PI / 180)}"
+              y2="{(settings.headingArrowLength || 65) * -Math.sin(-robotHeading * Math.PI / 180)}"
+              stroke={settings.headingArrowColor || "#ffffff"}
+              stroke-width={settings.headingArrowThickness || 3}
+              marker-end="url(#arrowhead-main)"
+            />
+          </svg>
+        {/if}
       {/if}
       <!-- Second robot: only show in dual path mode (not multi-path mode) -->
       {#if $activePaths.length === 0 && $dualPathMode}
@@ -2810,6 +2853,39 @@ pointer-events: none; opacity: 0.8;`}
           on:dragstart={(e) => e.preventDefault()}
           on:selectstart={(e) => e.preventDefault()}
         />
+        <!-- Heading arrow for second robot -->
+        {#if settings.showHeadingArrow}
+          <svg
+            style={`position: absolute; top: ${secondRobotXY.y}px; left: ${secondRobotXY.x}px; z-index: 19; pointer-events: none; overflow: visible; opacity: 0.8;`}
+            width="1"
+            height="1"
+          >
+            <defs>
+              <marker
+                id="arrowhead-second"
+                markerWidth="10"
+                markerHeight="10"
+                refX="9"
+                refY="3"
+                orient="auto"
+              >
+                <polygon
+                  points="0 0, 10 3, 0 6"
+                  fill={settings.headingArrowColor || "#ffffff"}
+                />
+              </marker>
+            </defs>
+            <line
+              x1="0"
+              y1="0"
+              x2="{(settings.headingArrowLength || 65) * Math.cos(-secondRobotHeading * Math.PI / 180)}"
+              y2="{(settings.headingArrowLength || 65) * -Math.sin(-secondRobotHeading * Math.PI / 180)}"
+              stroke={settings.headingArrowColor || "#ffffff"}
+              stroke-width={settings.headingArrowThickness || 3}
+              marker-end="url(#arrowhead-second)"
+            />
+          </svg>
+        {/if}
       {/if}
       <!-- Additional robots: only show in multi-path mode -->
       {#if $activePaths.length > 0}
@@ -2828,6 +2904,39 @@ pointer-events: none; opacity: ${1.0 - idx * 0.15};`}
             on:dragstart={(e) => e.preventDefault()}
             on:selectstart={(e) => e.preventDefault()}
           />
+          <!-- Heading arrow for additional robots -->
+          {#if settings.showHeadingArrow}
+            <svg
+              style={`position: absolute; top: ${robotState.xy.y}px; left: ${robotState.xy.x}px; z-index: ${20 - idx}; pointer-events: none; overflow: visible; opacity: ${1.0 - idx * 0.15};`}
+              width="1"
+              height="1"
+            >
+              <defs>
+                <marker
+                  id="arrowhead-{idx}"
+                  markerWidth="10"
+                  markerHeight="10"
+                  refX="9"
+                  refY="3"
+                  orient="auto"
+                >
+                  <polygon
+                    points="0 0, 10 3, 0 6"
+                    fill={settings.headingArrowColor || "#ffffff"}
+                  />
+                </marker>
+              </defs>
+              <line
+                x1="0"
+                y1="0"
+                x2="{(settings.headingArrowLength || 65) * Math.cos(-robotState.heading * Math.PI / 180)}"
+                y2="{(settings.headingArrowLength || 65) * -Math.sin(-robotState.heading * Math.PI / 180)}"
+                stroke={settings.headingArrowColor || "#ffffff"}
+                stroke-width={settings.headingArrowThickness || 3}
+                marker-end="url(#arrowhead-{idx})"
+              />
+            </svg>
+          {/if}
         {/each}
       {/if}
     </div>

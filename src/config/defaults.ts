@@ -45,6 +45,11 @@ export const DEFAULT_SETTINGS: Settings = {
   onionLayerSpacing: 3, // inches between each robot body trace
   onionColor: "#dc2626",
   onionNextPointOnly: false,
+  showHeadingArrow: false,
+  headingArrowLength: 65,
+  headingArrowColor: "#ffffff",
+  headingArrowThickness: 2,
+  pathOpacity: 1,
 };
 
 /**

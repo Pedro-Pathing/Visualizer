@@ -442,6 +442,25 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Heading Arrow Toggle -->
+              <div>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    bind:checked={settings.showHeadingArrow}
+                    class="w-4 h-4 rounded border-neutral-300 dark:border-neutral-600 text-blue-500 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span
+                    class="text-sm font-medium text-neutral-700 dark:text-neutral-300"
+                  >
+                    Show Heading Arrow
+                  </span>
+                </label>
+                <div class="text-xs text-neutral-500 dark:text-neutral-400 ml-6 mt-1">
+                  Display an arrow showing the robot's current heading direction
+                </div>
+              </div>
             </div>
           {/if}
         </div>
@@ -895,6 +914,108 @@
                   </div>
                 </div>
               {/if}
+
+              <!-- Heading Arrow Settings -->
+              {#if settings.showHeadingArrow}
+                <div
+                  class="p-3 bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700"
+                >
+                  <div
+                    class="text-sm font-medium text-neutral-700 dark:text-neutral-300 block mb-3"
+                  >
+                    Heading Arrow Settings
+                  </div>
+                  
+                  <!-- Arrow Length -->
+                  <div class="mb-3">
+                    <label class="block text-sm text-neutral-700 dark:text-neutral-300 mb-1">
+                      Arrow Length
+                    </label>
+                    <div class="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="10"
+                        max="100"
+                        step="5"
+                        bind:value={settings.headingArrowLength}
+                        class="flex-1 h-2 bg-neutral-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                      />
+                      <span
+                        class="text-sm font-medium text-neutral-700 dark:text-neutral-300 min-w-[3rem] text-right"
+                      >
+                        {settings.headingArrowLength || 30}px
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Arrow Color -->
+                  <div class="mb-3">
+                    <label class="block text-sm text-neutral-700 dark:text-neutral-300 mb-1">
+                      Arrow Color
+                    </label>
+                    <div class="flex items-center gap-3">
+                      <input
+                        type="color"
+                        bind:value={settings.headingArrowColor}
+                        class="w-10 h-10 p-0 border rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        bind:value={settings.headingArrowColor}
+                        class="px-2 py-1 rounded border bg-white dark:bg-neutral-800 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Arrow Thickness -->
+                  <div>
+                    <label class="block text-sm text-neutral-700 dark:text-neutral-300 mb-1">
+                      Arrow Thickness
+                    </label>
+                    <div class="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        step="0.5"
+                        bind:value={settings.headingArrowThickness}
+                        class="flex-1 h-2 bg-neutral-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                      />
+                      <span
+                        class="text-sm font-medium text-neutral-700 dark:text-neutral-300 min-w-[3rem] text-right"
+                      >
+                        {settings.headingArrowThickness || 3}px
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              {/if}
+
+              <!-- Debug Arrows Toggle -->
+              <!-- Path Opacity Control -->
+              <div
+                class="p-3 bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700"
+              >
+                <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                  Path Opacity
+                </label>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="1"
+                    step="0.05"
+                    bind:value={settings.pathOpacity}
+                    class="flex-1 h-2 bg-neutral-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                  />
+                  <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300 min-w-[3rem] text-right">
+                    {Math.round((settings.pathOpacity || 1) * 100)}%
+                  </span>
+                </div>
+                <div class="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                  Controls visibility of path lines
+                </div>
+              </div>
 
               <!-- (moved Next-Point Only toggle next to the main onion toggle) -->
 

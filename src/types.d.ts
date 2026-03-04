@@ -109,6 +109,16 @@ interface Settings {
   fieldMap: string;
   robotImage?: string;
   theme: "light" | "dark" | "auto";
+  showGhostPaths?: boolean; // Show collision overlays via ghost paths
+  showOnionLayers?: boolean; // Show robot body at intervals along the path
+  onionLayerSpacing?: number; // Distance in inches between onion layers
+  onionColor?: string; // Color for onion-layer colliders
+  onionNextPointOnly?: boolean; // When true, onion layers show only for the next point (UI-only for now)
+  showHeadingArrow?: boolean; // Show arrow indicating robot heading direction
+  headingArrowLength?: number; // Length of the heading arrow in pixels
+  headingArrowColor?: string; // Color of the heading arrow
+  headingArrowThickness?: number; // Thickness/stroke width of the heading arrow
+  pathOpacity?: number; // Opacity of path lines (0-1)
 }
 
 function getDefaultSettings(): Settings {
