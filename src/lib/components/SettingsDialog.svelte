@@ -361,6 +361,8 @@
                           try {
                             const base64 = await imageToBase64(file);
                             settings.robotImage = base64;
+                            // Automatically enable heading arrow when custom robot image is uploaded
+                            settings.showHeadingArrow = true;
                             settings = { ...settings }; // Force reactivity
 
                             // Show success message

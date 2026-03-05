@@ -46,7 +46,7 @@ export const DEFAULT_SETTINGS: Settings = {
   onionColor: "#dc2626",
   onionNextPointOnly: false,
   showHeadingArrow: false,
-  headingArrowLength: 65,
+  headingArrowLength: 50,
   headingArrowColor: "#ffffff",
   headingArrowThickness: 2,
   pathOpacity: 1,

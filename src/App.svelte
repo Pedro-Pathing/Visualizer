@@ -2815,12 +2815,12 @@ pointer-events: none;`}
                 id="arrowhead-main"
                 markerWidth="10"
                 markerHeight="10"
-                refX="9"
+                refX="6.5"
                 refY="3"
                 orient="auto"
               >
                 <polygon
-                  points="0 0, 10 3, 0 6"
+                  points="0 0, 7 3, 0 6"
                   fill={settings.headingArrowColor || "#ffffff"}
                 />
               </marker>
@@ -2828,8 +2828,8 @@ pointer-events: none;`}
             <line
               x1="0"
               y1="0"
-              x2="{(settings.headingArrowLength || 65) * Math.cos(-robotHeading * Math.PI / 180)}"
-              y2="{(settings.headingArrowLength || 65) * -Math.sin(-robotHeading * Math.PI / 180)}"
+              x2="{(settings.headingArrowLength || 50) * Math.cos(-robotHeading * Math.PI / 180)}"
+              y2="{(settings.headingArrowLength || 50) * -Math.sin(-robotHeading * Math.PI / 180)}"
               stroke={settings.headingArrowColor || "#ffffff"}
               stroke-width={settings.headingArrowThickness || 3}
               marker-end="url(#arrowhead-main)"
@@ -2865,12 +2865,12 @@ pointer-events: none; opacity: 0.8;`}
                 id="arrowhead-second"
                 markerWidth="10"
                 markerHeight="10"
-                refX="9"
+                refX="6.5"
                 refY="3"
                 orient="auto"
               >
                 <polygon
-                  points="0 0, 10 3, 0 6"
+                  points="0 0, 7 3, 0 6"
                   fill={settings.headingArrowColor || "#ffffff"}
                 />
               </marker>
@@ -2878,8 +2878,8 @@ pointer-events: none; opacity: 0.8;`}
             <line
               x1="0"
               y1="0"
-              x2="{(settings.headingArrowLength || 65) * Math.cos(-secondRobotHeading * Math.PI / 180)}"
-              y2="{(settings.headingArrowLength || 65) * -Math.sin(-secondRobotHeading * Math.PI / 180)}"
+              x2="{(settings.headingArrowLength || 50) * Math.cos(-secondRobotHeading * Math.PI / 180)}"
+              y2="{(settings.headingArrowLength || 50) * -Math.sin(-secondRobotHeading * Math.PI / 180)}"
               stroke={settings.headingArrowColor || "#ffffff"}
               stroke-width={settings.headingArrowThickness || 3}
               marker-end="url(#arrowhead-second)"
@@ -2916,12 +2916,12 @@ pointer-events: none; opacity: ${1.0 - idx * 0.15};`}
                   id="arrowhead-{idx}"
                   markerWidth="10"
                   markerHeight="10"
-                  refX="9"
+                  refX="6.5"
                   refY="3"
                   orient="auto"
                 >
                   <polygon
-                    points="0 0, 10 3, 0 6"
+                    points="0 0, 7 3, 0 6"
                     fill={settings.headingArrowColor || "#ffffff"}
                   />
                 </marker>
@@ -2929,8 +2929,8 @@ pointer-events: none; opacity: ${1.0 - idx * 0.15};`}
               <line
                 x1="0"
                 y1="0"
-                x2="{(settings.headingArrowLength || 65) * Math.cos(-robotState.heading * Math.PI / 180)}"
-                y2="{(settings.headingArrowLength || 65) * -Math.sin(-robotState.heading * Math.PI / 180)}"
+                x2="{(settings.headingArrowLength || 50) * Math.cos(-robotState.heading * Math.PI / 180)}"
+                y2="{(settings.headingArrowLength || 50) * -Math.sin(-robotState.heading * Math.PI / 180)}"
                 stroke={settings.headingArrowColor || "#ffffff"}
                 stroke-width={settings.headingArrowThickness || 3}
                 marker-end="url(#arrowhead-{idx})"
