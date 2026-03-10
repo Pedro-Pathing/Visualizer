@@ -54,6 +54,7 @@
   export let playing: boolean = false;
   export let play: () => void;
   export let pause: () => void;
+  export let exportPathAsGif: () => Promise<void>;
 
   let fileManagerOpen = false;
   let settingsOpen = false;
@@ -862,9 +863,18 @@
             {/if}
             <button
               on:click={exportFieldAsImage}
-              class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 transition-colors duration-250"
+              class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors duration-250"
             >
               Field as Image
+            </button>
+            <button
+              on:click={async () => {
+                exportMenuOpen = false;
+                await exportPathAsGif();
+              }}
+              class="block w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors duration-250"
+            >
+              Path Animation as GIF
             </button>
           </div>
         {/if}

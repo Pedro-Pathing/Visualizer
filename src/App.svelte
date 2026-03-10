@@ -26,10 +26,12 @@
   import MathTools from "./lib/MathTools.svelte";
   import SaveDialog from "./lib/components/SaveDialog.svelte";
   import DualPathSaveDialog from "./lib/components/DualPathSaveDialog.svelte";
+  import ProgressDialog from "./lib/components/ProgressDialog.svelte";
   import _ from "lodash";
   import hotkeys from "hotkeys-js";
   import { createAnimationController } from "./utils/animation";
   import { calculatePathTime, getAnimationDuration } from "./utils";
+  import { exportAsGif, downloadBlob } from "./utils/gifExporter";
 
   import {
     calculateRobotState,
@@ -107,10 +109,40 @@
   let showSaveDialog = false;
   let showDualPathSaveDialog = false;
   let isSaving = false;
+  // GIF export state
+  let exportingGif = false;
+  let gifExportProgress = 0;
+  let gifExportStatus = "Preparing...";
+  let cancelGifExport = false;
   // Path data
   let settings: Settings = { ...DEFAULT_SETTINGS };
   let startPoint: Point = getDefaultStartPoint();
   let lines: Line[] = normalizeLines(getDefaultLines());
+
+  function normalizeLegacyFieldMap(input: Settings): Settings {
+    const next = { ...input };
+
+    if (typeof next.fieldMap === "string" && next.fieldMap.startsWith("custom||")) {
+      const [, embeddedImage = ""] = next.fieldMap.split("||");
+      next.fieldMap = "custom";
+      if (embeddedImage && !next.customFieldImage) {
+        next.customFieldImage = embeddedImage;
+      }
+    }
+
+    if (!next.fieldMap) {
+      next.fieldMap = DEFAULT_SETTINGS.fieldMap;
+    }
+
+    return next;
+  }
+
+  $: fieldMapSrc =
+    settings.fieldMap === "custom"
+      ? settings.customFieldImage || "/fields/decode.webp"
+      : settings.fieldMap
+        ? `/fields/${settings.fieldMap}`
+        : "/fields/decode.webp";
   let sequence: SequenceItem[] = lines.map((ln) => ({
     kind: "path",
     lineId: ln.id!,
@@ -1404,7 +1436,7 @@
   onMount(async () => {
     // Load saved settings
     const savedSettings = await loadSettings();
-    settings = { ...savedSettings };
+    settings = normalizeLegacyFieldMap({ ...savedSettings });
 
     // Update robot dimensions from loaded settings
     robotWidth = settings.rWidth;
@@ -1494,6 +1526,218 @@
       showSaveDialog = true;
     }
   });
+
+  // Export path animation as GIF
+  async function exportPathAsGif() {
+    if (!twoElement || !two) {
+      alert("Canvas not ready. Please try again.");
+      return;
+    }
+    
+    // Two.js can render as canvas or SVG; exporter supports both.
+    const rendererElement = two.renderer.domElement;
+    if (!rendererElement) {
+      alert("Unable to access renderer for export.");
+      return;
+    }
+    
+    // Check if we have paths to export
+    const hasActivePaths = $activePaths.length > 0;
+    const hasDualPath = $dualPathMode && secondStartPoint && secondLines.length > 0;
+    const hasSinglePath = lines.length > 0;
+    
+    if (!hasActivePaths && !hasDualPath && !hasSinglePath) {
+      alert("No paths to export. Please create a path first.");
+      return;
+    }
+
+    try {
+      exportingGif = true;
+      cancelGifExport = false;
+      gifExportProgress = 0;
+      gifExportStatus = "Calculating animation duration...";
+
+      const scale = 0.65;
+      const viewWidth = twoElement.clientWidth;
+      const viewHeight = twoElement.clientHeight;
+      const robotPixelWidth = x(robotWidth);
+      const robotPixelHeight = x(robotHeight);
+
+      const imageCache = new Map<string, HTMLImageElement>();
+      const loadImage = (src: string) =>
+        new Promise<HTMLImageElement>((resolve, reject) => {
+          if (imageCache.has(src)) {
+            resolve(imageCache.get(src)!);
+            return;
+          }
+          const image = new Image();
+          image.onload = () => {
+            imageCache.set(src, image);
+            resolve(image);
+          };
+          image.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+          image.src = src;
+        });
+
+      const fieldImage = await loadImage(fieldMapSrc).catch(async () => {
+        return loadImage("/fields/decode.webp");
+      });
+      const robotImage = await loadImage(settings.robotImage || "/robot.png").catch(async () => {
+        return loadImage("/robot.png");
+      });
+
+      const drawRobot = (
+        ctx: CanvasRenderingContext2D,
+        xy: BasePoint,
+        headingDeg: number,
+        opacity = 1,
+      ) => {
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        ctx.translate(xy.x * scale, xy.y * scale);
+        ctx.rotate((headingDeg * Math.PI) / 180);
+        ctx.drawImage(
+          robotImage,
+          (-robotPixelWidth * scale) / 2,
+          (-robotPixelHeight * scale) / 2,
+          robotPixelWidth * scale,
+          robotPixelHeight * scale,
+        );
+        ctx.restore();
+      };
+
+      // Calculate total animation duration
+      let totalDuration = 0;
+      
+      if (hasActivePaths) {
+        // Multiple paths mode - use the longest path duration
+        for (const pathData of additionalPaths) {
+          const pathTime = calculatePathTime(
+            pathData.startPoint,
+            pathData.lines,
+            pathData.settings,
+            pathData.sequence
+          );
+          totalDuration = Math.max(totalDuration, pathTime?.totalTime || 0);
+        }
+      } else if (hasDualPath) {
+        // Dual path mode - use the longer path
+        const path1Time = calculatePathTime(startPoint, lines, settings, sequence);
+        const path2Time = secondStartPoint 
+          ? calculatePathTime(secondStartPoint, secondLines, settings, secondSequence)
+          : { totalTime: 0 };
+        totalDuration = Math.max(path1Time?.totalTime || 0, path2Time?.totalTime || 0);
+      } else {
+        // Single path mode
+        const pathTime = calculatePathTime(startPoint, lines, settings, sequence);
+        totalDuration = pathTime?.totalTime || 0;
+      }
+
+      if (totalDuration <= 0) {
+        alert("Path duration is too short to export.");
+        exportingGif = false;
+        return;
+      }
+
+      gifExportStatus = "Preparing animation...";
+      
+      // Stop any playing animation and reset to start
+      const wasPlaying = playing;
+      pause();
+      percent = 0;
+      animationController.reset();
+        two.update(); // Make sure Two.js renders the initial state
+      await tick(); // Allow UI to update
+
+      gifExportStatus = "Capturing frames...";
+      
+      // Export as GIF with manual frame control
+      const durationMs = totalDuration * 1000;
+      const blob = await exportAsGif({
+        source: rendererElement as HTMLCanvasElement | SVGSVGElement,
+        duration: durationMs,
+        fps: 20, // Higher FPS for smoother animation
+        quality: 15, // Slightly lower quality for smaller file size
+        scale, // Lower resolution for smaller file size
+        shouldCancel: () => cancelGifExport,
+        onDrawBackground: (ctx, outputWidth, outputHeight) => {
+          ctx.drawImage(fieldImage, 0, 0, outputWidth, outputHeight);
+        },
+        onDrawForeground: (ctx) => {
+          if ($activePaths.length === 0) {
+            drawRobot(ctx, robotXY, robotHeading, 1);
+            if ($dualPathMode && secondStartPoint && secondLines.length > 0) {
+              drawRobot(ctx, secondRobotXY, secondRobotHeading, 0.8);
+            }
+            return;
+          }
+
+          additionalRobotStates.forEach((robotState, idx) => {
+            const opacity = Math.max(0.2, 1 - idx * 0.15);
+            drawRobot(ctx, robotState.xy, robotState.heading, opacity);
+          });
+        },
+        onProgress: (progress) => {
+          gifExportProgress = progress;
+          if (progress < 0.5) {
+            gifExportStatus = `Capturing frames... ${Math.round(progress * 200)}%`;
+          } else {
+            gifExportStatus = `Encoding GIF... ${Math.round((progress - 0.5) * 200)}%`;
+          }
+        },
+        onFrameAdvance: async (frameIndex, totalFrames) => {
+          // Calculate the percentage for this frame
+          const framePercent = (frameIndex / (totalFrames - 1)) * 100;
+          
+          // Update the animation to this frame
+          percent = framePercent;
+          animationController.seekToPercent(framePercent);
+          two.update(); // Force Two.js to render
+          
+          // Allow UI to update before capturing
+          await tick();
+        },
+      });
+
+      // Reset animation
+      percent = 0;
+      animationController.reset();
+      
+      // Resume playing if it was playing before
+      if (wasPlaying) {
+        play();
+      }
+
+      gifExportStatus = "Saving file...";
+      
+      // Download the GIF
+      const fileName = $currentFilePath
+        ? $currentFilePath.split(/[\/\\]/).pop()?.replace(/\.pp$/, "")
+        : hasActivePaths
+          ? "multiple_paths"
+          : hasDualPath
+            ? "dual_path"
+            : "path_animation";
+      
+      downloadBlob(blob, `${fileName}.gif`);
+
+      exportingGif = false;
+      gifExportProgress = 0;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error("GIF export error:", errorMsg);
+      
+      // Don't show alert if user cancelled
+      if (!errorMsg.includes('cancelled')) {
+        alert("Failed to export GIF: " + errorMsg);
+      }
+      
+      cancelGifExport = false;
+      exportingGif = false;
+      gifExportProgress = 0;
+      pause();
+    }
+  }
   $: {
     // This handles both 'travel' (movement) and 'wait' (stationary rotation) events.
     // Don't show main robot in multi-path mode
@@ -2717,6 +2961,7 @@
   bind:playing
   {play}
   {pause}
+  {exportPathAsGif}
 />
 
 <SaveDialog
@@ -2726,6 +2971,16 @@
 />
 
 <DualPathSaveDialog bind:isOpen={showDualPathSaveDialog} />
+
+<ProgressDialog
+  bind:isOpen={exportingGif}
+  progress={gifExportProgress}
+  statusMessage={gifExportStatus}
+  onCancel={() => {
+    cancelGifExport = true;
+    gifExportStatus = "Cancelling...";
+  }}
+/>
 
 <!--   {saveFile} -->
 <div
@@ -2758,9 +3013,7 @@
       tabindex="-1"
     >
       <img
-        src={settings.fieldMap
-          ? `/fields/${settings.fieldMap}`
-          : "/fields/decode.webp"}
+        src={fieldMapSrc}
         alt="Field"
         class="absolute top-0 left-0 w-full h-full rounded-lg z-10"
         style="
@@ -2786,7 +3039,7 @@
         on:dragstart={(e) => e.preventDefault()}
         on:selectstart={(e) => e.preventDefault()}
       />
-      <MathTools {x} {y} {twoElement} {robotXY} {robotHeading} />
+      <MathTools {x} {y} {twoElement} {robotXY} />
       <!-- Main robot: only show in normal mode -->
       {#if $activePaths.length === 0}
         <img
@@ -2957,14 +3210,10 @@ pointer-events: none; opacity: ${1.0 - idx * 0.15};`}
     bind:shapes
     {x}
     {y}
-    {animationDuration}
     {handleSeek}
     bind:loopAnimation
-    {resetAnimation}
     {recordChange}
     {optimizeLine}
     {optimizingLineIds}
-    {optimizeAllLines}
-    {optimizingAll}
   />
 </div>

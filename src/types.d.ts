@@ -107,6 +107,7 @@ interface Settings {
   maxAcceleration: number; // inches/sec²
   maxDeceleration?: number; // inches/sec²
   fieldMap: string;
+  customFieldImage?: string; // Base64 data URL for custom field image
   robotImage?: string;
   theme: "light" | "dark" | "auto";
   showGhostPaths?: boolean; // Show collision overlays via ghost paths
