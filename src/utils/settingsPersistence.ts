@@ -34,6 +34,22 @@ function migrateSettings(stored: Partial<StoredSettings>): Settings {
     }
   });
 
+  // Legacy support: older builds stored custom field as "custom||<data-url>".
+  if (
+    typeof migrated.fieldMap === "string" &&
+    migrated.fieldMap.startsWith("custom||")
+  ) {
+    const [, embeddedImage = ""] = migrated.fieldMap.split("||");
+    migrated.fieldMap = "custom";
+    if (embeddedImage && !migrated.customFieldImage) {
+      migrated.customFieldImage = embeddedImage;
+    }
+  }
+
+  if (!migrated.fieldMap) {
+    migrated.fieldMap = defaults.fieldMap;
+  }
+
   return migrated;
 }
 

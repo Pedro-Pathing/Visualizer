@@ -21,8 +21,10 @@
   $: angularVelocityDisplay = settings ? settings.aVelocity / Math.PI : 1;
 
   function handleAngularVelocityInput(e: Event) {
-    const target = e.target as HTMLInputElement;
-    settings.aVelocity = parseFloat(target.value) * Math.PI;
+    const target = e.target;
+    if (target && 'value' in target) {
+      settings.aVelocity = parseFloat(String(target.value)) * Math.PI;
+    }
   }
 
   async function handleReset() {
@@ -54,7 +56,7 @@
   }
 
   // Helper function to convert file to base64
-  function imageToBase64(file) {
+  function imageToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
@@ -67,6 +69,24 @@
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
+  }
+
+  // Helper function to handle custom field image upload
+  async function handleCustomFieldUpload(e: Event) {
+    const target = e.target;
+    if (target && 'files' in target) {
+      const fileList = target.files as FileList;
+      const file = fileList?.[0];
+      if (file) {
+        try {
+          const base64 = await imageToBase64(file);
+          settings.customFieldImage = base64;
+        } catch (error) {
+          console.error("Failed to load custom field image:", error);
+          alert("Failed to load image. Please try a different file.");
+        }
+      }
+    }
   }
 </script>
 
@@ -764,6 +784,36 @@
                     <option value={field.value}>{field.label}</option>
                   {/each}
                 </select>
+                
+                <!-- Custom Field Image Upload -->
+                {#if settings.fieldMap === "custom"}
+                  <div class="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+                    <label
+                      for="custom-field-upload"
+                      class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2"
+                    >
+                      Upload Custom Field Image
+                      <div class="text-xs text-neutral-500 dark:text-neutral-400">
+                        Accepts PNG, JPG, WEBP (recommended: 144x144 inches aspect ratio)
+                      </div>
+                    </label>
+                    <input
+                      id="custom-field-upload"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      on:change={handleCustomFieldUpload}
+                      class="w-full text-sm text-neutral-700 dark:text-neutral-300 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-500 file:text-white hover:file:bg-blue-600 file:cursor-pointer"
+                    />
+                    {#if settings.customFieldImage}
+                      <div class="mt-2 flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width={1.5} stroke="currentColor" class="size-5">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                        Custom field image loaded
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
               </div>
             </div>
           {/if}
