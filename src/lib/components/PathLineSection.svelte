@@ -189,9 +189,9 @@
     </div>
 
     <div class="flex flex-row items-center gap-1 ml-auto">
-      <!-- Add Point After Button -->
+      <!-- Add Control Point After Button -->
       <button
-        title="Add Point After This Line"
+        title="Add Control Point After This Line"
         on:click={onInsertAfter}
         class="text-blue-500 hover:text-blue-600"
       >
