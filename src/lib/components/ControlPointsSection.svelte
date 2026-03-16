@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Line } from "../../types";
   import _ from "lodash";
   import { snapToGrid, showGrid, gridSize } from "../../stores";
 
@@ -6,8 +7,7 @@
   export let lineIdx: number;
   export let collapsed: boolean;
   export let recordChange: () => void;
-  export let optimizeLine: (lineId: string, targetControlPointIndex?: number) => void;
-  export let optimizing: boolean = false;
+  export let onAddControlPoint: () => void;
 
   $: snapToGridTitle =
     $snapToGrid && $showGrid ? `Snapping to ${$gridSize} grid` : "No snapping";
@@ -19,7 +19,7 @@
 
 <div class="flex flex-col w-full justify-start items-start mt-2">
   <!-- Control Points header with toggle and add button -->
-  <div class="flex items-center justify-between w-full">
+  <div class="flex items-center gap-2 w-full">
     <button
       on:click={toggleCollapsed}
       class="flex items-center gap-2 font-light hover:bg-neutral-100 dark:hover:bg-neutral-800/50 px-2 py-1 rounded transition-colors duration-250 text-sm"
@@ -42,6 +42,29 @@
         />
       </svg>
       Control Points ({line.controlPoints.length})
+    </button>
+
+    <button
+      on:click={onAddControlPoint}
+      class="flex items-center gap-1 px-2 py-1 text-xs font-semibold text-green-600 hover:text-green-700 disabled:opacity-40 disabled:cursor-not-allowed"
+      title={line.locked ? "Path locked" : "Add Control Point"}
+      disabled={line.locked}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke-width={2}
+        stroke="currentColor"
+        class="size-4"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M12 4.5v15m7.5-7.5h-15"
+        />
+      </svg>
+      Add
     </button>
   </div>
 

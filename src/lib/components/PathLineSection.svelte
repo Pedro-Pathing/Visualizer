@@ -189,11 +189,11 @@
     </div>
 
     <div class="flex flex-row items-center gap-1 ml-auto">
-      <!-- Add Point After Button -->
       <button
-        title="Add Point After This Line"
+        title="Add control point after this line"
         on:click={onInsertAfter}
-        class="text-blue-500 hover:text-blue-600"
+        class="text-blue-500 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed"
+        disabled={line.locked}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -330,8 +330,7 @@
       bind:line
       lineIdx={idx}
       bind:collapsed={collapsedControlPoints}
-      {optimizeLine}
-      optimizing={optimizing}
+      onAddControlPoint={onInsertAfter}
       {recordChange}
     />
   {/if}
