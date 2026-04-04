@@ -70,6 +70,13 @@ export type SequenceWaitItem = {
 
 export type SequenceItem = SequencePathItem | SequenceWaitItem;
 
+export interface PathChain {
+  id: string;
+  name: string;
+  color: string;
+  lineIds: string[];
+}
+
 export interface Settings {
   xVelocity: number;
   yVelocity: number;

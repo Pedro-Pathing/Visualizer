@@ -12,7 +12,7 @@ export const DEFAULT_ROBOT_HEIGHT = 16;
  */
 export const POINT_RADIUS = 1.15;
 export const LINE_WIDTH = 0.57;
-export const FIELD_SIZE = 144;
+export const FIELD_SIZE = 141.5;
 
 /**
  * Available field maps
@@ -96,9 +96,9 @@ export function getDefaultShapes(): Shape[] {
       id: "triangle-1",
       name: "Red Goal",
       vertices: [
-        { x: 144, y: 70 },
-        { x: 144, y: 144 },
-        { x: 120, y: 144 },
+        { x: 141.5, y: 70 },
+        { x: 141.5, y: 141.5 },
+        { x: 120, y: 141.5 },
         { x: 138, y: 119 },
         { x: 138, y: 70 },
       ],
@@ -110,10 +110,10 @@ export function getDefaultShapes(): Shape[] {
       name: "Blue Goal",
       vertices: [
         { x: 6, y: 119 },
-        { x: 25, y: 144 },
-        { x: 0, y: 144 },
+        { x: 25, y: 141.5 },
+        { x: 0, y: 141.5 },
         { x: 0, y: 70 },
-        { x: 7, y: 70 },
+        { x: 6, y: 70 },
       ],
       color: "#2563eb",
       fillColor: "#60a5fa",

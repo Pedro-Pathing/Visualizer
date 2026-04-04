@@ -6,6 +6,7 @@
     Settings,
     Shape,
     SequenceItem,
+    PathChain,
   } from "../types";
   import _ from "lodash";
   import { getRandomColor } from "../utils";
@@ -24,6 +25,7 @@
   export let startPoint: Point;
   export let lines: Line[];
   export let sequence: SequenceItem[];
+  export let pathChains: PathChain[] = [];
   export let robotWidth: number = 16;
   export let robotHeight: number = 16;
   export let robotXY: BasePoint;
@@ -38,6 +40,257 @@
 
   export let shapes: Shape[];
   export let recordChange: () => void;
+
+  const makeChainId = () =>
+    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const defaultChainName = "Main Chain";
+
+  let selectedChainId = "";
+  let chainNameDraft = "";
+  let chainColorDraft = "#22c55e";
+  let selectedChain: PathChain | null = null;
+  let previousSelectedChainId = "";
+  let chainOptions: Array<{ id: string; name: string; color: string }> = [];
+
+  const getChainById = (chainId: string): PathChain | null =>
+    pathChains.find((chain) => chain.id === chainId) || null;
+
+  function getLinePrimaryChainId(lineId: string): string {
+    for (const chain of pathChains) {
+      if ((chain.lineIds || []).includes(lineId)) return chain.id;
+    }
+    return pathChains[0]?.id || "";
+  }
+
+  function syncLineColorsToChains() {
+    const chainColorById = new Map(pathChains.map((chain) => [chain.id, chain.color || "#22c55e"]));
+    let changed = false;
+    const nextLines = lines.map((line) => {
+      const ownerId = getLinePrimaryChainId(line.id || "");
+      const targetColor = chainColorById.get(ownerId) || line.color;
+      if (line.color !== targetColor) {
+        changed = true;
+        return { ...line, color: targetColor };
+      }
+      return line;
+    });
+    if (changed) {
+      lines = nextLines;
+    }
+  }
+
+  function ensureDefaultChain() {
+    if (pathChains.length === 0) {
+      pathChains = [
+        {
+          id: makeChainId(),
+          name: defaultChainName,
+          color: getRandomColor(),
+          lineIds: lines.map((ln) => ln.id!).filter(Boolean),
+        },
+      ];
+      selectedChainId = pathChains[0]?.id || "";
+      return;
+    }
+
+    if (!selectedChainId || !pathChains.some((c) => c.id === selectedChainId)) {
+      selectedChainId = pathChains[0]?.id || "";
+    }
+  }
+
+  $: {
+    const normalized = pathChains.map((chain) => ({
+      ...chain,
+      color: chain.color || getRandomColor(),
+      lineIds: chain.lineIds || [],
+    }));
+    if (JSON.stringify(normalized) !== JSON.stringify(pathChains)) {
+      pathChains = normalized;
+    }
+  }
+
+  $: ensureDefaultChain();
+
+  $: selectedChain =
+    pathChains.find((chain) => chain.id === selectedChainId) || pathChains[0] || null;
+
+  $: if (selectedChainId !== previousSelectedChainId) {
+    chainNameDraft = selectedChain?.name || "";
+    chainColorDraft = selectedChain?.color || "#22c55e";
+    previousSelectedChainId = selectedChainId;
+  }
+
+  function ensureLineInDefaultChain(lineId: string) {
+    if (!lineId || !pathChains.length) return;
+    assignLineToChain(lineId, pathChains[0].id);
+  }
+
+  function removeLineFromChains(lineId: string) {
+    if (!lineId) return;
+    const updated = pathChains.map((chain) => ({
+        ...chain,
+        lineIds: chain.lineIds.filter((id) => id !== lineId),
+      }));
+    pathChains = updated;
+    ensureDefaultChain();
+    syncLineColorsToChains();
+  }
+
+  function assignLineToChain(lineId: string, chainId: string) {
+    if (!lineId || !chainId) return;
+    pathChains = pathChains.map((chain) => ({
+      ...chain,
+      lineIds: chain.lineIds.filter((id) => id !== lineId),
+    }));
+
+    const target = getChainById(chainId);
+    if (!target) return;
+
+    pathChains = pathChains.map((chain) => {
+      if (chain.id !== chainId) return chain;
+      return {
+        ...chain,
+        lineIds: Array.from(new Set([...(chain.lineIds || []), lineId])),
+      };
+    });
+
+    syncLineColorsToChains();
+    recordChange?.();
+  }
+
+  function addPathChain() {
+    const newChain: PathChain = {
+      id: makeChainId(),
+      name: `Chain ${pathChains.length + 1}`,
+      color: getRandomColor(),
+      lineIds: [],
+    };
+    pathChains = [...pathChains, newChain];
+    selectedChainId = newChain.id;
+    recordChange?.();
+  }
+
+  function duplicateSelectedPathChain() {
+    if (!selectedChain) return;
+
+    const sourceLineIds = selectedChain.lineIds || [];
+    const selectedLineSet = new Set(sourceLineIds);
+    const lineLookup = new Map(lines.map((line) => [line.id, line]));
+    const idMap = new Map<string, string>();
+    const clonedLines: Line[] = [];
+
+    // Keep duplication order aligned with timeline, then append any non-sequenced lines.
+    const orderedSourceIds: string[] = [];
+    sequence.forEach((item) => {
+      if (item.kind === "path" && selectedLineSet.has(item.lineId)) {
+        orderedSourceIds.push(item.lineId);
+      }
+    });
+    sourceLineIds.forEach((lineId) => {
+      if (!orderedSourceIds.includes(lineId)) {
+        orderedSourceIds.push(lineId);
+      }
+    });
+
+    orderedSourceIds.forEach((sourceId, index) => {
+      const sourceLine = lineLookup.get(sourceId);
+      if (!sourceLine) return;
+      const clone = JSON.parse(JSON.stringify(sourceLine)) as Line;
+      const newLineId = makeId();
+      clone.id = newLineId;
+      clone.name = `${sourceLine.name || `Path ${lines.length + index + 1}`} Copy`;
+      idMap.set(sourceId, newLineId);
+      clonedLines.push(clone);
+    });
+
+    const newSequence: SequenceItem[] = [];
+    sequence.forEach((item) => {
+      newSequence.push(item);
+      if (item.kind === "path") {
+        const clonedId = idMap.get(item.lineId);
+        if (clonedId) {
+          newSequence.push({ kind: "path", lineId: clonedId });
+        }
+      }
+    });
+
+    // If chain contains lines currently not present in the timeline, append their clones.
+    orderedSourceIds.forEach((sourceId) => {
+      const inSequence = sequence.some((item) => item.kind === "path" && item.lineId === sourceId);
+      const clonedId = idMap.get(sourceId);
+      if (!inSequence && clonedId) {
+        newSequence.push({ kind: "path", lineId: clonedId });
+      }
+    });
+
+    lines = [...lines, ...clonedLines];
+    sequence = newSequence;
+    syncLinesToSequence(newSequence);
+
+    const duplicateChain: PathChain = {
+      id: makeChainId(),
+      name: `${selectedChain.name} Copy`,
+      color: getRandomColor(),
+      lineIds: orderedSourceIds.map((sourceId) => idMap.get(sourceId)).filter(Boolean) as string[],
+    };
+
+    const selectedIndex = pathChains.findIndex((chain) => chain.id === selectedChain.id);
+    if (selectedIndex >= 0) {
+      pathChains = [
+        ...pathChains.slice(0, selectedIndex + 1),
+        duplicateChain,
+        ...pathChains.slice(selectedIndex + 1),
+      ];
+    } else {
+      pathChains = [...pathChains, duplicateChain];
+    }
+
+    selectedChainId = duplicateChain.id;
+    syncLineColorsToChains();
+    recordChange?.();
+  }
+
+  function removeSelectedPathChain() {
+    if (!selectedChain || pathChains.length <= 1) return;
+    const fallbackChainId = pathChains.find((chain) => chain.id !== selectedChain.id)?.id;
+    const orphanedLines = [...(selectedChain.lineIds || [])];
+    pathChains = pathChains.filter((chain) => chain.id !== selectedChain.id);
+
+    if (fallbackChainId) {
+      orphanedLines.forEach((lineId) => assignLineToChain(lineId, fallbackChainId));
+    }
+
+    selectedChainId = pathChains[0]?.id || "";
+    syncLineColorsToChains();
+    recordChange?.();
+  }
+
+  function updateSelectedChainName() {
+    if (!selectedChain) return;
+    const nextName = chainNameDraft.trim();
+    if (!nextName) return;
+    pathChains = pathChains.map((chain) =>
+      chain.id === selectedChain.id ? { ...chain, name: nextName } : chain,
+    );
+    recordChange?.();
+  }
+
+  function updateSelectedChainColor() {
+    if (!selectedChain) return;
+    pathChains = pathChains.map((chain) =>
+      chain.id === selectedChain.id ? { ...chain, color: chainColorDraft } : chain,
+    );
+    syncLineColorsToChains();
+    recordChange?.();
+  }
+
+  $: chainOptions = pathChains.map((chain) => ({
+    id: chain.id,
+    name: chain.name,
+    color: chain.color || "#22c55e",
+  }));
+
+  $: syncLineColorsToChains();
 
   // Reference exported but unused props to silence Svelte unused-export warnings
 
@@ -158,8 +411,8 @@
         };
       } else {
         newPoint = {
-          x: _.random(0, 144),
-          y: _.random(0, 144),
+          x: _.random(0, 141.5),
+          y: _.random(0, 141.5),
           heading: "tangential",
           reverse: false,
         };
@@ -186,6 +439,7 @@
     const newSeq = [...sequence];
     newSeq.splice(seqIndex + 1, 0, { kind: "path", lineId: newLine.id! });
     sequence = newSeq;
+    ensureLineInDefaultChain(newLine.id!);
 
     collapsedSections.lines.splice(lineIndex + 1, 0, false);
     collapsedSections.controlPoints.splice(lineIndex + 1, 0, true);
@@ -250,6 +504,7 @@
     const newSeq = [...sequence];
     newSeq.splice(seqIndex + 1, 0, { kind: "path", lineId: newLine.id! });
     sequence = newSeq;
+    ensureLineInDefaultChain(newLine.id!);
 
     collapsedSections.lines.splice(lineIndex + 1, 0, false);
     collapsedSections.controlPoints.splice(lineIndex + 1, 0, true);
@@ -267,6 +522,7 @@
       sequence = sequence.filter(
         (s) => s.kind === "wait" || s.lineId !== removedId,
       );
+      removeLineFromChains(removedId);
     }
     collapsedSections.lines.splice(idx, 1);
     collapsedSections.controlPoints.splice(idx, 1);
@@ -278,8 +534,8 @@
       id: makeId(),
       name: `Path ${lines.length + 1}`,
       endPoint: {
-        x: _.random(0, 144),
-        y: _.random(0, 144),
+        x: _.random(0, 141.5),
+        y: _.random(0, 141.5),
         heading: "tangential",
         reverse: false,
       },
@@ -292,6 +548,7 @@
     };
     lines = [...lines, newLine];
     sequence = [...sequence, { kind: "path", lineId: newLine.id! }];
+    ensureLineInDefaultChain(newLine.id!);
     collapsedSections.lines.push(false);
     collapsedSections.controlPoints.push(true);
     recordChange();
@@ -378,8 +635,8 @@
       id: makeId(),
       name: `Path ${lines.length + 1}`,
       endPoint: {
-        x: _.random(0, 144),
-        y: _.random(0, 144),
+        x: _.random(0, 141.5),
+        y: _.random(0, 141.5),
         heading: "tangential",
         reverse: false,
       },
@@ -392,6 +649,7 @@
     };
     lines = [newLine, ...lines];
     sequence = [{ kind: "path", lineId: newLine.id! }, ...sequence];
+    ensureLineInDefaultChain(newLine.id!);
     collapsedSections.lines = [false, ...collapsedSections.lines];
     collapsedSections.controlPoints = [
       true,
@@ -438,6 +696,7 @@
     const newSeq = [...sequence];
     newSeq.splice(seqIndex + 1, 0, { kind: "path", lineId: newLine.id! });
     sequence = newSeq;
+    ensureLineInDefaultChain(newLine.id!);
 
     // Add UI state for the new line
     collapsedSections.lines.push(false);
@@ -524,6 +783,54 @@
 
     <StartingPointSection bind:startPoint {addPathAtStart} {addWaitAtStart} />
 
+    <div class="w-full rounded-md border border-neutral-200 dark:border-neutral-700 p-3 bg-white dark:bg-neutral-800">
+      <div class="flex items-center gap-2 mb-2">
+        <p class="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-300">Path Chains</p>
+        <select
+          bind:value={selectedChainId}
+          class="flex-1 px-2 py-1 text-xs rounded border border-neutral-300 dark:border-neutral-600 bg-neutral-50 dark:bg-neutral-900"
+        >
+          {#each pathChains as chain (chain.id)}
+            <option value={chain.id}>{chain.name} ({(chain.lineIds || []).length})</option>
+          {/each}
+        </select>
+        <button on:click={addPathChain} class="px-2 py-1 text-xs rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200">New</button>
+        <button on:click={duplicateSelectedPathChain} class="px-2 py-1 text-xs rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200">Duplicate</button>
+        <button
+          on:click={removeSelectedPathChain}
+          disabled={pathChains.length <= 1}
+          class="px-2 py-1 text-xs rounded bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-200 disabled:opacity-40"
+        >
+          Remove
+        </button>
+      </div>
+
+      {#if selectedChain}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+          <div class="flex items-center gap-2">
+            <input
+              type="text"
+              bind:value={chainNameDraft}
+              on:input={updateSelectedChainName}
+              class="flex-1 px-2 py-1 text-xs rounded border border-neutral-300 dark:border-neutral-600 bg-neutral-50 dark:bg-neutral-900"
+              placeholder="Chain name"
+            />
+          </div>
+
+          <div class="flex items-center gap-2">
+            <input
+              type="color"
+              bind:value={chainColorDraft}
+              on:input={updateSelectedChainColor}
+              class="w-10 h-8 rounded border border-neutral-300 dark:border-neutral-600 bg-neutral-50 dark:bg-neutral-900"
+              title="Path chain color"
+            />
+            <span class="text-xs text-neutral-500 dark:text-neutral-400">Path color</span>
+          </div>
+        </div>
+      {/if}
+    </div>
+
     <!-- Unified sequence render: paths and waits -->
     {#each sequence as item, sIdx}
       <div class="w-full">
@@ -552,6 +859,9 @@
               canMoveDown={sIdx !== sequence.length - 1}
               optimizeLine={optimizeLine}
               optimizing={optimizingLineIds?.[ln.id ?? ""] ?? false}
+              chainOptions={chainOptions}
+              selectedChainId={getLinePrimaryChainId(ln.id || "")}
+              onChainChange={(chainId) => assignLineToChain(ln.id || "", chainId)}
               {recordChange}
             />
           {/each}

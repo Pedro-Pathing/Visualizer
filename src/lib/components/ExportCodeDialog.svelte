@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Point, Line, SequenceItem } from "../../types";
+  import type { Point, Line, SequenceItem, PathChain } from "../../types";
   import Highlight from "svelte-highlight";
   import { java } from "svelte-highlight/languages";
   import plaintext from "svelte-highlight/languages/plaintext";
@@ -11,12 +11,13 @@
     generateJavaCode,
     generatePointsArray,
     generateSequentialCommandCode,
-  } from "../../utils";
+  } from "../../utils/codeExporter";
 
   export let isOpen = false;
   export let startPoint: Point;
   export let lines: Line[];
   export let sequence: SequenceItem[];
+  export let pathChains: PathChain[] = [];
 
   let exportMode: "full" | "class" | "coordinates" = "class";
   let exportFormat: "java" | "points" | "sequential" = "java";
@@ -52,6 +53,7 @@
           startPoint,
           lines,
           exportMode,
+          pathChains,
         );
         currentLanguage = java;
       } else if (format === "points") {
@@ -107,7 +109,7 @@
 
   async function handleExportModeChange() {
     if (exportFormat === "java") {
-      exportedCode = await generateJavaCode(startPoint, lines, exportMode);
+      exportedCode = await generateJavaCode(startPoint, lines, exportMode, pathChains);
     }
   }
 </script>

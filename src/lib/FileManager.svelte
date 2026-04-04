@@ -7,7 +7,7 @@
 
   import { cubicInOut } from "svelte/easing";
   import { fade, fly } from "svelte/transition";
-  import type { FileInfo, Point, Line, Shape, SequenceItem } from "../types";
+  import type { FileInfo, Point, Line, Shape, SequenceItem, PathChain } from "../types";
   import * as browserFileStore from "../utils/browserFileStore";
   import { currentFilePath, isUnsaved, dualPathMode, secondFilePath } from "../stores";
   import { getRandomColor } from "../utils";
@@ -22,6 +22,7 @@
   export let lines: Line[];
   export let shapes: Shape[];
   export let sequence: SequenceItem[];
+  export let pathChains: PathChain[] = [];
   export let secondStartPoint: Point | null = null;
   export let secondLines: Line[] = [];
   export let secondShapes: Shape[] = [];
@@ -248,6 +249,7 @@
       lines = normalizedLines;
       shapes = data.shapes || [];
       sequence = deriveSequence(data, normalizedLines);
+      pathChains = data.pathChains || [];
 
       // Update Global Store State
       currentFilePath.set(file.path);
@@ -318,6 +320,7 @@
         lines,
         shapes,
         sequence,
+        pathChains,
         version: "1.2.1", // Add version for compatibility
         timestamp: new Date().toISOString(),
       });
@@ -341,6 +344,7 @@
         lines,
         shapes,
         sequence,
+        pathChains,
         version: "1.2.1",
         timestamp: new Date().toISOString(),
       }, null, 2);
@@ -393,6 +397,7 @@
         lines,
         shapes,
         sequence,
+        pathChains,
         version: "1.2.1",
         timestamp: new Date().toISOString(),
       }, null, 2);
@@ -441,6 +446,7 @@
         lines: normalizedLines,
         shapes,
         sequence,
+        pathChains,
         version: "1.2.1",
         timestamp: new Date().toISOString(),
       });
@@ -704,7 +710,7 @@
 
     // Mirror start point
     if (mirrored.startPoint) {
-      mirrored.startPoint.x = 144 - mirrored.startPoint.x;
+      mirrored.startPoint.x = 141.5 - mirrored.startPoint.x;
       mirrored.startPoint = mirrorPointHeading(mirrored.startPoint);
     }
 
@@ -713,14 +719,14 @@
       mirrored.lines.forEach((line: Line) => {
         // Mirror end point
         if (line.endPoint) {
-          line.endPoint.x = 144 - line.endPoint.x;
+          line.endPoint.x = 141.5 - line.endPoint.x;
           line.endPoint = mirrorPointHeading(line.endPoint);
         }
 
         // Mirror control points
         if (line.controlPoints && Array.isArray(line.controlPoints)) {
           line.controlPoints.forEach((controlPoint: any) => {
-            controlPoint.x = 144 - controlPoint.x;
+            controlPoint.x = 141.5 - controlPoint.x;
           });
         }
       });

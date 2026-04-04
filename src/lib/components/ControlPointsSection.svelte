@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { Line } from "../../types";
-  import _ from "lodash";
   import { snapToGrid, showGrid, gridSize } from "../../stores";
 
   export let line: Line;
@@ -121,7 +120,7 @@
               bind:value={point.x}
               type="number"
               min="0"
-              max="144"
+              max="141.5"
               step={$snapToGrid && $showGrid ? $gridSize : 0.1}
               class="w-20 px-2 py-1 text-xs rounded-md bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
               on:change={() => {
@@ -138,7 +137,7 @@
               bind:value={point.y}
               type="number"
               min="0"
-              max="144"
+              max="141.5"
               step={$snapToGrid && $showGrid ? $gridSize : 0.1}
               class="w-20 px-2 py-1 text-xs rounded-md bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
               on:change={() => {

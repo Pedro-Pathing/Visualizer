@@ -20,6 +20,9 @@
   export let canMoveDown: boolean = true;
   export let optimizeLine: (lineId: string, targetControlPointIndex?: number) => void;
   export let optimizing: boolean = false;
+  export let chainOptions: Array<{ id: string; name: string; color: string }> = [];
+  export let selectedChainId: string = "";
+  export let onChainChange: (chainId: string) => void;
 
 
   $: snapToGridTitle =
@@ -28,9 +31,16 @@
   function toggleCollapsed() {
     collapsed = !collapsed;
   }
+
+  function handleChainSelect(event: Event) {
+    const target = event.currentTarget as HTMLSelectElement;
+    if (onChainChange) {
+      onChainChange(target.value);
+    }
+  }
 </script>
 
-<div class="flex flex-col w-full justify-start items-start gap-1">
+<div class="flex flex-col w-full justify-start items-start gap-1 rounded-md p-1">
   <div class="flex flex-row w-full items-center gap-3 flex-wrap">
     <div class="flex flex-row items-center gap-2">
       <button
@@ -73,16 +83,23 @@
           if (recordChange) recordChange();
         }}
       />
+
+      <select
+        value={selectedChainId}
+        on:change={handleChainSelect}
+        class="px-2 py-1 text-xs rounded border border-neutral-300 dark:border-neutral-600 bg-neutral-100 dark:bg-neutral-900"
+        title="Assign path chain"
+      >
+        {#each chainOptions as chain}
+          <option value={chain.id}>{chain.name}</option>
+        {/each}
+      </select>
+
       <div
         class="relative size-5 rounded-full overflow-hidden shadow-sm border border-neutral-300 dark:border-neutral-600 shrink-0"
         style="background-color: {line.color}"
       >
-        <input
-          type="color"
-          bind:value={line.color}
-          class="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-          title="Change Path Color"
-        />
+        <div class="absolute inset-0" title="Color comes from assigned path chain" />
       </div>
 
       <!-- Lock/Unlock Button -->
@@ -293,7 +310,7 @@
           step={$snapToGrid && $showGrid ? $gridSize : 0.1}
           type="number"
           min="0"
-          max="144"
+          max="141.5"
           bind:value={line.endPoint.x}
           disabled={line.locked}
           title={snapToGridTitle}
@@ -303,7 +320,7 @@
           class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
           step={$snapToGrid && $showGrid ? $gridSize : 0.1}
           min="0"
-          max="144"
+          max="141.5"
           type="number"
           bind:value={line.endPoint.y}
           disabled={line.locked}

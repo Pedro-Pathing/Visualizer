@@ -5,6 +5,7 @@
     Settings,
     Point,
     SequenceItem,
+    PathChain,
     Shape,
   } from "./types";
   import * as d3 from "d3";
@@ -147,6 +148,16 @@
     kind: "path",
     lineId: ln.id!,
   }));
+  const makeChainId = () =>
+    `chain-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const defaultPathChainName = "Main Chain";
+  const createDefaultPathChain = (sourceLines: Line[]): PathChain => ({
+    id: makeChainId(),
+    name: defaultPathChainName,
+    color: getRandomColor(),
+    lineIds: sourceLines.map((ln) => ln.id!).filter(Boolean),
+  });
+  let pathChains: PathChain[] = [createDefaultPathChain(lines)];
   let shapes: Shape[] = getDefaultShapes();
   let optimizingLineIds: Record<string, boolean> = {};
   let optimizingAll = false;
@@ -180,6 +191,7 @@
       shapes,
       sequence,
       settings,
+      pathChains,
     };
   }
 
@@ -199,6 +211,7 @@
       shapes = prev.shapes;
       sequence = prev.sequence;
       settings = prev.settings;
+      pathChains = prev.pathChains;
       isUnsaved.set(true);
       two && two.update();
     }
@@ -214,8 +227,39 @@
       shapes = next.shapes;
       sequence = next.sequence;
       settings = next.settings;
+      pathChains = next.pathChains;
       isUnsaved.set(true);
       two && two.update();
+    }
+  }
+
+  function normalizePathChains(
+    sourceChains: PathChain[] | undefined,
+    sourceLines: Line[],
+  ): PathChain[] {
+    const validLineIds = new Set(sourceLines.map((ln) => ln.id!).filter(Boolean));
+    const cleaned = (sourceChains || [])
+      .map((chain) => ({
+        ...chain,
+        id: chain.id || makeChainId(),
+        name: (chain.name || "").trim() || defaultPathChainName,
+        color: chain.color || getRandomColor(),
+        lineIds: (chain.lineIds || []).filter((id) => validLineIds.has(id)),
+      }));
+
+    if (cleaned.length === 0) {
+      return [createDefaultPathChain(sourceLines)];
+    }
+
+    return cleaned;
+  }
+
+  $: {
+    const normalized = normalizePathChains(pathChains, lines);
+    const current = JSON.stringify(pathChains);
+    const next = JSON.stringify(normalized);
+    if (current !== next) {
+      pathChains = normalized;
     }
   }
 
@@ -1910,6 +1954,7 @@
         lines,
         shapes,
         sequence,
+        pathChains,
         settings,
         version: "1.2.1",
         timestamp: new Date().toISOString(),
@@ -2001,7 +2046,7 @@
       console.error("Failed to save into app storage:", err);
       // As a last resort, download the file
       try {
-        downloadTrajectory(startPoint, lines, shapes, sequence);
+        downloadTrajectory(startPoint, lines, shapes, sequence, pathChains);
       } catch (err2) {
         console.error("Save As fallback failed:", err2);
         alert(
@@ -2390,6 +2435,7 @@
           lines,
           shapes,
           sequence,
+          pathChains,
           settings,
           version: "1.2.1",
           timestamp: new Date().toISOString(),
@@ -2454,6 +2500,7 @@
               lineId: ln.id!,
             }))
       ) as SequenceItem[];
+      pathChains = normalizePathChains(data.pathChains, normalizedLines);
 
       // Load shapes with defaults
       shapes = data.shapes || [];
@@ -2507,6 +2554,7 @@
             lineId: ln.id!,
           }))
     ) as SequenceItem[];
+    pathChains = normalizePathChains(data.pathChains, normalizedLines);
 
     // Load shapes with defaults
     shapes = data.shapes || [];
@@ -2833,6 +2881,7 @@
           lines,
           shapes,
           sequence,
+          pathChains,
           settings,
         });
         
@@ -2863,6 +2912,7 @@
             lines,
             shapes,
             sequence,
+            pathChains,
             settings,
             version: "1.2.1",
             timestamp: new Date().toISOString(),
@@ -2888,6 +2938,7 @@
               lines,
               shapes,
               sequence,
+              pathChains,
               settings,
               version: "1.2.1",
               timestamp: new Date().toISOString(),
@@ -2939,6 +2990,7 @@
   bind:startPoint
   bind:shapes
   bind:sequence
+  bind:pathChains
   bind:secondStartPoint
   bind:secondLines
   bind:secondShapes
@@ -3201,6 +3253,7 @@ pointer-events: none; opacity: ${1.0 - idx * 0.15};`}
     bind:startPoint
     bind:lines
     bind:sequence
+    bind:pathChains
     bind:robotWidth
     bind:robotHeight
     bind:settings
