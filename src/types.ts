@@ -77,6 +77,16 @@ export interface PathChain {
   lineIds: string[];
 }
 
+export interface HotkeySettings {
+  playPause: string;
+  addPath: string;
+  addControlPoint: string;
+  removeControlPoint: string;
+  save: string;
+  undo: string;
+  redo: string;
+}
+
 export interface Settings {
   xVelocity: number;
   yVelocity: number;
@@ -102,6 +112,8 @@ export interface Settings {
   headingArrowColor?: string; // Color of the heading arrow
   headingArrowThickness?: number; // Thickness/stroke width of the heading arrow
   pathOpacity?: number; // Opacity of path lines (0-1)
+  enableObstacleEditing?: boolean; // Show obstacle editing controls in the side UI
+  hotkeys: HotkeySettings;
 }
 
 export interface Shape {

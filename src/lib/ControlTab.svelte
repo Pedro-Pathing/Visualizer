@@ -14,14 +14,17 @@
   import RobotPositionDisplay from "./components/RobotPositionDisplay.svelte";
   import StartingPointSection from "./components/StartingPointSection.svelte";
   import PathLineSection from "./components/PathLineSection.svelte";
-  import PlaybackControls from "./components/PlaybackControls.svelte";
   import WaitRow from "./components/WaitRow.svelte";
-  import { calculatePathTime } from "../utils";
+  import { calculatePathTime, formatTime } from "../utils";
+  import {
+    showRuler,
+    showProtractor,
+    showGrid,
+    protractorLockToRobot,
+    snapToGrid,
+    gridSize,
+  } from "../stores";
 
-  export let percent: number;
-  export let playing: boolean;
-  export let play: () => any;
-  export let pause: () => any;
   export let startPoint: Point;
   export let lines: Line[];
   export let sequence: SequenceItem[];
@@ -33,13 +36,18 @@
   export let x: d3.ScaleLinear<number, number, number>;
   export let y: d3.ScaleLinear<number, number, number>;
   export let settings: Settings;
-  export let handleSeek: (percent: number) => void;
-  export let loopAnimation: boolean;
   export let optimizeLine: (lineId: string, targetControlPointIndex?: number) => void;
   export let optimizingLineIds: Record<string, boolean> = {};
+  export let panelMode: "both" | "scene" | "paths" = "both";
 
   export let shapes: Shape[];
   export let recordChange: () => void;
+
+  let activeTab: "scene" | "paths" = "paths";
+  $: resolvedTab = panelMode === "both" ? activeTab : panelMode;
+  $: if (panelMode !== "both" && activeTab !== panelMode) {
+    activeTab = panelMode;
+  }
 
   const makeChainId = () =>
     `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -170,6 +178,21 @@
     recordChange?.();
   }
 
+  function getDistinctChainColor(preferred?: string): string {
+    const disallowed = new Set(pathChains.map((chain) => (chain.color || "").toLowerCase()));
+    if (preferred) {
+      disallowed.add(preferred.toLowerCase());
+    }
+
+    let candidate = getRandomColor();
+    let attempts = 0;
+    while (disallowed.has(candidate.toLowerCase()) && attempts < 16) {
+      candidate = getRandomColor();
+      attempts += 1;
+    }
+    return candidate;
+  }
+
   function duplicateSelectedPathChain() {
     if (!selectedChain) return;
 
@@ -203,25 +226,17 @@
       clonedLines.push(clone);
     });
 
-    const newSequence: SequenceItem[] = [];
-    sequence.forEach((item) => {
-      newSequence.push(item);
-      if (item.kind === "path") {
-        const clonedId = idMap.get(item.lineId);
-        if (clonedId) {
-          newSequence.push({ kind: "path", lineId: clonedId });
-        }
-      }
-    });
+    const newSequence: SequenceItem[] = [...sequence];
+    const appendedCloneItems: SequenceItem[] = [];
 
-    // If chain contains lines currently not present in the timeline, append their clones.
+    // Keep original run order untouched, then append all cloned paths after it.
     orderedSourceIds.forEach((sourceId) => {
-      const inSequence = sequence.some((item) => item.kind === "path" && item.lineId === sourceId);
       const clonedId = idMap.get(sourceId);
-      if (!inSequence && clonedId) {
-        newSequence.push({ kind: "path", lineId: clonedId });
+      if (clonedId) {
+        appendedCloneItems.push({ kind: "path", lineId: clonedId });
       }
     });
+    newSequence.push(...appendedCloneItems);
 
     lines = [...lines, ...clonedLines];
     sequence = newSequence;
@@ -230,7 +245,7 @@
     const duplicateChain: PathChain = {
       id: makeChainId(),
       name: `${selectedChain.name} Copy`,
-      color: getRandomColor(),
+      color: getDistinctChainColor(selectedChain.color),
       lineIds: orderedSourceIds.map((sourceId) => idMap.get(sourceId)).filter(Boolean) as string[],
     };
 
@@ -323,6 +338,11 @@
     return _markers;
   })();
 
+  $: pathCount = lines.length;
+  $: waitCount = sequence.filter((item) => item.kind === "wait").length;
+  $: obstacleCount = shapes.length;
+  $: totalDurationLabel = formatTime(timePrediction?.totalTime || 0);
+
 
   // State for collapsed sections
   let collapsedSections = {
@@ -333,6 +353,27 @@
 
   // Collapsed state for obstacles (default collapsed)
   let collapsedObstacles = shapes.map(() => true);
+  let obstaclesDropdownOpen = false;
+  const gridSizeOptions = [0, 1, 3, 6, 12, 24];
+
+  function cycleGridSize() {
+    if (!$showGrid) {
+      showGrid.set(true);
+      gridSize.set(gridSizeOptions[1]);
+      return;
+    }
+    const currentIndex = gridSizeOptions.indexOf($gridSize);
+    const nextIndex = currentIndex + 1;
+    if (nextIndex >= gridSizeOptions.length) {
+      showGrid.set(false);
+      return;
+    }
+    const nextSize = gridSizeOptions[nextIndex];
+    gridSize.set(nextSize);
+    if (nextSize === 0) {
+      showGrid.set(false);
+    }
+  }
 
   // Reactive statements to update UI state when lines or shapes change from file load
   $: if (lines.length !== collapsedSections.lines.length) {
@@ -773,202 +814,417 @@
   }
 </script>
 
-<div class="flex-1 flex flex-col justify-start items-center gap-2 h-full">
-  <div
-    class="flex flex-col justify-start items-start w-full rounded-lg bg-neutral-50 dark:bg-neutral-900 shadow-md p-4 overflow-y-scroll overflow-x-hidden h-full gap-6"
-  >
-    <ObstaclesSection bind:shapes bind:collapsedObstacles />
+<div class="w-full h-full flex flex-col justify-start items-center gap-1.5 min-w-0 text-[12px] leading-tight">
+  <div class="w-full h-full overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 shadow-lg flex flex-col">
+    <div class="border-b border-neutral-200 dark:border-neutral-700 px-2.5 py-2 bg-neutral-50 dark:bg-neutral-900">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-[11px] font-semibold uppercase tracking-[0.28em] text-neutral-500 dark:text-neutral-400">Workspace</p>
+          <h2 class="mt-1 text-sm font-semibold text-neutral-900 dark:text-neutral-50">Path Inspector</h2>
+          <p class="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400">
+            {panelMode === "scene"
+              ? "Scene and setup controls."
+              : panelMode === "paths"
+                ? "Paths, timeline, and playback controls."
+                : "Keep scene edits, path edits, and playback controls separated."}
+          </p>
+        </div>
 
-    <RobotPositionDisplay {robotXY} {robotHeading} {x} {y} />
-
-    <StartingPointSection bind:startPoint {addPathAtStart} {addWaitAtStart} />
-
-    <div class="w-full rounded-md border border-neutral-200 dark:border-neutral-700 p-3 bg-white dark:bg-neutral-800">
-      <div class="flex items-center gap-2 mb-2">
-        <p class="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-300">Path Chains</p>
-        <select
-          bind:value={selectedChainId}
-          class="flex-1 px-2 py-1 text-xs rounded border border-neutral-300 dark:border-neutral-600 bg-neutral-50 dark:bg-neutral-900"
-        >
-          {#each pathChains as chain (chain.id)}
-            <option value={chain.id}>{chain.name} ({(chain.lineIds || []).length})</option>
-          {/each}
-        </select>
-        <button on:click={addPathChain} class="px-2 py-1 text-xs rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200">New</button>
-        <button on:click={duplicateSelectedPathChain} class="px-2 py-1 text-xs rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200">Duplicate</button>
-        <button
-          on:click={removeSelectedPathChain}
-          disabled={pathChains.length <= 1}
-          class="px-2 py-1 text-xs rounded bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-200 disabled:opacity-40"
-        >
-          Remove
-        </button>
+        <div class="flex flex-wrap items-center gap-1.5 text-[11px] font-medium">
+          <div class="rounded-full border border-neutral-200 dark:border-neutral-700 px-2 py-0.5 text-neutral-600 dark:text-neutral-300 bg-white dark:bg-neutral-800">
+            {pathCount} paths
+          </div>
+          <div class="rounded-full border border-neutral-200 dark:border-neutral-700 px-2 py-0.5 text-neutral-600 dark:text-neutral-300 bg-white dark:bg-neutral-800">
+            {waitCount} waits
+          </div>
+          <div class="rounded-full border border-neutral-200 dark:border-neutral-700 px-2 py-0.5 text-neutral-600 dark:text-neutral-300 bg-white dark:bg-neutral-800">
+            {obstacleCount} obstacles
+          </div>
+          <div class="rounded-full border border-neutral-200 dark:border-neutral-700 px-2 py-0.5 text-neutral-600 dark:text-neutral-300 bg-white dark:bg-neutral-800">
+            {totalDurationLabel}
+          </div>
+        </div>
       </div>
 
-      {#if selectedChain}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
-          <div class="flex items-center gap-2">
-            <input
-              type="text"
-              bind:value={chainNameDraft}
-              on:input={updateSelectedChainName}
-              class="flex-1 px-2 py-1 text-xs rounded border border-neutral-300 dark:border-neutral-600 bg-neutral-50 dark:bg-neutral-900"
-              placeholder="Chain name"
-            />
-          </div>
-
-          <div class="flex items-center gap-2">
-            <input
-              type="color"
-              bind:value={chainColorDraft}
-              on:input={updateSelectedChainColor}
-              class="w-10 h-8 rounded border border-neutral-300 dark:border-neutral-600 bg-neutral-50 dark:bg-neutral-900"
-              title="Path chain color"
-            />
-            <span class="text-xs text-neutral-500 dark:text-neutral-400">Path color</span>
-          </div>
+      {#if panelMode === "both"}
+        <div class="mt-2 flex rounded-xl bg-neutral-100 dark:bg-neutral-800 p-1">
+        <button
+          on:click={() => (activeTab = "scene")}
+          class="flex-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all duration-200"
+          class:bg-white={activeTab === "scene"}
+          class:dark:bg-neutral-900={activeTab === "scene"}
+          class:text-neutral-900={activeTab === "scene"}
+          class:dark:text-neutral-50={activeTab === "scene"}
+          class:shadow-sm={activeTab === "scene"}
+          class:text-neutral-500={activeTab !== "scene"}
+          class:dark:text-neutral-300={activeTab !== "scene"}
+        >
+          Scene
+        </button>
+        <button
+          on:click={() => (activeTab = "paths")}
+          class="flex-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all duration-200"
+          class:bg-white={activeTab === "paths"}
+          class:dark:bg-neutral-900={activeTab === "paths"}
+          class:text-neutral-900={activeTab === "paths"}
+          class:dark:text-neutral-50={activeTab === "paths"}
+          class:shadow-sm={activeTab === "paths"}
+          class:text-neutral-500={activeTab !== "paths"}
+          class:dark:text-neutral-300={activeTab !== "paths"}
+        >
+          Paths & Timeline
+        </button>
         </div>
       {/if}
     </div>
 
-    <!-- Unified sequence render: paths and waits -->
-    {#each sequence as item, sIdx}
-      <div class="w-full">
-        {#if item.kind === "path"}
-          {#each lines.filter((l) => l.id === item.lineId) as ln (ln.id)}
-            <PathLineSection
-              bind:line={ln}
-              idx={lines.findIndex((l) => l.id === ln.id)}
-              bind:lines
-              bind:collapsed={
-                collapsedSections.lines[lines.findIndex((l) => l.id === ln.id)]
-              }
-              bind:collapsedControlPoints={
-                collapsedSections.controlPoints[
-                  lines.findIndex((l) => l.id === ln.id)
-                ]
-              }
-              onRemove={() =>
-                removeLine(lines.findIndex((l) => l.id === ln.id))}
-              onInsertAfter={() => addControlPointToLine(sIdx)}
-              onInsertMidpoint={() => insertMidpointAfter(sIdx)}
-              onAddWaitAfter={() => insertWaitAfter(sIdx)}
-              onMoveUp={() => moveSequenceItem(sIdx, -1)}
-              onMoveDown={() => moveSequenceItem(sIdx, 1)}
-              canMoveUp={sIdx !== 0}
-              canMoveDown={sIdx !== sequence.length - 1}
-              optimizeLine={optimizeLine}
-              optimizing={optimizingLineIds?.[ln.id ?? ""] ?? false}
-              chainOptions={chainOptions}
-              selectedChainId={getLinePrimaryChainId(ln.id || "")}
-              onChainChange={(chainId) => assignLineToChain(ln.id || "", chainId)}
-              {recordChange}
-            />
-          {/each}
-        {:else}
-          <WaitRow
-            name={getWait(item).name}
-            durationMs={getWait(item).durationMs}
-            locked={getWait(item).locked ?? false}
-            onToggleLock={() => {
-              const newSeq = [...sequence];
-              newSeq[sIdx] = {
-                ...getWait(item),
-                locked: !(getWait(item).locked ?? false),
-              };
-              sequence = newSeq;
-              recordChange?.();
-            }}
-            onChange={(newName, newDuration) => {
-              const newSeq = [...sequence];
-              newSeq[sIdx] = {
-                ...getWait(item),
-                name: newName,
-                durationMs: Math.max(0, Number(newDuration) || 0),
-              };
-              sequence = newSeq;
-            }}
-            onRemove={() => {
-              const newSeq = [...sequence];
-              newSeq.splice(sIdx, 1);
-              sequence = newSeq;
-            }}
-            onInsertAfter={() => {
-              const newSeq = [...sequence];
-              newSeq.splice(sIdx + 1, 0, {
-                kind: "wait",
-                id: makeId(),
-                name: "Wait",
-                durationMs: 0,
-                locked: false,
-              });
-              sequence = newSeq;
-            }}
-            onAddPathAfter={() => insertPathAfter(sIdx)}
-            onMoveUp={() => moveSequenceItem(sIdx, -1)}
-            onMoveDown={() => moveSequenceItem(sIdx, 1)}
-            canMoveUp={sIdx !== 0}
-            canMoveDown={sIdx !== sequence.length - 1}
-          />
-        {/if}
-      </div>
-    {/each}
+    <div class="flex-1 overflow-y-auto overflow-x-hidden p-2">
+      {#if resolvedTab === "scene"}
+        <div class="space-y-2">
+          <section class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-2 shadow-sm">
+            <div class="flex flex-wrap items-center gap-2">
+              <button
+                title={$showGrid ? `Grid: ${$gridSize}\" (click to cycle)` : "Toggle Grid"}
+                on:click={cycleGridSize}
+                class="inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[11px]"
+                class:border-blue-300={$showGrid}
+                class:text-blue-700={$showGrid}
+                class:bg-blue-50={$showGrid}
+                class:border-neutral-300={!$showGrid}
+                class:text-neutral-700={!$showGrid}
+                class:bg-neutral-50={!$showGrid}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="3" y1="9" x2="21" y2="9"></line>
+                  <line x1="3" y1="15" x2="21" y2="15"></line>
+                  <line x1="9" y1="3" x2="9" y2="21"></line>
+                  <line x1="15" y1="3" x2="15" y2="21"></line>
+                </svg>
+                {#if $showGrid}
+                  <span class="text-[10px]">{$gridSize}\"</span>
+                {/if}
+              </button>
 
-    <!-- Add Line Button -->
-    <div class="flex flex-row items-center gap-4">
-      <button
-        on:click={addLine}
-        class="font-semibold text-green-500 text-sm flex flex-row justify-start items-center gap-1"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke-width={2}
-          stroke="currentColor"
-          class="size-5"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M12 4.5v15m7.5-7.5h-15"
-          />
-        </svg>
-        <p>Add Path</p>
-      </button>
+              <button
+                title="Toggle Ruler"
+                on:click={() => showRuler.update((v) => !v)}
+                class="inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[11px]"
+                class:border-blue-300={$showRuler}
+                class:text-blue-700={$showRuler}
+                class:bg-blue-50={$showRuler}
+                class:border-neutral-300={!$showRuler}
+                class:text-neutral-700={!$showRuler}
+                class:bg-neutral-50={!$showRuler}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0z"
+                  ></path>
+                  <path d="m14.5 12.5 2-2"></path>
+                  <path d="m11.5 9.5 2-2"></path>
+                  <path d="m8.5 6.5 2-2"></path>
+                  <path d="m17.5 15.5 2-2"></path>
+                </svg>
+              </button>
 
-      <button
-        on:click={addWait}
-        class="font-semibold text-[#E1461B] text-sm flex flex-row justify-start items-center gap-1"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          class="size-5"
-        >
-          <circle cx="12" cy="12" r="9" />
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M12 7v5l3 2"
-          />
-        </svg>
-        <p>Add Wait</p>
-      </button>
+              <button
+                title="Toggle Compass"
+                on:click={() => showProtractor.update((v) => !v)}
+                class="inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[11px]"
+                class:border-blue-300={$showProtractor}
+                class:text-blue-700={$showProtractor}
+                class:bg-blue-50={$showProtractor}
+                class:border-neutral-300={!$showProtractor}
+                class:text-neutral-700={!$showProtractor}
+                class:bg-neutral-50={!$showProtractor}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 21a9 9 0 1 1 0-18c2.52 0 4.93 1 6.74 2.74L21 8"></path>
+                  <path d="M12 3v6l3.7 2.7"></path>
+                </svg>
+              </button>
+
+              {#if $showProtractor}
+                <button
+                  title={$protractorLockToRobot ? "Unlock Compass from Robot" : "Lock Compass to Robot"}
+                  on:click={() => protractorLockToRobot.update((v) => !v)}
+                  class="inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[11px]"
+                  class:border-amber-300={$protractorLockToRobot}
+                  class:text-amber-700={$protractorLockToRobot}
+                  class:bg-amber-50={$protractorLockToRobot}
+                  class:border-neutral-300={!$protractorLockToRobot}
+                  class:text-neutral-700={!$protractorLockToRobot}
+                  class:bg-neutral-50={!$protractorLockToRobot}
+                >
+                  Lock
+                </button>
+              {/if}
+            </div>
+          </section>
+
+          <section class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-2 shadow-sm">
+            <button
+              on:click={() => (obstaclesDropdownOpen = !obstaclesDropdownOpen)}
+              class="w-full flex items-center justify-between gap-2 text-left"
+              aria-expanded={obstaclesDropdownOpen}
+            >
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500 dark:text-neutral-400">Obstacles</p>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width={2}
+                stroke="currentColor"
+                class="size-4 transition-transform duration-200"
+                class:rotate-180={obstaclesDropdownOpen}
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="m19.5 8.25-7.5 7.5-7.5-7.5"
+                />
+              </svg>
+            </button>
+
+            {#if obstaclesDropdownOpen}
+              <div class="mt-2 border-t border-neutral-200 dark:border-neutral-700 pt-2">
+                <ObstaclesSection bind:shapes bind:collapsedObstacles />
+              </div>
+            {/if}
+          </section>
+
+          <section class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-2 shadow-sm">
+            <RobotPositionDisplay {robotXY} {robotHeading} {x} {y} />
+          </section>
+
+          <section class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-2 shadow-sm">
+            <StartingPointSection bind:startPoint />
+          </section>
+        </div>
+      {:else}
+        <div class="flex h-full min-h-0 flex-col gap-2">
+          <section class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-2 shadow-sm">
+            <div class="flex items-center justify-between gap-3 mb-2">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-neutral-500 dark:text-neutral-400">Path Chains</p>
+                <p class="text-xs text-neutral-500 dark:text-neutral-400">Assign related paths to a shared color and workflow.</p>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-1.5">
+              <select
+                bind:value={selectedChainId}
+                class="min-w-0 flex-1 px-2 py-1.5 text-xs rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900"
+              >
+                {#each pathChains as chain (chain.id)}
+                  <option value={chain.id}>{chain.name} ({(chain.lineIds || []).length})</option>
+                {/each}
+              </select>
+              <button on:click={addPathChain} class="px-2 py-1.5 text-xs rounded-lg bg-emerald-100 text-emerald-800 dark:bg-emerald-900/80 dark:text-emerald-100">New</button>
+              <button on:click={duplicateSelectedPathChain} class="px-2 py-1.5 text-xs rounded-lg bg-indigo-100 text-indigo-800 dark:bg-indigo-900/80 dark:text-indigo-100">Duplicate</button>
+              <button
+                on:click={removeSelectedPathChain}
+                disabled={pathChains.length <= 1}
+                class="px-2 py-1.5 text-xs rounded-lg bg-rose-100 text-rose-800 dark:bg-rose-900/80 dark:text-rose-100 disabled:opacity-40"
+              >
+                Remove
+              </button>
+            </div>
+
+            {#if selectedChain}
+              <div class="mt-2 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-2">
+                <input
+                  type="text"
+                  bind:value={chainNameDraft}
+                  on:input={updateSelectedChainName}
+                  class="w-full px-2 py-1.5 text-xs rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900"
+                  placeholder="Chain name"
+                />
+
+                <div class="flex items-center gap-2">
+                  <input
+                    type="color"
+                    bind:value={chainColorDraft}
+                    on:input={updateSelectedChainColor}
+                    class="w-10 h-8 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900"
+                    title="Path chain color"
+                  />
+                  <span class="text-xs text-neutral-500 dark:text-neutral-400">Path color</span>
+                </div>
+              </div>
+            {/if}
+          </section>
+
+          <section class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-2 shadow-sm flex min-h-0 flex-1 flex-col">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-neutral-500 dark:text-neutral-400">Sequence</p>
+                <p class="text-xs text-neutral-500 dark:text-neutral-400">Reorder paths and waits in the order they will run.</p>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-1.5">
+                <button
+                  on:click={addLine}
+                  class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width={2}
+                    stroke="currentColor"
+                    class="size-4"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M12 4.5v15m7.5-7.5h-15"
+                    />
+                  </svg>
+                  Add Path
+                </button>
+
+                <button
+                  on:click={addWait}
+                  class="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    class="size-4"
+                  >
+                    <circle cx="12" cy="12" r="9" />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M12 7v5l3 2"
+                    />
+                  </svg>
+                  Add Wait
+                </button>
+              </div>
+            </div>
+
+            <div class="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
+              {#each sequence as item, sIdx}
+                <div class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-sm p-1.5">
+                  {#if item.kind === "path"}
+                    {#each lines.filter((l) => l.id === item.lineId) as ln (ln.id)}
+                      <PathLineSection
+                        bind:line={ln}
+                        idx={lines.findIndex((l) => l.id === ln.id)}
+                        bind:lines
+                        bind:collapsed={
+                          collapsedSections.lines[lines.findIndex((l) => l.id === ln.id)]
+                        }
+                        bind:collapsedControlPoints={
+                          collapsedSections.controlPoints[
+                            lines.findIndex((l) => l.id === ln.id)
+                          ]
+                        }
+                        onRemove={() =>
+                          removeLine(lines.findIndex((l) => l.id === ln.id))}
+                        onInsertAfter={() => addControlPointToLine(sIdx)}
+                        onInsertMidpoint={() => insertMidpointAfter(sIdx)}
+                        onAddWaitAfter={() => insertWaitAfter(sIdx)}
+                        onMoveUp={() => moveSequenceItem(sIdx, -1)}
+                        onMoveDown={() => moveSequenceItem(sIdx, 1)}
+                        canMoveUp={sIdx !== 0}
+                        canMoveDown={sIdx !== sequence.length - 1}
+                        optimizeLine={optimizeLine}
+                        optimizing={optimizingLineIds?.[ln.id ?? ""] ?? false}
+                        chainOptions={chainOptions}
+                        selectedChainId={getLinePrimaryChainId(ln.id || "")}
+                        onChainChange={(chainId) => assignLineToChain(ln.id || "", chainId)}
+                        {recordChange}
+                      />
+                    {/each}
+                  {:else}
+                    <WaitRow
+                      name={getWait(item).name}
+                      durationMs={getWait(item).durationMs}
+                      locked={getWait(item).locked ?? false}
+                      onToggleLock={() => {
+                        const newSeq = [...sequence];
+                        newSeq[sIdx] = {
+                          ...getWait(item),
+                          locked: !(getWait(item).locked ?? false),
+                        };
+                        sequence = newSeq;
+                        recordChange?.();
+                      }}
+                      onChange={(newName, newDuration) => {
+                        const newSeq = [...sequence];
+                        newSeq[sIdx] = {
+                          ...getWait(item),
+                          name: newName,
+                          durationMs: Math.max(0, Number(newDuration) || 0),
+                        };
+                        sequence = newSeq;
+                      }}
+                      onRemove={() => {
+                        const newSeq = [...sequence];
+                        newSeq.splice(sIdx, 1);
+                        sequence = newSeq;
+                      }}
+                      onInsertAfter={() => {
+                        const newSeq = [...sequence];
+                        newSeq.splice(sIdx + 1, 0, {
+                          kind: "wait",
+                          id: makeId(),
+                          name: "Wait",
+                          durationMs: 0,
+                          locked: false,
+                        });
+                        sequence = newSeq;
+                      }}
+                      onAddPathAfter={() => insertPathAfter(sIdx)}
+                      onMoveUp={() => moveSequenceItem(sIdx, -1)}
+                      onMoveDown={() => moveSequenceItem(sIdx, 1)}
+                      canMoveUp={sIdx !== 0}
+                      canMoveDown={sIdx !== sequence.length - 1}
+                    />
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          </section>
+        </div>
+      {/if}
     </div>
   </div>
-
-  <PlaybackControls
-    bind:playing
-    {play}
-    {pause}
-    bind:percent
-    {handleSeek}
-    bind:loopAnimation
-    {markers}
-    totalTime={timePrediction?.totalTime ?? 0}
-  />
 </div>

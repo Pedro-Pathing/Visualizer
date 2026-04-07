@@ -1,12 +1,12 @@
 <script lang="ts">
+  import type { Point } from "../../types";
+
   export let startPoint: Point;
-  export let addPathAtStart: () => void;
-  export let addWaitAtStart: () => void;
 </script>
 
-<div class="flex flex-col w-full justify-start items-start gap-0.5">
+<div class="flex flex-col w-full justify-start items-start gap-0.5 min-w-0 text-[12px]">
   <div class="flex items-center justify-between w-full">
-    <div class="font-semibold flex items-center gap-2">
+    <div class="font-semibold flex items-center gap-1.5">
       Starting Point
       <button
         title={startPoint.locked
@@ -16,7 +16,7 @@
           startPoint.locked = !startPoint.locked;
           startPoint = { ...startPoint }; // Force reactivity
         }}
-        class="p-1 rounded transition-colors duration-250"
+        class="p-0.5 rounded transition-colors duration-250"
       >
         {#if startPoint.locked}
           <svg
@@ -25,7 +25,7 @@
             viewBox="0 0 24 24"
             stroke-width={2}
             stroke="currentColor"
-            class="size-5 stroke-yellow-500"
+            class="size-4 stroke-yellow-500"
           >
             <path
               stroke-linecap="round"
@@ -40,7 +40,7 @@
             viewBox="0 0 24 24"
             stroke-width={2}
             stroke="currentColor"
-            class="size-5 stroke-gray-400"
+            class="size-4 stroke-gray-400"
           >
             <path
               stroke-linecap="round"
@@ -52,14 +52,14 @@
       </button>
     </div>
   </div>
-  <div class="flex flex-row justify-start items-center gap-2">
+  <div class="flex flex-row flex-wrap justify-start items-center gap-1.5 w-full min-w-0">
     <span class="font-extralight">X:</span>
     <input
       bind:value={startPoint.x}
       min="0"
       max="141.5"
       type="number"
-      class="pl-1.5 rounded-md bg-neutral-100 border-[0.5px] focus:outline-none w-28 dark:bg-neutral-950 dark:border-neutral-700"
+      class="pl-1.5 rounded-md bg-neutral-100 border-[0.5px] focus:outline-none w-20 text-xs dark:bg-neutral-950 dark:border-neutral-700"
       step="0.1"
       disabled={startPoint.locked}
     />
@@ -69,7 +69,7 @@
       min="0"
       max="141.5"
       type="number"
-      class="pl-1.5 rounded-md bg-neutral-100 border-[0.5px] focus:outline-none w-28 dark:bg-neutral-950 dark:border-neutral-700"
+      class="pl-1.5 rounded-md bg-neutral-100 border-[0.5px] focus:outline-none w-20 text-xs dark:bg-neutral-950 dark:border-neutral-700"
       step="0.1"
       disabled={startPoint.locked}
     />

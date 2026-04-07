@@ -12,6 +12,10 @@
   export let totalTime: number = 0;
 
   $: elapsedSeconds = (percent / 100) * (totalTime || 0);
+
+  function onSeekInput(event: Event) {
+    handleSeek(parseFloat((event.currentTarget as HTMLInputElement).value));
+  }
 </script>
 
 <div
@@ -109,7 +113,7 @@
       max="100"
       step="0.000001"
       class="w-full appearance-none slider focus:outline-none"
-      on:input={(e) => handleSeek(parseFloat(e.target.value))}
+      on:input={onSeekInput}
     />
   </div>
   <div class="flex items-center gap-2 ml-2 text-sm text-neutral-600 dark:text-neutral-300">

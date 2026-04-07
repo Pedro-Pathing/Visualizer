@@ -25,15 +25,15 @@
 </script>
 
 <div
-  class="flex w-full items-center justify-between gap-2 px-2 py-1 rounded border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900"
+  class="flex w-full flex-col items-stretch gap-1.5 px-1.5 py-1.5 rounded border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900 min-w-0 text-[12px]"
 >
-  <div class="flex items-center gap-2">
+  <div class="flex items-center gap-1.5 flex-wrap min-w-0">
     <span
       class="px-1.5 py-0.5 text-xs rounded bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
       >Wait</span
     >
     <input
-      class="pl-1.5 rounded-md bg-neutral-50 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-40"
+      class="pl-1.5 rounded-md bg-neutral-50 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none min-w-0 flex-1 text-xs"
       type="text"
       placeholder="Name"
       bind:value={name}
@@ -41,7 +41,7 @@
       disabled={locked}
     />
     <input
-      class="pl-1.5 rounded-md bg-neutral-50 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
+      class="pl-1.5 rounded-md bg-neutral-50 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-20 text-xs"
       type="number"
       min="0"
       step="50"
@@ -52,14 +52,14 @@
     <span>ms</span>
   </div>
 
-  <div class="flex items-center gap-2">
+  <div class="flex items-center gap-1.5 flex-wrap justify-end">
     <!-- Lock/Unlock Button -->
     <button
       title={locked ? "Unlock Wait" : "Lock Wait"}
       on:click|stopPropagation={() => {
         if (onToggleLock) onToggleLock();
       }}
-      class="p-1 rounded transition-colors duration-250"
+      class="p-0.5 rounded transition-colors duration-250"
     >
       {#if locked}
         <svg
@@ -68,7 +68,7 @@
           viewBox="0 0 24 24"
           stroke-width={2}
           stroke="currentColor"
-          class="size-5 stroke-yellow-500"
+          class="size-4 stroke-yellow-500"
         >
           <path
             stroke-linecap="round"
@@ -83,7 +83,7 @@
           viewBox="0 0 24 24"
           stroke-width={2}
           stroke="currentColor"
-          class="size-5 stroke-gray-400"
+          class="size-4 stroke-gray-400"
         >
           <path
             stroke-linecap="round"
@@ -94,13 +94,13 @@
       {/if}
     </button>
 
-    <div class="flex flex-row gap-0.5 mr-1">
+    <div class="flex flex-row gap-0.5 mr-0.5">
       <button
         title="Move up"
         on:click={() => {
           if (!locked && onMoveUp) onMoveUp();
         }}
-        class="p-1 rounded-full text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 bg-neutral-100/70 dark:bg-neutral-900/70 border border-neutral-200/70 dark:border-neutral-700/70 disabled:opacity-40 disabled:cursor-not-allowed"
+        class="p-0.5 rounded-full text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 bg-neutral-100/70 dark:bg-neutral-900/70 border border-neutral-200/70 dark:border-neutral-700/70 disabled:opacity-40 disabled:cursor-not-allowed"
         disabled={!canMoveUp || locked}
       >
         <svg
@@ -109,7 +109,7 @@
           fill="none"
           stroke="currentColor"
           stroke-width="2"
-          class="size-4"
+          class="size-3.5"
         >
           <path
             stroke-linecap="round"
@@ -123,7 +123,7 @@
         on:click={() => {
           if (!locked && onMoveDown) onMoveDown();
         }}
-        class="p-1 rounded-full text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 bg-neutral-100/70 dark:bg-neutral-900/70 border border-neutral-200/70 dark:border-neutral-700/70 disabled:opacity-40 disabled:cursor-not-allowed"
+        class="p-0.5 rounded-full text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 bg-neutral-100/70 dark:bg-neutral-900/70 border border-neutral-200/70 dark:border-neutral-700/70 disabled:opacity-40 disabled:cursor-not-allowed"
         disabled={!canMoveDown || locked}
       >
         <svg
@@ -132,7 +132,7 @@
           fill="none"
           stroke="currentColor"
           stroke-width="2"
-          class="size-4"
+          class="size-3.5"
         >
           <path
             stroke-linecap="round"
@@ -156,7 +156,7 @@
         viewBox="0 0 24 24"
         stroke-width={2}
         stroke="currentColor"
-        class="size-5"
+        class="size-4"
       >
         <path
           stroke-linecap="round"
@@ -179,7 +179,7 @@
         fill="none"
         stroke="currentColor"
         stroke-width="2"
-        class="size-5"
+        class="size-4"
       >
         <circle cx="12" cy="12" r="9" />
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2" />
@@ -199,7 +199,7 @@
         fill="none"
         stroke="currentColor"
         stroke-width="2"
-        class="size-5"
+        class="size-4"
       >
         <path
           stroke-linecap="round"

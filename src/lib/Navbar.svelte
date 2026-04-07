@@ -2,14 +2,8 @@
   import type { Point, Line, Shape, Settings, SequenceItem, PathChain } from "../types";
   import { onMount, onDestroy } from "svelte";
   import {
-    showRuler,
-    showProtractor,
-    showGrid,
-    protractorLockToRobot,
-    gridSize,
     currentFilePath,
     isUnsaved,
-    snapToGrid,
     dualPathMode,
     activePaths,
   } from "../stores";
@@ -23,6 +17,7 @@
   import SettingsDialog from "./components/SettingsDialog.svelte";
   import ExportCodeDialog from "./components/ExportCodeDialog.svelte";
   import MultiplePathsDialog from "./components/MultiplePathsDialog.svelte";
+  import PlaybackControls from "./components/PlaybackControls.svelte";
   import { calculatePathTime, formatTime } from "../utils";
   import html2canvas from "html2canvas";
 
@@ -41,6 +36,11 @@
   export let robotWidth: number;
   export let robotHeight: number;
   export let settings: Settings;
+  export let playing: boolean = false;
+  export let play: () => void;
+  export let pause: () => void;
+  export let handleSeek: (percent: number) => void;
+  export let loopAnimation: boolean = true;
 
   export let saveProject: () => any;
   export let saveFileAs: () => any;
@@ -52,9 +52,6 @@
   export let optimizeAllLines: () => Promise<void>;
   export let optimizingAll: boolean = false;
   export let twoElement: HTMLDivElement | null = null;
-  export let playing: boolean = false;
-  export let play: () => void;
-  export let pause: () => void;
   export let exportPathAsGif: () => Promise<void>;
 
   let fileManagerOpen = false;
@@ -70,9 +67,6 @@
   let saveDropdownRef: HTMLElement;
   let saveButtonRef: HTMLElement;
 
-  let selectedGridSize = 12;
-  const gridSizeOptions = [0, 1, 3, 6, 12, 24];
-
   // Ensure File Manager and Export dialog are mutually exclusive
   $: if (fileManagerOpen && exportDialogOpen) {
     exportDialogOpen = false;
@@ -85,41 +79,26 @@
 
   $: timePrediction = calculatePathTime(startPoint, lines, settings, sequence);
   $: elapsedSeconds = (percent / 100) * (timePrediction?.totalTime || 0);
-
-  onMount(() => {
-    const unsubscribeGridSize = gridSize.subscribe((value) => {
-      selectedGridSize = value;
-    });
-
-    return () => {
-      unsubscribeGridSize();
-    };
-  });
-
-  function cycleGridSize() {
-    if (!$showGrid) {
-      // Grid is off, turn it on with first non-zero size
-      showGrid.set(true);
-      selectedGridSize = gridSizeOptions[1]; // Start at 1, not 0
-      gridSize.set(selectedGridSize);
-    } else {
-      // Grid is on, cycle to next size or turn off
-      const currentIndex = gridSizeOptions.indexOf(selectedGridSize);
-      const nextIndex = currentIndex + 1;
-      if (nextIndex >= gridSizeOptions.length) {
-        // We're at the last size, turn off
-        showGrid.set(false);
-      } else {
-        // Move to next size
-        selectedGridSize = gridSizeOptions[nextIndex];
-        gridSize.set(selectedGridSize);
-        // If grid size is 0, hide the grid
-        if (selectedGridSize === 0) {
-          showGrid.set(false);
-        }
-      }
+  $: markers = (() => {
+    const result: { percent: number; color: string; name: string }[] = [];
+    if (!timePrediction || !timePrediction.timeline || timePrediction.totalTime <= 0) {
+      return result;
     }
-  }
+    timePrediction.timeline.forEach((ev) => {
+      if ((ev as any).type === "travel") {
+        const end = (ev as any).endTime as number;
+        const pct = (end / timePrediction.totalTime) * 100;
+        const lineIndex = (ev as any).lineIndex as number;
+        const line = lines[lineIndex];
+        result.push({
+          percent: pct,
+          color: line?.color || "#ffffff",
+          name: line?.name || `Path ${lineIndex + 1}`,
+        });
+      }
+    });
+    return result;
+  })();
 
   function handleExport(format: "java" | "points" | "sequential") {
     exportMenuOpen = false;
@@ -297,7 +276,7 @@
 <SettingsDialog bind:isOpen={settingsOpen} bind:settings />
 
 <div
-  class="absolute top-0 left-0 w-full bg-neutral-50 dark:bg-neutral-900 shadow-md flex flex-row justify-between items-center px-6 py-4 border-b-[0.75px] border-[#fe55a2]"
+  class="z-40 mt-2 mx-2 flex flex-row justify-between items-center gap-3 rounded-3xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-950 shadow-lg px-3 py-2"
 >
   <!-- Title -->
   <div class="font-semibold flex flex-col justify-start items-start">
@@ -360,6 +339,19 @@
     </div>
   </div>
 
+  <div class="flex-1 min-w-0 max-w-[920px]">
+    <PlaybackControls
+      bind:playing
+      {play}
+      {pause}
+      bind:percent
+      {handleSeek}
+      bind:loopAnimation
+      {markers}
+      totalTime={timePrediction?.totalTime ?? 0}
+    />
+  </div>
+
   <!-- Actions -->
   <div class="flex flex-row justify-end items-center gap-4">
     <div class="flex items-center gap-3">
@@ -377,18 +369,20 @@
         </div>
       </div>
 
-      <button
-        class="relative px-3 py-1.5 text-sm font-semibold text-neutral-700 dark:text-neutral-200 bg-neutral-200/80 dark:bg-neutral-800/80 border border-neutral-300 dark:border-neutral-700 rounded-full shadow-sm hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-        title="Optimize all paths"
-        on:click={optimizeAllLines}
-        disabled={optimizingAll}
-        style="box-shadow: 0 0 8px rgba(255,255,255,0.2)"
-        on:mouseenter={handleOptimizeEnter}
-        on:mousemove={handleOptimizeMove}
-        on:mouseleave={handleOptimizeLeave}
-      >
-        {optimizingAll ? "Optimizing All…" : "Optimize All"}
-      </button>
+      {#if false}
+        <button
+          class="relative px-3 py-1.5 text-sm font-semibold text-neutral-700 dark:text-neutral-200 bg-neutral-200/80 dark:bg-neutral-800/80 border border-neutral-300 dark:border-neutral-700 rounded-full shadow-sm hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Optimize all paths"
+          on:click={optimizeAllLines}
+          disabled={optimizingAll}
+          style="box-shadow: 0 0 8px rgba(255,255,255,0.2)"
+          on:mouseenter={handleOptimizeEnter}
+          on:mousemove={handleOptimizeMove}
+          on:mouseleave={handleOptimizeLeave}
+        >
+          {optimizingAll ? "Optimizing All…" : "Optimize All"}
+        </button>
+      {/if}
 
       <!-- Undo / Redo -->
       <div class="flex items-center gap-2">
@@ -439,178 +433,7 @@
       </div>
     </div>
 
-    <!-- Divider -->
-    <div
-      class="h-6 border-l border-neutral-300 dark:border-neutral-700 mx-4"
-      aria-hidden="true"
-    ></div>
-
-    <!-- Snap to grid toggle -->
-    {#if $showGrid}
-      <button
-        title={$snapToGrid ? "Disable Snap to Grid" : "Enable Snap to Grid"}
-        on:click={() => snapToGrid.update((v) => !v)}
-        class:text-green-500={$snapToGrid && $showGrid}
-        class:text-gray-400={!$showGrid}
-        class:opacity-50={!$showGrid}
-        disabled={!$showGrid}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <!-- When snapped, show magnet icon -->
-          <path
-            d="m6 15-4-4 6.75-6.77a7.79 7.79 0 0 1 11 11L13 22l-4-4 6.39-6.36a2.14 2.14 0 0 0-3-3L6 15"
-          ></path>
-          <path d="m5 8 4 4"></path>
-          <path d="m12 15 4 4"></path>
-
-          <!-- If the snap is disabled, turn the icon grey, not white -->
-          {#if !$snapToGrid}
-            <line x1="23" y1="23" x2="1" y2="1"></line>
-            class="opacity-50"
-          {/if}
-        </svg>
-      </button>
-    {/if}
-
-    <!-- Grid toggle -->
-    <button
-      title={$showGrid ? `Grid: ${selectedGridSize}" (click to cycle)` : "Toggle Grid"}
-      on:click={cycleGridSize}
-      class:text-blue-500={$showGrid}
-      class="relative"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-        <line x1="3" y1="9" x2="21" y2="9"></line>
-        <line x1="3" y1="15" x2="21" y2="15"></line>
-        <line x1="9" y1="3" x2="9" y2="21"></line>
-        <line x1="15" y1="3" x2="15" y2="21"></line>
-      </svg>
-      {#if $showGrid}
-        <span class="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-semibold whitespace-nowrap">
-          {selectedGridSize}"
-        </span>
-      {/if}
-    </button>
-
-    <!-- Ruler toggle -->
-    <button
-      title="Toggle Ruler"
-      on:click={() => showRuler.update((v) => !v)}
-      class:text-blue-500={$showRuler}
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <path
-          d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0z"
-        ></path>
-        <path d="m14.5 12.5 2-2"></path>
-        <path d="m11.5 9.5 2-2"></path>
-        <path d="m8.5 6.5 2-2"></path>
-        <path d="m17.5 15.5 2-2"></path>
-      </svg>
-    </button>
-
-    <!-- Protractor lock to robot toggle -->
-    {#if $showProtractor}
-      <button
-        title={$protractorLockToRobot
-          ? "Unlock Protractor from Robot"
-          : "Lock Protractor to Robot"}
-        on:click={() => protractorLockToRobot.update((v) => !v)}
-        class:text-amber-500={$protractorLockToRobot}
-      >
-        {#if $protractorLockToRobot}
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-          </svg>
-        {:else}
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-            <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
-          </svg>
-        {/if}
-      </button>
-    {/if}
-
-    <!-- Protractor toggle -->
-
-    <button
-      title="Toggle Protractor"
-      on:click={() => showProtractor.update((v) => !v)}
-      class:text-blue-500={$showProtractor}
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <path d="M12 21a9 9 0 1 1 0-18c2.52 0 4.93 1 6.74 2.74L21 8"></path>
-        <path d="M12 3v6l3.7 2.7"></path>
-      </svg>
-    </button>
-
-    <!-- Divider -->
-    <div
-      class="h-6 border-l border-neutral-300 dark:border-neutral-700 mx-4"
-      aria-hidden="true"
-    ></div>
+    <!-- Grid/ruler/compass controls moved to left scene sidebar top -->
 
     <!-- Multiple Paths Toggle -->
     <button

@@ -1,12 +1,8 @@
-<script lang="ts" context="module">
-
-</script>
-
 <script lang="ts">
   import { onMount, afterUpdate, onDestroy } from "svelte";
 
   import { cubicInOut } from "svelte/easing";
-  import { fade, fly } from "svelte/transition";
+  import { fade } from "svelte/transition";
   import type { FileInfo, Point, Line, Shape, SequenceItem, PathChain } from "../types";
   import * as browserFileStore from "../utils/browserFileStore";
   import { currentFilePath, isUnsaved, dualPathMode, secondFilePath } from "../stores";
@@ -831,8 +827,8 @@
   <!-- Backdrop -->
   {#if isOpen}
     <div
-      transition:fade={{ duration: 300 }}
-      class="fixed inset-0 bg-black bg-opacity-50"
+      transition:fade={{ duration: 180, easing: cubicInOut }}
+      class="fixed inset-0 bg-neutral-950/35"
       on:click={() => (isOpen = false)}
       role="button"
       tabindex="0"
@@ -851,293 +847,296 @@
     class:translate-x-0={isOpen}
     class:-translate-x-full={!isOpen}
   >
-    <!-- Header -->
-    <div
-      class="flex-shrink-0 p-3 border-b border-neutral-200 dark:border-neutral-700"
-    >
-      <div class="flex items-center justify-between">
-        <h2 class="text-base font-semibold text-neutral-900 dark:text-white">
-          Files
-        </h2>
-        <button
-          on:click={() => (isOpen = false)}
-          class="p-1 rounded transition-colors duration-250"
-          title="Close"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width={2}
-            stroke="currentColor"
-            class="size-5"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M6 18 18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-      </div>
-
-      <!-- Error Message -->
-      {#if errorMessage}
-        <div
-          class="mb-3 p-2 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded text-sm text-red-700 dark:text-red-300"
-        >
-          ⚠ {errorMessage}
-        </div>
-      {/if}
-      
-    </div>
-
-    <!-- New File Section -->
-    <div
-      class="flex-shrink-0 px-3 py-2 border-b border-neutral-200 dark:border-neutral-700"
-    >
-      {#if creatingNewFile}
-        <div class="space-y-2">
-          <input
-            bind:value={newFileName}
-            placeholder="Enter file name (e.g., my_path.pp)..."
-            class="w-full px-2 py-1.5 text-sm border border-neutral-300 dark:border-neutral-600 rounded-md bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            on:keydown={(e) => e.key === "Enter" && createNewFile()}
-          />
-          <div class="flex gap-2">
-            <button
-              on:click={createNewFile}
-              class="flex-1 px-3 py-1.5 text-sm bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors"
-            >
-              Create
-            </button>
-            <button
-              on:click={() => {
-                creatingNewFile = false;
-                newFileName = "";
-              }}
-              class="flex-1 px-3 py-1.5 text-sm bg-neutral-500 hover:bg-neutral-600 text-white rounded-md transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      {:else}
-        <button
-          on:click={() => (creatingNewFile = true)}
-          class="w-full px-3 py-1.5 text-sm bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors flex items-center justify-center gap-2"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width={2}
-            stroke="currentColor"
-            class="size-4"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M12 4.5v15m7.5-7.5h-15"
-            />
-          </svg>
-          New Path File
-        </button>
-      {/if}
-    </div>
-
-    <!-- File List -->
-    <div class="flex-1 overflow-hidden">
-      {#if loading}
-        <div class="flex flex-col items-center justify-center h-32 gap-2">
-          <div
-            class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"
-          ></div>
-          <div class="text-neutral-500 dark:text-neutral-400">
-            Loading files...
-          </div>
-        </div>
-      {:else if errorMessage && files.length === 0}
-        <div class="flex flex-col items-center justify-center h-32 p-3">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width={1}
-            stroke="currentColor"
-            class="size-10 mx-auto mb-2 text-red-500"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
-            />
-          </svg>
-          <div class="text-center text-xs text-neutral-600 dark:text-neutral-400">
-            {errorMessage}
-          </div>
-        </div>
-      {:else if files.length === 0}
-        <div class="flex flex-col items-center justify-center h-32 p-3">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width={1}
-            stroke="currentColor"
-            class="size-10 mx-auto mb-2 opacity-50"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
-            />
-          </svg>
-          <div class="text-center text-xs text-neutral-500 dark:text-neutral-400 mb-2">
-            No files yet
+      <!-- Header -->
+      <div
+        class="flex-shrink-0 px-4 py-4 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900"
+      >
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-[11px] font-semibold uppercase tracking-[0.24em] text-neutral-500 dark:text-neutral-400">
+              Workspace
+            </div>
+            <h2 class="mt-1 text-lg font-semibold text-neutral-900 dark:text-white">
+              Files
+            </h2>
+            <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+              Open, duplicate, and manage path files.
+            </p>
           </div>
           <button
-            on:click={() => (creatingNewFile = true)}
-            class="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+            on:click={() => (isOpen = false)}
+            class="p-2 rounded-xl border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800"
+            title="Close"
           >
-            Create First
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width={2}
+              stroke="currentColor"
+              class="size-5"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M6 18 18 6M6 6l12 12"
+              />
+            </svg>
           </button>
         </div>
-      {:else}
-        <div class="h-full overflow-y-auto">
-          <div
-            class="sticky top-0 bg-white dark:bg-neutral-900 px-3 py-1 border-b border-neutral-200 dark:border-neutral-700 text-xs text-neutral-500 dark:text-neutral-400"
-          >
-            Showing {files.length} file{files.length !== 1 ? "s" : ""}
-          </div>
 
-          {#each files as file (file.path)}
+        <!-- Error Message -->
+        {#if errorMessage}
+          <div
+            class="mt-4 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-2xl text-sm text-red-700 dark:text-red-300"
+          >
+            ⚠ {errorMessage}
+          </div>
+        {/if}
+      </div>
+
+      <!-- New File Section -->
+      <div
+        class="flex-shrink-0 px-4 py-3 border-b border-neutral-200 dark:border-neutral-700"
+      >
+        {#if creatingNewFile}
+          <div class="space-y-2">
+            <input
+              bind:value={newFileName}
+              placeholder="Enter file name (e.g., my_path.pp)..."
+              class="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-600 rounded-xl bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              on:keydown={(e) => e.key === "Enter" && createNewFile()}
+            />
+            <div class="flex gap-2">
+              <button
+                on:click={createNewFile}
+                class="flex-1 px-3 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-colors"
+              >
+                Create
+              </button>
+              <button
+                on:click={() => {
+                  creatingNewFile = false;
+                  newFileName = "";
+                }}
+                class="flex-1 px-3 py-2 text-sm bg-neutral-600 hover:bg-neutral-700 text-white rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        {:else}
+          <button
+            on:click={() => (creatingNewFile = true)}
+            class="w-full px-3 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-colors flex items-center justify-center gap-2"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width={2}
+              stroke="currentColor"
+              class="size-4"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 4.5v15m7.5-7.5h-15"
+              />
+            </svg>
+            New Path File
+          </button>
+        {/if}
+      </div>
+
+      <!-- File List -->
+      <div class="flex-1 overflow-hidden">
+        {#if loading}
+          <div class="flex flex-col items-center justify-center h-32 gap-2">
             <div
-              class="px-3 py-1.5 border-b border-neutral-200 dark:border-neutral-700 transition-colors duration-250 cursor-pointer file-item group"
-              on:click={() => {
-                if ($dualPathMode && selectedFile2?.path !== file.path && selectedFile?.path !== file.path) {
-                  loadSecondFile(file);
-                } else {
-                  loadFile(file);
-                }
-              }}
-              role="button"
-              tabindex="0"
-              on:keydown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
+              class="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"
+            ></div>
+            <div class="text-neutral-500 dark:text-neutral-400 text-sm">
+              Loading files...
+            </div>
+          </div>
+        {:else if errorMessage && files.length === 0}
+          <div class="flex flex-col items-center justify-center h-32 p-4">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width={1}
+              stroke="currentColor"
+              class="size-10 mx-auto mb-2 text-red-500"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+              />
+            </svg>
+            <div class="text-center text-sm text-neutral-600 dark:text-neutral-400">
+              {errorMessage}
+            </div>
+          </div>
+        {:else if files.length === 0}
+          <div class="flex flex-col items-center justify-center h-32 p-4">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width={1}
+              stroke="currentColor"
+              class="size-10 mx-auto mb-2 opacity-50"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+              />
+            </svg>
+            <div class="text-center text-sm text-neutral-500 dark:text-neutral-400 mb-2">
+              No files yet
+            </div>
+            <button
+              on:click={() => (creatingNewFile = true)}
+              class="px-3 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-colors"
+            >
+              Create First
+            </button>
+          </div>
+        {:else}
+          <div class="h-full overflow-y-auto">
+            <div
+              class="sticky top-0 bg-neutral-50 dark:bg-neutral-900 px-4 py-2 border-b border-neutral-200 dark:border-neutral-700 text-xs text-neutral-500 dark:text-neutral-400"
+            >
+              Showing {files.length} file{files.length !== 1 ? "s" : ""}
+            </div>
+
+            {#each files as file (file.path)}
+              <div
+                class={`px-4 py-3 border-b border-neutral-200 dark:border-neutral-700 transition-colors duration-200 cursor-pointer file-item group hover:bg-neutral-100/80 dark:hover:bg-neutral-800/70 ${selectedFile?.path === file.path ? "bg-emerald-50 dark:bg-emerald-950/40" : selectedFile2?.path === file.path ? "bg-neutral-200 dark:bg-neutral-800" : ""}`}
+                on:click={() => {
                   if ($dualPathMode && selectedFile2?.path !== file.path && selectedFile?.path !== file.path) {
                     loadSecondFile(file);
                   } else {
                     loadFile(file);
                   }
-                }
-              }}
-              aria-label={`Open ${file.name}`}
-              class:bg-blue-50={selectedFile?.path === file.path}
-              class:dark:bg-blue-900={selectedFile?.path === file.path}
-              class:bg-purple-50={selectedFile2?.path === file.path}
-              class:dark:bg-purple-900={selectedFile2?.path === file.path}
-            >
-              {#if renamingFile?.path === file.path}
-                <!-- Rename Input -->
-                <div class="space-y-2">
-                  <input
-                    bind:value={renameInputValue}
-                    class="w-full px-2 py-1 text-sm border border-blue-300 dark:border-blue-600 rounded bg-white dark:bg-neutral-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    on:keydown={(e) => {
-                      if (e.key === "Enter") renameFile();
-                      if (e.key === "Escape") cancelRename();
-                    }}
-                  />
-                  <div class="flex gap-2">
-                    <button
-                      on:click|stopPropagation={renameFile}
-                      class="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
-                    >
-                      Save
-                    </button>
-                    <button
-                      on:click|stopPropagation={cancelRename}
-                      class="px-2 py-1 text-xs bg-neutral-500 hover:bg-neutral-600 text-white rounded transition-colors"
-                    >
-                      Cancel
-                    </button>
+                }}
+                role="button"
+                tabindex="0"
+                on:keydown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    if ($dualPathMode && selectedFile2?.path !== file.path && selectedFile?.path !== file.path) {
+                      loadSecondFile(file);
+                    } else {
+                      loadFile(file);
+                    }
+                  }
+                }}
+                aria-label={`Open ${file.name}`}
+              >
+                {#if renamingFile?.path === file.path}
+                  <div class="space-y-2">
+                    <input
+                      bind:value={renameInputValue}
+                      class="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-600 rounded-xl bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      on:keydown={(e) => {
+                        if (e.key === "Enter") renameFile();
+                        if (e.key === "Escape") cancelRename();
+                      }}
+                    />
+                    <div class="flex gap-2">
+                      <button
+                        on:click|stopPropagation={renameFile}
+                        class="px-2 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
+                      >
+                        Save
+                      </button>
+                      <button
+                        on:click|stopPropagation={cancelRename}
+                        class="px-2 py-1.5 text-xs bg-neutral-500 hover:bg-neutral-600 text-white rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                </div>
-              {:else}
-                <!-- Normal File Display -->
-                <div class="flex items-center justify-between gap-2">
-                  <div class="flex-1 min-w-0">
-                    <div
-                      class="font-medium text-sm truncate text-neutral-900 dark:text-white"
-                      title={file.name}
-                    >
-                      {file.name}
-                      {#if file.error}
-                        <span class="ml-2 text-xs text-red-500"
-                          >({file.error})</span
+                {:else}
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center gap-2 min-w-0">
+                        <div class="truncate font-medium text-neutral-900 dark:text-neutral-100">
+                          {file.name}
+                        </div>
+                        {#if selectedFile?.path === file.path}
+                          <span class="shrink-0 rounded-full bg-emerald-600 text-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                            Active
+                          </span>
+                        {/if}
+                        {#if selectedFile2?.path === file.path}
+                          <span class="shrink-0 rounded-full bg-neutral-600 text-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                            Second
+                          </span>
+                        {/if}
+                        {#if file.error}
+                          <span class="text-xs text-red-500">({file.error})</span>
+                        {/if}
+                      </div>
+                      <div class="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                        {formatFileSize(file.size)} • {formatDate(file.modified)}
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        on:click|stopPropagation={() => startRename(file)}
+                        class="p-1.5 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors flex-shrink-0"
+                        title="Rename file"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke-width={1.5}
+                          stroke="currentColor"
+                          class="size-4"
                         >
-                      {/if}
-                    </div>
-                    <div
-                      class="text-xs text-neutral-500 dark:text-neutral-400 group-hover:block hidden"
-                      title="{formatFileSize(file.size)} • {formatDate(file.modified)}"
-                    >
-                      {formatFileSize(file.size)} • {formatDate(file.modified)}
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
+                          />
+                        </svg>
+                      </button>
+
+                      <button
+                        on:click|stopPropagation={() => deleteFile(file)}
+                        class="p-1.5 rounded-lg hover:bg-red-500 hover:text-white transition-colors flex-shrink-0"
+                        title="Delete file"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke-width={1.5}
+                          stroke="currentColor"
+                          class="size-4"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
+                          />
+                        </svg>
+                      </button>
                     </div>
                   </div>
-
-                  <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <!-- Rename Button -->
-                    <button
-                      on:click|stopPropagation={() => startRename(file)}
-                      class="p-1.5 rounded hover:bg-blue-500 hover:text-white transition-colors flex-shrink-0"
-                      title="Rename file"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke-width={1.5}
-                        stroke="currentColor"
-                        class="size-4"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
-                        />
-                      </svg>
-                    </button>
-
-                    <!-- Delete Button -->
-                    <button
-                      on:click|stopPropagation={() => deleteFile(file)}
-                      class="p-1.5 rounded hover:bg-red-500 hover:text-white transition-colors flex-shrink-0"
-                      title="Delete file"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke-width={1.5}
-                        stroke="currentColor"
-                        class="size-4"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              {/if}
-            </div>
-          {/each}
-        </div>
-      {/if}
+                {/if}
+              </div>
+            {/each}
+          </div>
+        {/if}
     </div>
 
     <!-- Current File Actions -->
@@ -1295,7 +1294,8 @@
         Select a file to manage
       </div>
     {/if}
-  </div>
+</div>
+
 </div>
 
 <NameDialog

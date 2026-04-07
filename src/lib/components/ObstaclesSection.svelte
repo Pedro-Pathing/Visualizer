@@ -66,8 +66,8 @@
     <div
       class="flex flex-col w-full justify-start items-start gap-1 p-2 border rounded-md border-neutral-300 dark:border-neutral-600 mt-2"
     >
-      <div class="flex flex-row w-full justify-between items-center">
-        <div class="flex flex-row items-center gap-2">
+      <div class="flex flex-row flex-wrap w-full justify-between items-center gap-2 min-w-0">
+        <div class="flex flex-row flex-wrap items-center gap-2 flex-1 min-w-0">
           <button
             on:click={() => toggleObstacle(shapeIdx)}
             class="flex items-center gap-2 font-medium text-sm px-2 py-1 rounded transition-colors duration-250"
@@ -97,10 +97,10 @@
           <input
             bind:value={shape.name}
             placeholder="Obstacle {shapeIdx + 1}"
-            class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm font-medium"
+            class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm font-medium min-w-0 w-[9rem] max-w-full"
           />
           <select
-            class="rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] px-2 py-1 text-sm font-medium"
+            class="rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] px-2 py-1 text-sm font-medium max-w-full"
             bind:value={shape.color}
             on:change={(e) => setPresetColor(shape, e.currentTarget.value)}
           >
@@ -110,7 +110,7 @@
           </select>
         </div>
 
-        <div class="flex flex-row gap-1">
+        <div class="flex flex-row gap-1 shrink-0">
           <button
             title="Add Vertex"
             on:click={() => {

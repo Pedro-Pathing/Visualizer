@@ -51,6 +51,16 @@ export const DEFAULT_SETTINGS: Settings = {
   headingArrowColor: "#ffffff",
   headingArrowThickness: 2,
   pathOpacity: 1,
+  enableObstacleEditing: false,
+  hotkeys: {
+    playPause: "space",
+    addPath: "w",
+    addControlPoint: "a",
+    removeControlPoint: "s",
+    save: "cmd+s, ctrl+s",
+    undo: "cmd+z, ctrl+z",
+    redo: "cmd+shift+z, ctrl+shift+z, ctrl+y",
+  },
 };
 
 /**

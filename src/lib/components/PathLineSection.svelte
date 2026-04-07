@@ -40,12 +40,12 @@
   }
 </script>
 
-<div class="flex flex-col w-full justify-start items-start gap-1 rounded-md p-1">
-  <div class="flex flex-row w-full items-center gap-3 flex-wrap">
-    <div class="flex flex-row items-center gap-2">
+<div class="flex flex-col w-full justify-start items-start gap-0.5 rounded-md p-0.5 min-w-0 text-[12px]">
+  <div class="flex w-full items-start gap-1.5 flex-wrap min-w-0">
+    <div class="flex flex-wrap items-center gap-1.5 min-w-0 flex-1">
       <button
         on:click={toggleCollapsed}
-        class="flex items-center gap-2 font-semibold px-2 py-1 rounded transition-colors duration-250"
+        class="flex items-center gap-1.5 font-semibold px-1.5 py-0.5 rounded transition-colors duration-250 shrink-0"
         title="{collapsed ? 'Expand' : 'Collapse'} path"
       >
         <svg
@@ -54,7 +54,7 @@
           viewBox="0 0 24 24"
           stroke-width={2}
           stroke="currentColor"
-          class="size-4 transition-transform {collapsed
+          class="size-3.5 transition-transform {collapsed
             ? 'rotate-0'
             : 'rotate-90'}"
         >
@@ -70,7 +70,7 @@
       <input
         bind:value={line.name}
         placeholder="Path {idx + 1}"
-        class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-sm font-semibold"
+        class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none text-xs font-semibold min-w-0 w-[6.75rem]"
         disabled={line.locked}
         on:input={() => {
           // Force parent reactivity so other components (like exporters)
@@ -87,7 +87,7 @@
       <select
         value={selectedChainId}
         on:change={handleChainSelect}
-        class="px-2 py-1 text-xs rounded border border-neutral-300 dark:border-neutral-600 bg-neutral-100 dark:bg-neutral-900"
+        class="px-1.5 py-0.5 text-[11px] rounded border border-neutral-300 dark:border-neutral-600 bg-neutral-100 dark:bg-neutral-900 min-w-0 w-[6rem]"
         title="Assign path chain"
       >
         {#each chainOptions as chain}
@@ -96,7 +96,7 @@
       </select>
 
       <div
-        class="relative size-5 rounded-full overflow-hidden shadow-sm border border-neutral-300 dark:border-neutral-600 shrink-0"
+        class="relative size-4 rounded-full overflow-hidden shadow-sm border border-neutral-300 dark:border-neutral-600 shrink-0"
         style="background-color: {line.color}"
       >
         <div class="absolute inset-0" title="Color comes from assigned path chain" />
@@ -118,7 +118,7 @@
             viewBox="0 0 24 24"
             stroke-width={2}
             stroke="currentColor"
-            class="size-5 stroke-yellow-500"
+            class="size-4 stroke-yellow-500"
           >
             <path
               stroke-linecap="round"
@@ -133,7 +133,7 @@
             viewBox="0 0 24 24"
             stroke-width={2}
             stroke="currentColor"
-            class="size-5 stroke-gray-400"
+            class="size-4 stroke-gray-400"
           >
             <path
               stroke-linecap="round"
@@ -144,13 +144,13 @@
         {/if}
       </button>
 
-      <div class="flex flex-row gap-0.5 ml-1">
+      <div class="flex flex-row gap-0.5 ml-1 shrink-0">
         <button
           title={line.locked ? "Path locked" : "Move up"}
           on:click|stopPropagation={() => {
             if (!line.locked && onMoveUp) onMoveUp();
           }}
-          class="p-1 rounded-full text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 bg-neutral-100/70 dark:bg-neutral-900/70 border border-neutral-200/70 dark:border-neutral-700/70 disabled:opacity-40 disabled:cursor-not-allowed"
+          class="p-0.5 rounded-full text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 bg-neutral-100/70 dark:bg-neutral-900/70 border border-neutral-200/70 dark:border-neutral-700/70 disabled:opacity-40 disabled:cursor-not-allowed"
           disabled={!canMoveUp || line.locked}
         >
           <svg
@@ -159,7 +159,7 @@
             fill="none"
             stroke="currentColor"
             stroke-width="2"
-            class="size-4"
+            class="size-3.5"
           >
             <path
               stroke-linecap="round"
@@ -173,7 +173,7 @@
           on:click|stopPropagation={() => {
             if (!line.locked && onMoveDown) onMoveDown();
           }}
-          class="p-1 rounded-full text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 bg-neutral-100/70 dark:bg-neutral-900/70 border border-neutral-200/70 dark:border-neutral-700/70 disabled:opacity-40 disabled:cursor-not-allowed"
+          class="p-0.5 rounded-full text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 bg-neutral-100/70 dark:bg-neutral-900/70 border border-neutral-200/70 dark:border-neutral-700/70 disabled:opacity-40 disabled:cursor-not-allowed"
           disabled={!canMoveDown || line.locked}
         >
           <svg
@@ -182,7 +182,7 @@
             fill="none"
             stroke="currentColor"
             stroke-width="2"
-            class="size-4"
+            class="size-3.5"
           >
             <path
               stroke-linecap="round"
@@ -194,18 +194,20 @@
       </div>
     </div>
 
-    <div class="flex flex-row items-center gap-1">
-      <button
-        class="px-2 py-1 text-xs font-semibold text-neutral-700 dark:text-neutral-200 bg-neutral-200/80 dark:bg-neutral-800/80 border border-neutral-300 dark:border-neutral-700 rounded disabled:opacity-40 disabled:cursor-not-allowed"
-        title={line.locked ? "Path locked" : "Optimize this path"}
-        on:click={() => line.id && optimizeLine && optimizeLine(line.id)}
-        disabled={!line.id || line.locked || optimizing}
-      >
-        {optimizing ? "Optimizing…" : "Optimize"}
-      </button>
-    </div>
+    {#if false}
+      <div class="flex flex-row items-center gap-1 shrink-0">
+        <button
+          class="px-2 py-1 text-xs font-semibold text-neutral-700 dark:text-neutral-200 bg-neutral-200/80 dark:bg-neutral-800/80 border border-neutral-300 dark:border-neutral-700 rounded disabled:opacity-40 disabled:cursor-not-allowed"
+          title={line.locked ? "Path locked" : "Optimize this path"}
+          on:click={() => line.id && optimizeLine && optimizeLine(line.id)}
+          disabled={!line.id || line.locked || optimizing}
+        >
+          {optimizing ? "Optimizing…" : "Optimize"}
+        </button>
+      </div>
+    {/if}
 
-    <div class="flex flex-row items-center gap-1 ml-auto">
+    <div class="flex flex-row items-center gap-1 ml-auto flex-wrap justify-end w-full sm:w-auto">
       <button
         title="Add control point after this line"
         on:click={onInsertAfter}
@@ -217,7 +219,7 @@
           fill="none"
           viewBox="0 0 24 24"
           stroke-width={2}
-          class="size-5 stroke-green-500"
+          class="size-4 stroke-green-500"
         >
           <path
             stroke-linecap="round"
@@ -239,7 +241,7 @@
           viewBox="0 0 24 24"
           stroke-width={2}
           stroke="currentColor"
-          class="size-5"
+          class="size-4"
         >
           <path
             stroke-linecap="round"
@@ -303,10 +305,10 @@
 
     <div class="flex flex-col justify-start items-start w-full">
       <div class="font-light">Point Position:</div>
-      <div class="flex flex-row justify-start items-center gap-2">
+      <div class="flex flex-row flex-wrap justify-start items-center gap-2 w-full min-w-0">
         <div class="font-extralight">X:</div>
         <input
-          class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
+          class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-24"
           step={$snapToGrid && $showGrid ? $gridSize : 0.1}
           type="number"
           min="0"
@@ -317,7 +319,7 @@
         />
         <div class="font-extralight">Y:</div>
         <input
-          class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-28"
+          class="pl-1.5 rounded-md bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none w-24"
           step={$snapToGrid && $showGrid ? $gridSize : 0.1}
           min="0"
           max="141.5"

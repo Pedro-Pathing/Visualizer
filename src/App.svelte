@@ -64,7 +64,7 @@
   } from "./config";
   import { loadSettings, saveSettings } from "./utils/settingsPersistence";
   import * as browserFileStore from "./utils/browserFileStore";
-  import { onMount, tick } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import { debounce } from "lodash";
   import { createHistory, type AppState } from "./utils/history";
   // Browser-only build: file operations use the browser file store and
@@ -93,6 +93,8 @@
   // Canvas state
   let two: Two;
   let twoElement: HTMLDivElement;
+  let layoutHost: HTMLDivElement;
+  let windowWidth = 0;
   let width = 0;
   let height = 0;
   // Robot state
@@ -281,6 +283,15 @@
 
   // Animation controller
   let loopAnimation = true;
+  let leftSidebarWidth = 240;
+  let rightSidebarWidth = 240;
+  let resizingSidebar: "left" | "right" | null = null;
+  let sidebarWidthsCustomized = false;
+  let resizeFrameId: number | null = null;
+  let pendingMouseX = 0;
+  const MIN_SIDEBAR_WIDTH = 170;
+  const MIN_CENTER_WIDTH = 360;
+  let lockedMinCenterWidth = MIN_CENTER_WIDTH;
   let animationController: ReturnType<typeof createAnimationController>;
   $: timePrediction = calculatePathTime(startPoint, lines, settings, sequence);
   $: animationDuration = getAnimationDuration(timePrediction.totalTime / 1000);
@@ -1558,17 +1569,87 @@
     }
   }
 
-  // Keyboard shortcut for save
-  hotkeys("cmd+s, ctrl+s", function (event, handler) {
-    event.preventDefault();
-    if ($activePaths.length > 0) {
-      // Multiple paths mode - save all modified paths
-      showDualPathSaveDialog = true;
-    } else if ($dualPathMode && secondStartPoint && secondLines.length > 0) {
-      showDualPathSaveDialog = true;
-    } else {
-      showSaveDialog = true;
-    }
+  let hotkeyCleanup: Array<() => void> = [];
+
+  function clearHotkeyBindings() {
+    hotkeyCleanup.forEach((cleanup) => cleanup());
+    hotkeyCleanup = [];
+  }
+
+  function bindHotkey(shortcuts: string | undefined, handler: (event: KeyboardEvent) => void) {
+    const normalizedShortcuts = (shortcuts || "")
+      .split(",")
+      .map((shortcut) => shortcut.trim())
+      .filter(Boolean);
+
+    normalizedShortcuts.forEach((shortcut) => {
+      hotkeys(shortcut, handler);
+    });
+
+    hotkeyCleanup.push(() => {
+      normalizedShortcuts.forEach((shortcut) => {
+        hotkeys.unbind(shortcut, handler);
+      });
+    });
+  }
+
+  function registerAppHotkeys() {
+    clearHotkeyBindings();
+
+    bindHotkey(settings.hotkeys?.playPause, (event) => {
+      event.preventDefault();
+      if (playing) {
+        pause();
+      } else {
+        play();
+      }
+    });
+
+    bindHotkey(settings.hotkeys?.save, (event) => {
+      event.preventDefault();
+      if ($activePaths.length > 0) {
+        showDualPathSaveDialog = true;
+      } else if ($dualPathMode && secondStartPoint && secondLines.length > 0) {
+        showDualPathSaveDialog = true;
+      } else {
+        showSaveDialog = true;
+      }
+    });
+
+    bindHotkey(settings.hotkeys?.addPath, (event) => {
+      event.preventDefault();
+      addNewLine();
+    });
+
+    bindHotkey(settings.hotkeys?.addControlPoint, (event) => {
+      event.preventDefault();
+      addControlPoint();
+      two.update();
+    });
+
+    bindHotkey(settings.hotkeys?.removeControlPoint, (event) => {
+      event.preventDefault();
+      removeControlPoint();
+      two.update();
+    });
+
+    bindHotkey(settings.hotkeys?.undo, (event) => {
+      event.preventDefault();
+      undoAction();
+    });
+
+    bindHotkey(settings.hotkeys?.redo, (event) => {
+      event.preventDefault();
+      redoAction();
+    });
+  }
+
+  $: if (settings?.hotkeys) {
+    registerAppHotkeys();
+  }
+
+  onDestroy(() => {
+    clearHotkeyBindings();
   });
 
   // Export path animation as GIF
@@ -2099,6 +2180,99 @@
     }
   }
 
+  function startSidebarResize(side: "left" | "right", event: MouseEvent) {
+    if (windowWidth < 1280) return;
+    sidebarWidthsCustomized = true;
+    resizingSidebar = side;
+    event.preventDefault();
+  }
+
+  function initializeSidebarWidths() {
+    if (!layoutHost || windowWidth < 1280 || sidebarWidthsCustomized) return;
+    const rect = layoutHost.getBoundingClientRect();
+    if (rect.width <= 0) return;
+
+    // Keep center just wide enough for a 1:1 field at the available row height,
+    // then allocate remaining width to the side panels.
+    const squareCenterWidth = Math.max(
+      MIN_CENTER_WIDTH,
+      Math.min(rect.height, rect.width - MIN_SIDEBAR_WIDTH * 2),
+    );
+    const centerWidth = squareCenterWidth;
+    const sideBudget = Math.max(MIN_SIDEBAR_WIDTH * 2, rect.width - centerWidth);
+    const eachSidebar = Math.max(MIN_SIDEBAR_WIDTH, sideBudget / 2);
+
+    leftSidebarWidth = eachSidebar;
+    rightSidebarWidth = eachSidebar;
+    lockedMinCenterWidth = Math.max(
+      MIN_CENTER_WIDTH,
+      rect.width - leftSidebarWidth - rightSidebarWidth,
+    );
+  }
+
+  function handleWindowResize() {
+    if (windowWidth < 1280 || sidebarWidthsCustomized) return;
+    requestAnimationFrame(() => initializeSidebarWidths());
+  }
+
+  function handleWindowMouseMove(event: MouseEvent) {
+    if (!resizingSidebar || !layoutHost || windowWidth < 1280) return;
+    pendingMouseX = event.clientX;
+
+    if (resizeFrameId !== null) {
+      return;
+    }
+
+    resizeFrameId = requestAnimationFrame(() => {
+      resizeFrameId = null;
+      applySidebarResize(pendingMouseX);
+    });
+  }
+
+  function applySidebarResize(clientX: number) {
+    if (!resizingSidebar || !layoutHost || windowWidth < 1280) return;
+
+    const rect = layoutHost.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const minCenterWidthForResize = Math.max(MIN_CENTER_WIDTH, lockedMinCenterWidth);
+    const sideBudget = Math.max(MIN_SIDEBAR_WIDTH * 2, rect.width - minCenterWidthForResize);
+
+    if (resizingSidebar === "left") {
+      const proposed = clientX - rect.left;
+      const nextLeft = Math.round(Math.max(
+        MIN_SIDEBAR_WIDTH,
+        Math.min(proposed, sideBudget - MIN_SIDEBAR_WIDTH),
+      ));
+      const nextRight = Math.max(MIN_SIDEBAR_WIDTH, sideBudget - nextLeft);
+
+      if (nextLeft !== leftSidebarWidth || nextRight !== rightSidebarWidth) {
+        leftSidebarWidth = nextLeft;
+        rightSidebarWidth = nextRight;
+      }
+      return;
+    }
+
+    const proposed = rect.right - clientX;
+    const nextRight = Math.round(Math.max(
+      MIN_SIDEBAR_WIDTH,
+      Math.min(proposed, sideBudget - MIN_SIDEBAR_WIDTH),
+    ));
+    const nextLeft = Math.max(MIN_SIDEBAR_WIDTH, sideBudget - nextRight);
+
+    if (nextRight !== rightSidebarWidth || nextLeft !== leftSidebarWidth) {
+      leftSidebarWidth = nextLeft;
+      rightSidebarWidth = nextRight;
+    }
+  }
+
+  function stopSidebarResize() {
+    if (resizeFrameId !== null) {
+      cancelAnimationFrame(resizeFrameId);
+      resizeFrameId = null;
+    }
+    resizingSidebar = null;
+  }
+
   onMount(() => {
     two = new Two({
       fitted: true,
@@ -2106,6 +2280,7 @@
     }).appendTo(twoElement);
 
     updateRobotImageDisplay();
+    requestAnimationFrame(() => initializeSidebarWidths());
 
     let currentElem: string | null = null;
     let isDown = false;
@@ -2417,15 +2592,6 @@
       recordChange();
       two.update();
     });
-  });
-  document.addEventListener("keydown", function (evt) {
-    if (evt.code === "Space" && document.activeElement === document.body) {
-      if (playing) {
-        pause();
-      } else {
-        play();
-      }
-    }
   });
   async function saveFile() {
     try {
@@ -2768,7 +2934,9 @@
         x: _.random(36, 108),
         y: _.random(36, 108),
       });
+      lines = [...lines];
       recordChange();
+      two?.update();
     }
   }
 
@@ -2777,34 +2945,13 @@
       const lastLine = lines[lines.length - 1];
       if (lastLine.controlPoints.length > 0) {
         lastLine.controlPoints.pop();
+        lines = [...lines];
         recordChange();
+        two?.update();
       }
     }
   }
 
-  // Keyboard shortcuts for quick path editing
-  hotkeys("w", function (event, handler) {
-    event.preventDefault();
-    addNewLine();
-  });
-  hotkeys("a", function (event, handler) {
-    event.preventDefault();
-    addControlPoint();
-    two.update();
-  });
-  hotkeys("s", function (event, handler) {
-    event.preventDefault();
-    removeControlPoint();
-    two.update();
-  });
-  hotkeys("cmd+z, ctrl+z", function (event) {
-    event.preventDefault();
-    undoAction();
-  });
-  hotkeys("cmd+shift+z, ctrl+shift+z, ctrl+y", function (event) {
-    event.preventDefault();
-    redoAction();
-  });
   function applyTheme(theme: "light" | "dark" | "auto") {
     let actualTheme = theme;
     if (theme === "auto") {
@@ -2979,42 +3126,47 @@
 </script>
 
 <svelte:window
-  on:mousemove={(e) => {
-    // (debug window dragging removed)
-  }}
-  on:mouseup={() => {}}
+  bind:innerWidth={windowWidth}
+  on:resize={handleWindowResize}
+  on:mousemove={handleWindowMouseMove}
+  on:mouseup={stopSidebarResize}
 />
 
-<Navbar
-  bind:lines
-  bind:startPoint
-  bind:shapes
-  bind:sequence
-  bind:pathChains
-  bind:secondStartPoint
-  bind:secondLines
-  bind:secondShapes
-  bind:secondSequence
-  bind:settings
-  bind:robotWidth
-  bind:robotHeight
-  {percent}
-  {saveProject}
-  {saveFileAs}
-  {loadFile}
-  {undoAction}
-  {redoAction}
-  {recordChange}
-  {canUndo}
-  {canRedo}
-  {optimizeAllLines}
-  {optimizingAll}
-  {twoElement}
-  bind:playing
-  {play}
-  {pause}
-  {exportPathAsGif}
-/>
+<div class="w-screen h-screen flex flex-col overflow-hidden">
+  <div class="shrink-0">
+    <Navbar
+      bind:lines
+      bind:startPoint
+      bind:shapes
+      bind:sequence
+      bind:pathChains
+      bind:secondStartPoint
+      bind:secondLines
+      bind:secondShapes
+      bind:secondSequence
+      bind:settings
+      bind:robotWidth
+      bind:robotHeight
+      {percent}
+      bind:playing
+      {play}
+      {pause}
+      {handleSeek}
+      bind:loopAnimation
+      {saveProject}
+      {saveFileAs}
+      {loadFile}
+      {undoAction}
+      {redoAction}
+      {recordChange}
+      {canUndo}
+      {canRedo}
+      {optimizeAllLines}
+      {optimizingAll}
+      {twoElement}
+      {exportPathAsGif}
+    />
+  </div>
 
 <SaveDialog
   bind:isOpen={showSaveDialog}
@@ -3035,15 +3187,48 @@
 />
 
 <!--   {saveFile} -->
-<div
-  class="w-screen h-screen pt-20 p-2 flex flex-row justify-center items-center gap-2"
->
-  <div class="flex h-full justify-center items-center">
+<div class="flex-1 min-h-0 overflow-hidden flex flex-col">
+  <div
+    bind:this={layoutHost}
+    class="min-h-0 flex-1 w-full grid grid-cols-1 grid-rows-[minmax(150px,30vh)_minmax(0,1fr)_minmax(150px,30vh)] xl:grid-rows-1 gap-0"
+    style={windowWidth >= 1280
+      ? `grid-template-columns: ${leftSidebarWidth}px minmax(0, 1fr) ${rightSidebarWidth}px;`
+      : ""}
+  >
+    <div class="h-full min-w-0 min-h-0 relative">
+      <ControlTab
+        panelMode="scene"
+        bind:startPoint
+        bind:lines
+        bind:sequence
+        bind:pathChains
+        bind:robotWidth
+        bind:robotHeight
+        bind:settings
+        bind:robotXY
+        bind:robotHeading
+        bind:shapes
+        {x}
+        {y}
+        {recordChange}
+        {optimizeLine}
+        {optimizingLineIds}
+      />
+      <button
+        type="button"
+        class="hidden xl:block absolute top-0 -right-1 w-2 h-full cursor-col-resize z-20 bg-neutral-200/35 hover:bg-neutral-300/70 dark:bg-neutral-700/30 dark:hover:bg-neutral-600/60"
+        on:mousedown={(e) => startSidebarResize("left", e)}
+        aria-label="Resize left sidebar"
+        title="Drag to resize left sidebar"
+      ></button>
+    </div>
+
+    <div class="flex h-full justify-center items-center min-w-0 min-h-0 overflow-hidden">
     <div
       bind:this={twoElement}
       bind:clientWidth={width}
       bind:clientHeight={height}
-      class="h-full aspect-square rounded-lg shadow-md bg-neutral-50 dark:bg-neutral-900 relative overflow-clip"
+      class="h-full w-auto max-w-full max-h-full aspect-square rounded-lg shadow-md bg-neutral-50 dark:bg-neutral-900 relative overflow-hidden"
       role="application"
       style="
     user-select: none;
@@ -3246,27 +3431,35 @@ pointer-events: none; opacity: ${1.0 - idx * 0.15};`}
       {/if}
     </div>
   </div>
-  <ControlTab
-    bind:playing
-    {play}
-    {pause}
-    bind:startPoint
-    bind:lines
-    bind:sequence
-    bind:pathChains
-    bind:robotWidth
-    bind:robotHeight
-    bind:settings
-    bind:percent
-    bind:robotXY
-    bind:robotHeading
-    bind:shapes
-    {x}
-    {y}
-    {handleSeek}
-    bind:loopAnimation
-    {recordChange}
-    {optimizeLine}
-    {optimizingLineIds}
-  />
+
+    <div class="h-full min-w-0 min-h-0 relative">
+    <ControlTab
+      panelMode="paths"
+      bind:startPoint
+      bind:lines
+      bind:sequence
+      bind:pathChains
+      bind:robotWidth
+      bind:robotHeight
+      bind:settings
+      bind:robotXY
+      bind:robotHeading
+      bind:shapes
+      {x}
+      {y}
+      {recordChange}
+      {optimizeLine}
+      {optimizingLineIds}
+    />
+    <button
+      type="button"
+      class="hidden xl:block absolute top-0 -left-1 w-2 h-full cursor-col-resize z-20 bg-neutral-200/35 hover:bg-neutral-300/70 dark:bg-neutral-700/30 dark:hover:bg-neutral-600/60"
+      on:mousedown={(e) => startSidebarResize("right", e)}
+      aria-label="Resize right sidebar"
+      title="Drag to resize right sidebar"
+    ></button>
+    </div>
+  </div>
+</div>
+
 </div>

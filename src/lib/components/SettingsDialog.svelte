@@ -1,9 +1,9 @@
 <script lang="ts">
   import { cubicInOut } from "svelte/easing";
-  import { fade, fly } from "svelte/transition";
+  import { fade, fly, slide } from "svelte/transition";
   import { resetSettings } from "../../utils/settingsPersistence";
   import { AVAILABLE_FIELD_MAPS } from "../../config/defaults";
-  import type { Settings } from "../../types";
+  import type { HotkeySettings, Settings } from "../../types";
 
   export let isOpen = false;
   export let settings: Settings;
@@ -12,9 +12,60 @@
   let collapsedSections = {
     robot: true,
     motion: true,
+    hotkeys: true,
     advanced: true,
     theme: true,
   };
+
+  const hotkeyRows: Array<{
+    key: keyof HotkeySettings;
+    label: string;
+    description: string;
+    placeholder: string;
+  }> = [
+    {
+      key: "playPause",
+      label: "Play / Pause",
+      description: "Default: space",
+      placeholder: "space",
+    },
+    {
+      key: "save",
+      label: "Save",
+      description: "Comma-separated combos are supported.",
+      placeholder: "cmd+s, ctrl+s",
+    },
+    {
+      key: "undo",
+      label: "Undo",
+      description: "Default: cmd+z, ctrl+z",
+      placeholder: "cmd+z, ctrl+z",
+    },
+    {
+      key: "redo",
+      label: "Redo",
+      description: "Default: cmd+shift+z, ctrl+shift+z, ctrl+y",
+      placeholder: "cmd+shift+z, ctrl+shift+z, ctrl+y",
+    },
+    {
+      key: "addPath",
+      label: "Add Path",
+      description: "Default: w",
+      placeholder: "w",
+    },
+    {
+      key: "addControlPoint",
+      label: "Add Control Point",
+      description: "Default: a",
+      placeholder: "a",
+    },
+    {
+      key: "removeControlPoint",
+      label: "Remove Control Point",
+      description: "Default: s",
+      placeholder: "s",
+    },
+  ];
 
   // Get version from package. json
   // Display value for angular velocity (user inputs this, gets multiplied by PI)
@@ -25,6 +76,24 @@
     if (target && 'value' in target) {
       settings.aVelocity = parseFloat(String(target.value)) * Math.PI;
     }
+  }
+
+  function updateHotkeyBinding(key: keyof HotkeySettings, value: string) {
+    settings = {
+      ...settings,
+      hotkeys: {
+        ...settings.hotkeys,
+        [key]: value.trim().toLowerCase(),
+      },
+    };
+  }
+
+  function handleHotkeyInput(
+    key: keyof HotkeySettings,
+    event: Event,
+  ) {
+    const target = event.currentTarget as HTMLInputElement | null;
+    updateHotkeyBinding(key, target?.value || "");
   }
 
   async function handleReset() {
@@ -92,15 +161,15 @@
 
 {#if isOpen}
   <div
-    transition:fade={{ duration: 500, easing: cubicInOut }}
-    class="bg-black bg-opacity-25 flex flex-col justify-center items-center absolute top-0 left-0 w-full h-full z-[1005]"
+    transition:fade={{ duration: 180, easing: cubicInOut }}
+    class="bg-neutral-950/35 flex flex-col justify-center items-center absolute top-0 left-0 w-full h-full z-[1005]"
     role="dialog"
     aria-modal="true"
     aria-labelledby="settings-title"
   >
     <div
-      transition:fly={{ duration: 500, easing: cubicInOut, y: 20 }}
-      class="flex flex-col justify-start items-start p-6 bg-white dark:bg-neutral-900 rounded-lg w-full max-w-2xl max-h-[80vh]"
+      transition:fly={{ duration: 220, easing: cubicInOut, y: 14 }}
+      class="flex flex-col justify-start items-start p-6 bg-neutral-50 dark:bg-neutral-900 rounded-3xl border border-neutral-200 dark:border-neutral-700 w-full max-w-2xl max-h-[80vh] shadow-2xl"
     >
       <!-- Header -->
       <div class="flex flex-row justify-between items-center w-full mb-4">
@@ -210,7 +279,8 @@
 
           {#if !collapsedSections.robot}
             <div
-              class="mt-2 space-y-3 p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg"
+              transition:slide={{ duration: 180, easing: cubicInOut }}
+              class="mt-2 space-y-3 p-3 bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-200 dark:border-neutral-700"
             >
               <div>
                 <label
@@ -531,7 +601,8 @@
 
           {#if !collapsedSections.motion}
             <div
-              class="mt-2 space-y-3 p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg"
+              transition:slide={{ duration: 180, easing: cubicInOut }}
+              class="mt-2 space-y-3 p-3 bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-200 dark:border-neutral-700"
             >
               <!-- Velocity Settings -->
               <div class="grid grid-cols-2 gap-3">
@@ -683,6 +754,86 @@
           {/if}
         </div>
 
+        <!-- Hotkeys Section -->
+        <div class="mb-4">
+          <button
+            on:click={() =>
+              (collapsedSections.hotkeys = !collapsedSections.hotkeys)}
+            class="flex items-center justify-between w-full py-2 px-3 bg-neutral-100 dark:bg-neutral-800 rounded-lg transition-colors duration-250"
+            aria-expanded={!collapsedSections.hotkeys}
+          >
+            <div class="flex items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width={1.5}
+                stroke="currentColor"
+                class="size-5"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3.75 7.5h16.5v9H3.75v-9Zm3 3h.008v.008H6.75V10.5Zm3 0h.008v.008H9.75V10.5Zm3 0h.008v.008H12.75V10.5Zm3 0h.008v.008H15.75V10.5Zm3 0h.008v.008H18.75V10.5Zm-12 3h.008v.008H6.75V13.5Zm3 0h.008v.008H9.75V13.5Zm3 0h.008v.008H12.75V13.5Zm3 0h.008v.008H15.75V13.5Z"
+                />
+              </svg>
+              <span class="font-semibold">Hotkeys</span>
+            </div>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width={2}
+              stroke="currentColor"
+              class="size-5 transition-transform duration-200"
+              class:rotate-180={collapsedSections.hotkeys}
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="m19.5 8.25-7.5 7.5-7.5-7.5"
+              />
+            </svg>
+          </button>
+
+          {#if !collapsedSections.hotkeys}
+            <div
+              transition:slide={{ duration: 180, easing: cubicInOut }}
+              class="mt-2 space-y-3 p-3 bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-200 dark:border-neutral-700"
+            >
+              <div class="text-sm text-neutral-600 dark:text-neutral-400">
+                Use comma-separated shortcuts for alternate combos. Example: <span class="font-mono">cmd+s, ctrl+s</span>.
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {#each hotkeyRows as hotkey}
+                  <div class="space-y-1.5">
+                    <label
+                      for={`hotkey-${hotkey.key}`}
+                      class="block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+                    >
+                      {hotkey.label}
+                    </label>
+                    <input
+                      id={`hotkey-${hotkey.key}`}
+                      type="text"
+                      value={settings.hotkeys[hotkey.key]}
+                      placeholder={hotkey.placeholder}
+                      spellcheck="false"
+                      autocomplete="off"
+                      on:input={(e) => handleHotkeyInput(hotkey.key, e)}
+                      class="w-full px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                    />
+                    <div class="text-xs text-neutral-500 dark:text-neutral-400">
+                      {hotkey.description}
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
+        </div>
+
         <!-- Field Settings Section -->
         <div class="mb-4">
           <button
@@ -727,7 +878,8 @@
 
           {#if !collapsedSections.theme}
             <div
-              class="mt-2 space-y-3 p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg"
+              transition:slide={{ duration: 180, easing: cubicInOut }}
+              class="mt-2 space-y-3 p-3 bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-200 dark:border-neutral-700"
             >
               <div>
                 <label
@@ -863,7 +1015,8 @@
 
           {#if !collapsedSections.advanced}
             <div
-              class="mt-2 space-y-3 p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg"
+              transition:slide={{ duration: 180, easing: cubicInOut }}
+              class="mt-2 space-y-3 p-3 bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-200 dark:border-neutral-700"
             >
               <!-- Ghost Paths Toggle -->
               <!-- <div
