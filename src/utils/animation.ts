@@ -425,6 +425,8 @@ export function generateGhostPathPoints(
   robotWidth: number,
   robotHeight: number,
   samples: number = 200, // Higher default for smoother turns
+  offsetX: number = 0,
+  offsetY: number = 0,
 ): BasePoint[] {
   if (lines.length === 0) return [];
 
@@ -474,23 +476,30 @@ export function generateGhostPathPoints(
         }
       }
 
-      // Build left/right rails directly from center + normal offsets
       const headingRad = (heading * Math.PI) / 180;
+      const offsetXRot = offsetX * Math.cos(headingRad) - offsetY * Math.sin(headingRad);
+      const offsetYRot = offsetX * Math.sin(headingRad) + offsetY * Math.cos(headingRad);
+      const centerPoint = {
+        x: robotPosInches.x + offsetXRot,
+        y: robotPosInches.y + offsetYRot,
+      };
+
+      // Build left/right rails directly from center + normal offsets
       const nx = -Math.sin(headingRad);
       const ny = Math.cos(headingRad);
       const halfW = robotWidth / 2;
 
       const leftPoint = {
-        x: robotPosInches.x + nx * halfW,
-        y: robotPosInches.y + ny * halfW,
+        x: centerPoint.x + nx * halfW,
+        y: centerPoint.y + ny * halfW,
       };
       const rightPoint = {
-        x: robotPosInches.x - nx * halfW,
-        y: robotPosInches.y - ny * halfW,
+        x: centerPoint.x - nx * halfW,
+        y: centerPoint.y - ny * halfW,
       };
 
       robotStates.push({
-        center: { x: robotPosInches.x, y: robotPosInches.y },
+        center: centerPoint,
         heading,
         left: leftPoint,
         right: rightPoint,
@@ -511,6 +520,8 @@ export function generateGhostPathPoints(
       heading,
       robotWidth,
       robotHeight,
+      offsetX,
+      offsetY,
     );
     return corners;
   }
@@ -592,6 +603,8 @@ export function generateOnionLayers(
   robotWidth: number,
   robotHeight: number,
   spacing: number = 6,
+  offsetX: number = 0,
+  offsetY: number = 0,
 ): Array<{ x: number; y: number; heading: number; corners: BasePoint[]; lineIndex: number }> {
   if (lines.length === 0) return [];
 
@@ -600,6 +613,7 @@ export function generateOnionLayers(
     y: number;
     heading: number;
     corners: BasePoint[];
+    lineIndex: number;
   }> = [];
 
   // Calculate total path length
@@ -702,6 +716,8 @@ export function generateOnionLayers(
           heading,
           robotWidth,
           robotHeight,
+          offsetX,
+          offsetY,
         );
 
         layers.push({

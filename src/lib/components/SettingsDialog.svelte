@@ -10,7 +10,7 @@
 
   // Track which sections are collapsed
   let collapsedSections = {
-    robot: true,
+    robot: false,
     motion: true,
     advanced: true,
     theme: true,
@@ -254,6 +254,48 @@
                   step="0.5"
                   on:input={(e) =>
                     handleNumberInput(e.target.value, "rHeight", 1, 36)}
+                  class="w-full px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label
+                  for="robot-offset-x"
+                  class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1"
+                >
+                  Robot Offset X (in)
+                  <div class="text-xs text-neutral-500 dark:text-neutral-400">
+                    Horizontal offset from the robot center to the wheel center
+                  </div>
+                </label>
+                <input
+                  id="robot-offset-x"
+                  type="number"
+                  value={settings.rOffsetX}
+                  step="0.1"
+                  on:input={(e) =>
+                    handleNumberInput(e.target.value, "rOffsetX")}
+                  class="w-full px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label
+                  for="robot-offset-y"
+                  class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1"
+                >
+                  Robot Offset Y (in)
+                  <div class="text-xs text-neutral-500 dark:text-neutral-400">
+                    Vertical offset from the robot center to the wheel center
+                  </div>
+                </label>
+                <input
+                  id="robot-offset-y"
+                  type="number"
+                  value={settings.rOffsetY}
+                  step="0.1"
+                  on:input={(e) =>
+                    handleNumberInput(e.target.value, "rOffsetY")}
                   class="w-full px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>

@@ -84,6 +84,8 @@ export interface Settings {
   kFriction: number;
   rWidth: number;
   rHeight: number;
+  rOffsetX: number;
+  rOffsetY: number;
   safetyMargin: number;
   maxVelocity: number; // inches/sec
   maxAcceleration: number; // inches/sec²

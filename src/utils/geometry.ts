@@ -116,6 +116,8 @@ export function getRobotCorners(
   heading: number,
   width: number,
   height: number,
+  offsetX: number = 0,
+  offsetY: number = 0,
 ): BasePoint[] {
   // Convert heading from degrees to radians
   const headingRad = (heading * Math.PI) / 180;
@@ -127,6 +129,10 @@ export function getRobotCorners(
   // Calculate rotation components
   const cos = Math.cos(headingRad);
   const sin = Math.sin(headingRad);
+
+  // Apply center offset (rotated with the robot)
+  const offsetXRot = offsetX * cos - offsetY * sin;
+  const offsetYRot = offsetX * sin + offsetY * cos;
 
   // Corner offsets relative to center (before rotation)
   // Define corners in local robot frame:
@@ -142,8 +148,8 @@ export function getRobotCorners(
   // Rotate and translate corners
   // Using standard 2D rotation matrix for screen coordinates
   return corners.map((corner) => ({
-    x: x + corner.dx * cos - corner.dy * sin,
-    y: y + corner.dx * sin + corner.dy * cos,
+    x: x + offsetXRot + corner.dx * cos - corner.dy * sin,
+    y: y + offsetYRot + corner.dx * sin + corner.dy * cos,
   }));
 }
 
