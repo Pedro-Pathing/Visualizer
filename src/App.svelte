@@ -90,6 +90,21 @@
     }));
   }
 
+  function getRobotDisplayXY(xy: BasePoint, headingDeg: number): BasePoint {
+    const headingRad = (headingDeg * Math.PI) / 180;
+    const offsetX = x(settings.rOffsetX) - x(0);
+    const offsetY = y(settings.rOffsetY) - y(0);
+    const offsetXRot =
+      offsetX * Math.cos(headingRad) - offsetY * Math.sin(headingRad);
+    const offsetYRot =
+      offsetX * Math.sin(headingRad) + offsetY * Math.cos(headingRad);
+
+    return {
+      x: xy.x + offsetXRot,
+      y: xy.y + offsetYRot,
+    };
+  }
+
   // Canvas state
   let two: Two;
   let twoElement: HTMLDivElement;
@@ -1038,6 +1053,8 @@
         settings.rWidth,
         settings.rHeight,
         50,
+        settings.rOffsetX,
+        settings.rOffsetY,
       );
 
       if (ghostPoints.length >= 3) {
@@ -1112,6 +1129,8 @@
         settings.rWidth,
         settings.rHeight,
         50,
+        settings.rOffsetX,
+        settings.rOffsetY,
       );
 
       if (ghostPoints.length >= 3) {
@@ -1184,6 +1203,8 @@
           settings.rWidth,
           settings.rHeight,
           50,
+          settings.rOffsetX,
+          settings.rOffsetY,
         );
 
         if (ghostPoints.length >= 3) {
@@ -1257,6 +1278,8 @@
         settings.rWidth,
         settings.rHeight,
         spacing,
+        settings.rOffsetX,
+        settings.rOffsetY,
       );
 
       // If user requested onion layers only for the next point, filter to the relevant line
@@ -1369,6 +1392,8 @@
         settings.rWidth,
         settings.rHeight,
         spacing,
+        settings.rOffsetX,
+        settings.rOffsetY,
       );
 
       // If user requested onion layers only for the next point, filter to the relevant line
@@ -1640,6 +1665,11 @@
         ctx.globalAlpha = opacity;
         ctx.translate(xy.x * scale, xy.y * scale);
         ctx.rotate((headingDeg * Math.PI) / 180);
+        // Apply robot center offset (rotated with the robot)
+        ctx.translate(
+          settings.rOffsetX * scale,
+          settings.rOffsetY * scale
+        );
         ctx.drawImage(
           robotImage,
           (-robotPixelWidth * scale) / 2,
@@ -3094,11 +3124,12 @@
       <MathTools {x} {y} {twoElement} {robotXY} />
       <!-- Main robot: only show in normal mode -->
       {#if $activePaths.length === 0}
+        {@const mainRobotDisplayXY = getRobotDisplayXY(robotXY, robotHeading)}
         <img
           src={settings.robotImage || "/robot.png"}
           alt="Robot"
-          style={`position: absolute; top: ${robotXY.y}px;
-left: ${robotXY.x}px; transform: translate(-50%, -50%) rotate(${robotHeading}deg); z-index: 20; width: ${x(robotWidth)}px; height: ${x(robotHeight)}px;user-select: none; -webkit-user-select: none; -moz-user-select: none;-ms-user-select: none;
+          style={`position: absolute; top: ${mainRobotDisplayXY.y}px;
+left: ${mainRobotDisplayXY.x}px; transform: translate(-50%, -50%) rotate(${robotHeading}deg); z-index: 20; width: ${x(robotWidth)}px; height: ${x(robotHeight)}px;user-select: none; -webkit-user-select: none; -moz-user-select: none;-ms-user-select: none;
 pointer-events: none;`}
           draggable="false"
           on:error={(e) => {
@@ -3111,7 +3142,7 @@ pointer-events: none;`}
         <!-- Heading arrow for main robot -->
         {#if settings.showHeadingArrow}
           <svg
-            style={`position: absolute; top: ${robotXY.y}px; left: ${robotXY.x}px; z-index: 21; pointer-events: none; overflow: visible;`}
+            style={`position: absolute; top: ${mainRobotDisplayXY.y}px; left: ${mainRobotDisplayXY.x}px; z-index: 21; pointer-events: none; overflow: visible;`}
             width="1"
             height="1"
           >
@@ -3144,11 +3175,12 @@ pointer-events: none;`}
       {/if}
       <!-- Second robot: only show in dual path mode (not multi-path mode) -->
       {#if $activePaths.length === 0 && $dualPathMode}
+        {@const secondRobotDisplayXY = getRobotDisplayXY(secondRobotXY, secondRobotHeading)}
         <img
           src={settings.robotImage || "/robot.png"}
           alt="Robot 2"
-          style={`position: absolute; top: ${secondRobotXY.y}px;
-left: ${secondRobotXY.x}px; transform: translate(-50%, -50%) rotate(${secondRobotHeading}deg); z-index: 19; width: ${x(robotWidth)}px; height: ${x(robotHeight)}px;user-select: none; -webkit-user-select: none; -moz-user-select: none;-ms-user-select: none;
+          style={`position: absolute; top: ${secondRobotDisplayXY.y}px;
+left: ${secondRobotDisplayXY.x}px; transform: translate(-50%, -50%) rotate(${secondRobotHeading}deg); z-index: 19; width: ${x(robotWidth)}px; height: ${x(robotHeight)}px;user-select: none; -webkit-user-select: none; -moz-user-select: none;-ms-user-select: none;
 pointer-events: none; opacity: 0.8;`}
           draggable="false"
           on:error={(e) => {
@@ -3161,7 +3193,7 @@ pointer-events: none; opacity: 0.8;`}
         <!-- Heading arrow for second robot -->
         {#if settings.showHeadingArrow}
           <svg
-            style={`position: absolute; top: ${secondRobotXY.y}px; left: ${secondRobotXY.x}px; z-index: 19; pointer-events: none; overflow: visible; opacity: 0.8;`}
+            style={`position: absolute; top: ${secondRobotDisplayXY.y}px; left: ${secondRobotDisplayXY.x}px; z-index: 19; pointer-events: none; overflow: visible; opacity: 0.8;`}
             width="1"
             height="1"
           >
@@ -3195,11 +3227,12 @@ pointer-events: none; opacity: 0.8;`}
       <!-- Additional robots: only show in multi-path mode -->
       {#if $activePaths.length > 0}
         {#each additionalRobotStates as robotState, idx}
+          {@const displayXY = getRobotDisplayXY(robotState.xy, robotState.heading)}
           <img
             src={settings.robotImage || "/robot.png"}
             alt="Robot {idx + 1}"
-            style={`position: absolute; top: ${robotState.xy.y}px;
-left: ${robotState.xy.x}px; transform: translate(-50%, -50%) rotate(${robotState.heading}deg); z-index: ${20 - idx}; width: ${x(robotWidth)}px; height: ${x(robotHeight)}px;user-select: none; -webkit-user-select: none; -moz-user-select: none;-ms-user-select: none;
+            style={`position: absolute; top: ${displayXY.y}px;
+left: ${displayXY.x}px; transform: translate(-50%, -50%) rotate(${robotState.heading}deg); z-index: ${20 - idx}; width: ${x(robotWidth)}px; height: ${x(robotHeight)}px;user-select: none; -webkit-user-select: none; -moz-user-select: none;-ms-user-select: none;
 pointer-events: none; opacity: ${1.0 - idx * 0.15};`}
             draggable="false"
             on:error={(e) => {
@@ -3212,7 +3245,7 @@ pointer-events: none; opacity: ${1.0 - idx * 0.15};`}
           <!-- Heading arrow for additional robots -->
           {#if settings.showHeadingArrow}
             <svg
-              style={`position: absolute; top: ${robotState.xy.y}px; left: ${robotState.xy.x}px; z-index: ${20 - idx}; pointer-events: none; overflow: visible; opacity: ${1.0 - idx * 0.15};`}
+              style={`position: absolute; top: ${displayXY.y}px; left: ${displayXY.x}px; z-index: ${20 - idx}; pointer-events: none; overflow: visible; opacity: ${1.0 - idx * 0.15};`}
               width="1"
               height="1"
             >

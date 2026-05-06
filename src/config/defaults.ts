@@ -6,6 +6,8 @@ import { getRandomColor } from "../utils";
  */
 export const DEFAULT_ROBOT_WIDTH = 16;
 export const DEFAULT_ROBOT_HEIGHT = 16;
+export const DEFAULT_ROBOT_OFFSET_X = 0;
+export const DEFAULT_ROBOT_OFFSET_Y = 0;
 
 /**
  * Default canvas drawing settings
@@ -34,6 +36,8 @@ export const DEFAULT_SETTINGS: Settings = {
   kFriction: 0.1,
   rWidth: DEFAULT_ROBOT_WIDTH,
   rHeight: DEFAULT_ROBOT_HEIGHT,
+  rOffsetX: DEFAULT_ROBOT_OFFSET_X,
+  rOffsetY: DEFAULT_ROBOT_OFFSET_Y,
   safetyMargin: 1,
   maxVelocity: 40,
   maxAcceleration: 30,
