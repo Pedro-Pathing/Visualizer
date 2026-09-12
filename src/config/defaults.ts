@@ -18,9 +18,10 @@ export const FIELD_SIZE = 141.5;
  * Available field maps
  */
 export const AVAILABLE_FIELD_MAPS = [
+  { value: "biobuzz.webp", label: "BIOBUZZ Field (2026-2027)" },
   { value: "decode.webp", label: "DECODE Field (2025-2026)" },
-  { value: "intothedeep.webp", label: "Into The Deep Field (2024-2025)" },
-  { value: "centerstage.webp", label: "Centerstage (2023-2024)" },
+  { value: "intothedeep.webp", label: "INTO THE DEEP Field (2024-2025)" },
+  { value: "centerstage.webp", label: "CENTERSTAGE (2023-2024)" },
   { value: "custom", label: "Custom Field (Upload)" },
 ];
 
@@ -38,7 +39,7 @@ export const DEFAULT_SETTINGS: Settings = {
   maxVelocity: 40,
   maxAcceleration: 30,
   maxDeceleration: 30,
-  fieldMap: "decode.webp",
+  fieldMap: "biobuzz.webp",
   robotImage: "/robot.png",
   showGhostPaths: false,
   showOnionLayers: false,

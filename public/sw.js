@@ -1,7 +1,7 @@
 // IMPORTANT: bump this whenever you ship a new build. The service worker uses
 // cache-first for the JS/CSS bundle, so a stale cache (same VERSION) will keep
 // serving the previous build forever. Bumping forces old caches to be purged.
-const VERSION = "v4";
+const VERSION = "v5";
 const CACHE_NAME = `pedro-visualizer-${VERSION}`;
 
 const APP_STATIC_RESOURCES = [
@@ -11,6 +11,7 @@ const APP_STATIC_RESOURCES = [
   "/fields/centerstage.webp",
   "/fields/intothedeep.webp",
   "/fields/decode.webp",
+  "/fields/biobuzz.webp",
   "/robot.png",
   "/assets/index.js",
   "/assets/index.css",
