@@ -16,7 +16,7 @@
   import RobotPositionDisplay from "./components/RobotPositionDisplay.svelte";
   import StartingPointSection from "./components/StartingPointSection.svelte";
   import PlaybackControls from "./components/PlaybackControls.svelte";
-  import { calculatePathTime, normalizePaths } from "../utils";
+  import { calculateVisualizationPathTime, normalizePaths } from "../utils";
   import SelectedPathInspector from "./components/SelectedPathInspector.svelte";
   import SelectedGroupInspector from "./components/SelectedGroupInspector.svelte";
   import { curveThroughPoints } from "../utils/math";
@@ -156,7 +156,7 @@
 
   // Compute timeline markers for the UI (start of each travel segment)
   let timePrediction = $derived(
-    calculatePathTime(startPoint, lines, settings, sequence),
+    calculateVisualizationPathTime(startPoint, lines, settings, sequence),
   );
   let markers = $derived(
     (() => {
@@ -288,9 +288,9 @@
   }
 </script>
 
-<div class="flex-1 flex flex-col justify-start items-center gap-2 h-full">
+<div class="min-h-0 flex-1 flex flex-col justify-start items-center gap-2 h-full">
   <div
-    class="flex flex-col justify-start items-start w-full bg-[#1a1a1a] border border-[#333333] p-3 overflow-y-scroll overflow-x-hidden h-full gap-3"
+    class="min-h-0 flex-1 flex flex-col justify-start items-start w-full bg-[#1a1a1a] border border-[#333333] p-3 overflow-y-auto overflow-x-hidden gap-3"
   >
     <div class="w-full flex flex-col gap-2">
       {#if settings.experimentalFeatures?.obstacles}
@@ -357,6 +357,13 @@
         }}
         onLinesChanged={() => (lines = [...lines])}
         onRecordChange={() => recordChange?.()}
+        onVisualizationWaitChange={(durationMs) => {
+          if (!selectedLine) return;
+          lines = updatePath(lines, selectedLine.id, (path) => ({
+            ...path,
+            waitAfterMs: durationMs,
+          }));
+        }}
         onCurveFromSelected={curveFromSelected}
         onDeleteSelectedLine={deleteSelectedLine}
         onDeleteControlPoint={deleteSelectedControlPoint}

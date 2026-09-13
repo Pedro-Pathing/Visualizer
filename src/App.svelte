@@ -107,7 +107,7 @@
     type FieldPoint,
   } from "./utils/fieldPoints";
   import {
-    calculatePathTime,
+    calculateVisualizationPathTime,
     getAnimationDuration,
     calculateRobotState,
     generateGhostPathPoints,
@@ -1111,7 +1111,7 @@
   // scaling ONCE per edit (keyed by the additionalPaths array reference)
   // instead of rebuilding the full path timeline on every animation frame.
   type AdditionalPathEntry = {
-    prediction: ReturnType<typeof calculatePathTime>;
+    prediction: ReturnType<typeof calculateVisualizationPathTime>;
     completionPercent: number;
   };
   let additionalPathCache = $state(
@@ -1651,6 +1651,53 @@
     }
   }
 
+  async function renameCurrentFile() {
+    if (!$currentFilePath) return;
+
+    const currentPath = $currentFilePath;
+    const requestedName = window.prompt(
+      "Rename path file",
+      pathStem(currentPath),
+    );
+    if (requestedName === null) return;
+
+    const trimmedName = requestedName.trim();
+    if (!trimmedName) return;
+
+    const newFileName = trimmedName.endsWith(".pp")
+      ? trimmedName
+      : `${trimmedName}.pp`;
+    if (!/^[a-zA-Z0-9_\-. ]+\.pp$/.test(newFileName)) {
+      alert(
+        "Invalid file name. Use only letters, numbers, underscores, dashes, and spaces.",
+      );
+      return;
+    }
+    if (newFileName === currentPath) return;
+
+    try {
+      if (await browserFileStore.fileExists(newFileName)) {
+        alert(`A file named "${newFileName}" already exists.`);
+        return;
+      }
+
+      const content = JSON.stringify(buildProjectData(), null, 2);
+      await browserFileStore.writeFile(newFileName, content);
+      await browserFileStore.deleteFile(currentPath);
+      currentFilePath.set(newFileName);
+      isUnsaved.set(false);
+      window.dispatchEvent(
+        new CustomEvent("fileRenamed", {
+          detail: { oldPath: currentPath, newPath: newFileName },
+        }),
+      );
+      showToast(`Renamed to: ${newFileName}`, "success");
+    } catch (error) {
+      console.error("Failed to rename path file:", error);
+      alert("Failed to rename the path file.");
+    }
+  }
+
   async function loadFile(evt: Event) {
     const elem = evt.target as HTMLInputElement;
     const file = elem.files?.[0];
@@ -2113,7 +2160,7 @@
   let canUndo = $derived($canUndoStore);
   let canRedo = $derived($canRedoStore);
   let timePrediction = $derived(
-    calculatePathTime(startPoint, lines, settings, sequence),
+    calculateVisualizationPathTime(startPoint, lines, settings, sequence),
   );
   let animationDuration = $derived(
     getAnimationDuration(timePrediction.totalTime / 1000),
@@ -2121,7 +2168,7 @@
   // Second path timeline (for dual path mode)
   let secondTimePrediction = $derived(
     $dualPathMode && secondStartPoint && secondLines.length > 0
-      ? calculatePathTime(
+      ? calculateVisualizationPathTime(
           secondStartPoint,
           secondLines,
           settings,
@@ -2137,7 +2184,7 @@
         let maxTime = 0;
         additionalPaths.forEach((pathData) => {
           if (pathData.startPoint && pathData.lines.length > 0) {
-            const pathTime = calculatePathTime(
+            const pathTime = calculateVisualizationPathTime(
               pathData.startPoint,
               pathData.lines,
               pathData.settings,
@@ -2601,7 +2648,7 @@
           cache.set(pathData, null);
           return;
         }
-        const prediction = calculatePathTime(
+        const prediction = calculateVisualizationPathTime(
           pathData.startPoint,
           pathData.lines,
           pathData.settings,
@@ -2712,6 +2759,7 @@
     {percent}
     {saveProject}
     {saveFileAs}
+    {renameCurrentFile}
     {loadFile}
     {undoAction}
     {redoAction}
