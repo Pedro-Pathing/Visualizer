@@ -2,6 +2,8 @@
   import { createEventDispatcher } from "svelte";
   import PiecewiseHeadingEditor from "./PiecewiseHeadingEditor.svelte";
   import { createDefaultPiecewiseHeadingInterpolation } from "../../utils/headingInterpolation";
+  import { fieldFrame } from "../../stores";
+  import { headingToCanonical, headingToDocFrame } from "../../utils/frame";
   import type {
     Heading,
     HeadingType,
@@ -15,6 +17,16 @@
 
   let { heading = $bindable(), locked = false }: Props = $props();
   const dispatch = createEventDispatcher();
+
+  type AngleField = "startDeg" | "endDeg" | "degrees";
+
+  const showAngle = (field: AngleField) =>
+    headingToDocFrame((heading as HeadingDraft)[field] ?? 0, $fieldFrame);
+
+  function setAngle(field: AngleField, value: number) {
+    const draft: HeadingDraft = heading;
+    draft[field] = headingToCanonical(value, $fieldFrame);
+  }
 
   /**
    * A mutable editing view of a Heading.
@@ -86,8 +98,11 @@ With piecewise heading, the line is split into stretches that each use their own
       type="number"
       min="-180"
       max="180"
-      bind:value={heading.startDeg}
-      oninput={() => dispatch("change")}
+      value={showAngle("startDeg")}
+      oninput={(event) => {
+        setAngle("startDeg", Number(event.currentTarget.value));
+        dispatch("change");
+      }}
       onblur={() => dispatch("commit")}
       title="The heading the robot starts this line at (in degrees)"
       disabled={locked}
@@ -100,8 +115,11 @@ With piecewise heading, the line is split into stretches that each use their own
       type="number"
       min="-180"
       max="180"
-      bind:value={heading.endDeg}
-      oninput={() => dispatch("change")}
+      value={showAngle("endDeg")}
+      oninput={(event) => {
+        setAngle("endDeg", Number(event.currentTarget.value));
+        dispatch("change");
+      }}
       onblur={() => dispatch("commit")}
       title="The heading the robot ends this line at (in degrees)"
       disabled={locked}
@@ -116,15 +134,14 @@ With piecewise heading, the line is split into stretches that each use their own
       type="number"
       min="-180"
       max="180"
-      value={heading.degrees || 0}
+      value={showAngle("degrees")}
       oninput={(e) => {
         const value = parseFloat(e.currentTarget.value);
-        const draft: HeadingDraft = heading;
         if (!isNaN(value)) {
-          draft.degrees = value;
+          setAngle("degrees", value);
         } else {
           // If empty or invalid, set to 0
-          draft.degrees = 0;
+          setAngle("degrees", 0);
           e.currentTarget.value = "0";
         }
         dispatch("change");
@@ -134,8 +151,7 @@ With piecewise heading, the line is split into stretches that each use their own
           e.currentTarget.value === "" ||
           isNaN(parseFloat(e.currentTarget.value))
         ) {
-          const draft: HeadingDraft = heading;
-          draft.degrees = 0;
+          setAngle("degrees", 0);
           e.currentTarget.value = "0";
         }
         dispatch("commit");

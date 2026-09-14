@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { Shape } from "../../types";
+  import type { BasePoint, Shape } from "../../types";
   import { createTriangle } from "../../utils";
   import { snapToGrid, showGrid, gridSize } from "../../stores";
-  import { FIELD_SIZE } from "../../config";
+  import CoordinateInput from "./ui/CoordinateInput.svelte";
 
   const colorChoices = [
     { label: "Red", color: "#dc2626", fill: "#ff6b6b" },
@@ -28,6 +28,11 @@
     collapsedObstacles = $bindable(),
     compact = false,
   }: Props = $props();
+
+  function moveVertex(vertex: BasePoint, next: BasePoint) {
+    vertex.x = next.x;
+    vertex.y = next.y;
+  }
 
   let snapToGridTitle = $derived(
     $snapToGrid && $showGrid ? `Snapping to ${$gridSize} grid` : "No snapping",
@@ -175,30 +180,19 @@
             <div class={`font-bold ${compact ? "text-xs" : "text-sm"}`}>
               {vertexIdx + 1}:
             </div>
-            <div class={`font-extralight ${compact ? "text-xs" : "text-sm"}`}>
-              X:
-            </div>
-            <input
-              bind:value={vertex.x}
-              type="number"
-              min="0"
-              max={FIELD_SIZE}
-              step={$snapToGrid && $showGrid ? $gridSize : 0.1}
-              title={snapToGridTitle}
-              class={`pl-1.5 bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none ${compact ? "w-16 py-0.5 text-xs" : "w-24 py-1 text-sm"}`}
-            />
-            <div class={`font-extralight ${compact ? "text-xs" : "text-sm"}`}>
-              Y:
-            </div>
-            <input
-              bind:value={vertex.y}
-              type="number"
-              min="0"
-              max={FIELD_SIZE}
-              step={$snapToGrid && $showGrid ? $gridSize : 0.1}
-              class={`pl-1.5 bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none ${compact ? "w-16 py-0.5 text-xs" : "w-24 py-1 text-sm"}`}
-              title={snapToGridTitle}
-            />
+            {#each ["x", "y"] as const as axis (axis)}
+              <div class={`font-extralight ${compact ? "text-xs" : "text-sm"}`}>
+                {axis.toUpperCase()}:
+              </div>
+              <CoordinateInput
+                point={vertex}
+                {axis}
+                onChange={(next) => moveVertex(vertex, next)}
+                step={$snapToGrid && $showGrid ? $gridSize : 0.1}
+                title={snapToGridTitle}
+                class={`pl-1.5 bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none ${compact ? "w-16 py-0.5 text-xs" : "w-24 py-1 text-sm"}`}
+              />
+            {/each}
             {#if $snapToGrid && $showGrid}
               <span class="text-xs text-green-500" title="Snapping enabled"
                 >✓</span

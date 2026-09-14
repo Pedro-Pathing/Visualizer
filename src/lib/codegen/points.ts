@@ -1,9 +1,11 @@
 import type { BasePoint, Path, StartPose } from "../../types";
 import { atomicSegments } from "../../utils/pathTraversal";
+import { LEGACY_FRAME, toDocFrame, type Frame } from "../../utils/frame";
 
 export function generatePointsArray(
   startPoint: StartPose,
   paths: Path[],
+  frame: Frame = LEGACY_FRAME,
 ): string {
   const points: BasePoint[] = [startPoint];
 
@@ -13,7 +15,10 @@ export function generatePointsArray(
   });
 
   const pointsString = points
-    .map((point) => `(${coordinate(point.x)}, ${coordinate(point.y)})`)
+    .map((point) => {
+      const shown = toDocFrame(point, frame);
+      return `(${coordinate(shown.x)}, ${coordinate(shown.y)})`;
+    })
     .join(", ");
 
   return `[${pointsString}]`;

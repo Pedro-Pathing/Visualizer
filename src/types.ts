@@ -6,6 +6,10 @@ export interface BasePoint {
   locked?: boolean;
 }
 
+export type Origin = "center" | "bottom-left";
+
+export type Axes = "first" | "legacy";
+
 export type PiecewiseHeadingInterpolationType =
   "linear" | "constant" | "tangential" | "facing-point";
 
@@ -122,6 +126,8 @@ export interface Settings {
   maxAcceleration: number; // inches/sec²
   maxDeceleration?: number; // inches/sec²
   fieldMap: string;
+  origin?: Origin;
+  axes?: Axes;
   customFieldImage?: string; // Base64 data URL for custom field image
   robotImage?: string;
   showGhostPaths?: boolean; // Show collision overlays via ghost paths

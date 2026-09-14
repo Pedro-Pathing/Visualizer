@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { AtomicPath, BasePoint, Settings } from "../../types";
+  import { fieldFrame } from "../../stores";
+  import { toDocFrame } from "../../utils/frame";
   import StatCell from "./ui/StatCell.svelte";
   import SelectedPointEditor from "./SelectedPointEditor.svelte";
 
@@ -42,6 +44,10 @@
     onCommitPointChange,
     onVisualizationWaitChange,
   }: Props = $props();
+
+  let shownEndpoint = $derived(
+    toDocFrame(selectedLine?.endPoint ?? { x: 0, y: 0 }, $fieldFrame),
+  );
 
   // Read the point off the line rather than the `selectedPoint` prop: locking
   // rebuilds the segment, and only the line reflects that new state.
@@ -107,7 +113,10 @@
   {#if selectedLine}
     <div class="grid grid-cols-2 gap-2 text-[11px] text-gray-300">
       <div class="border border-[#333333] bg-[#1f1f1f] px-2 py-1.5">
-        <label class="mb-1 block font-semibold uppercase tracking-wide text-gray-500" for="selected-path-name">Name</label>
+        <label
+          class="mb-1 block font-semibold uppercase tracking-wide text-gray-500"
+          for="selected-path-name">Name</label
+        >
         <input
           id="selected-path-name"
           value={selectedLine.name || ""}
@@ -120,9 +129,7 @@
         />
       </div>
       <StatCell label="Endpoint">
-        {selectedLine.endPoint.x.toFixed(1)}, {selectedLine.endPoint.y.toFixed(
-          1,
-        )}
+        {shownEndpoint.x.toFixed(1)}, {shownEndpoint.y.toFixed(1)}
       </StatCell>
       <StatCell label="Control Points">
         {selectedLine.controlPoints.length}
@@ -131,8 +138,9 @@
         {isPointLocked ? "Yes" : "No"}
       </StatCell>
       <div class="border border-[#333333] bg-[#1f1f1f] px-2 py-1.5">
-        <label class="mb-1 block font-semibold uppercase tracking-wide text-gray-500" for="visualization-wait-ms"
-          >Wait after path (ms)</label
+        <label
+          class="mb-1 block font-semibold uppercase tracking-wide text-gray-500"
+          for="visualization-wait-ms">Wait after path (ms)</label
         >
         <input
           id="visualization-wait-ms"

@@ -5,6 +5,7 @@ import type {
   Shape,
   SequenceItem,
 } from "../types";
+import { serializeProject } from "./project";
 
 /**
  * File save/load utilities for the visualizer
@@ -13,6 +14,10 @@ import type {
 export interface SaveData {
   /** Written by `buildProject`; absent in files predating it. */
   version?: string;
+  /** The origin the stored coordinates are measured from. */
+  center?: { x: number; y: number };
+  /** The axis convention the stored coordinates and headings use. */
+  axes?: string;
   startPoint: StartPose;
   lines: Path[];
   shapes?: Shape[];
@@ -32,11 +37,11 @@ export function downloadTrajectory(
   sequence?: SequenceItem[],
   activePaths?: string[],
 ): void {
-  const jsonString = JSON.stringify({
+  const jsonString = serializeProject({
     startPoint,
     lines,
     shapes,
-    sequence,
+    sequence: sequence ?? [],
     activePaths,
   });
   const blob = new Blob([jsonString], { type: "application/json" });

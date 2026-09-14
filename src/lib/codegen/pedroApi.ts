@@ -1,12 +1,18 @@
-import { FIELD_SIZE } from "../../config";
-
 export const PEDRO_API = {
   factoryVar: "poseFactory",
 
-  poseFactory(mirrorHorizontally: boolean): string {
-    const mirror = mirrorHorizontally ? `.mirrorX(${FIELD_SIZE / 2})` : "";
-    return `PoseFactory.degrees()${mirror}`;
-  },
+  poseFactory: () => "PoseFactory.degrees()",
+
+  /**
+   * In released Pedro, PoseFactory.mirrorX and mirrorY carry the wrong heading
+   * rule: mirrorX negates the heading where a reflection about a vertical line
+   * calls for PI - heading, and mirrorY leaves the heading alone. These
+   * general-purpose maps express the reflection correctly.
+   */
+  mapX: (lambda: string) => `.mapX(${lambda})`,
+  mapY: (lambda: string) => `.mapY(${lambda})`,
+  /** In released Pedro this takes radians, whatever unit the factory uses. */
+  mapHeading: (lambda: string) => `.mapHeading(${lambda})`,
 
   /** A single pose literal: `p.of(x, y, heading)`. */
   pose(x: string, y: string, headingDeg: string): string {

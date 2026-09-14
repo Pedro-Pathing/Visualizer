@@ -21,6 +21,7 @@
     dualPathMode,
     secondFilePath,
     activePaths,
+    fieldFrame,
   } from "./stores";
   import Two from "two.js";
   import type { Path as TwoPath } from "two.js/src/path";
@@ -101,11 +102,7 @@
     buildOnionLayer,
     selectVisibleOnionLayers,
   } from "./lib/scene/polygons";
-  import {
-    normalizeFieldPoints,
-    renderFieldPoints,
-    type FieldPoint,
-  } from "./utils/fieldPoints";
+  import { renderFieldPoints, type FieldPoint } from "./utils/fieldPoints";
   import {
     calculateVisualizationPathTime,
     getAnimationDuration,
@@ -114,7 +111,6 @@
     generateOnionLayers,
     getRandomColor,
     normalizePaths,
-    normalizeStartPose,
     makePathId,
     createSegment,
     downloadTrajectory,
@@ -129,7 +125,10 @@
     ungroupPath,
     movePath,
     reorderSequenceToMatch,
+    hydrateProjectDoc,
   } from "./utils";
+  import { get } from "svelte/store";
+  import { frameForSettings, toDocFrame } from "./utils/frame";
   import {
     POINT_RADIUS,
     LINE_WIDTH,
@@ -189,6 +188,20 @@
   let cancelGifExport = $state(false);
   // Path data
   let settings: Settings = $state({ ...DEFAULT_SETTINGS });
+  // Undo and file loads replace `settings` wholesale, so publish only when the
+  // frame actually differs: a new-but-equal Frame would invalidate every
+  // derived bound and redraw the grid for nothing.
+  $effect(() => {
+    const next = frameForSettings(settings);
+    const current = get(fieldFrame);
+    if (
+      next.axes !== current.axes ||
+      next.center.x !== current.center.x ||
+      next.center.y !== current.center.y
+    ) {
+      fieldFrame.set(next);
+    }
+  });
   let startPoint: StartPose = $state(getDefaultStartPoint());
   const initialLines = normalizePaths(getDefaultPaths());
   let lines: Path[] = $state(initialLines);
@@ -528,6 +541,7 @@
       snapToGrid: $snapToGrid,
       showGrid: $showGrid,
       gridSize: $gridSize,
+      frame: $fieldFrame,
     };
   }
 
@@ -627,19 +641,14 @@
         const data = JSON.parse(content);
 
         if (data.startPoint && data.lines) {
-          const normalizedLines = normalizePaths(data.lines || []);
+          const doc = hydrateProjectDoc(data);
           newAdditionalPaths.push({
             filePath,
-            startPoint: normalizeStartPose(data.startPoint),
-            lines: normalizedLines,
-            shapes: data.shapes || [],
-            sequence:
-              data.sequence ||
-              atomicSegments(normalizedLines).map((ln) => ({
-                kind: "path",
-                lineId: ln.id,
-              })),
-            settings: data.settings || { ...DEFAULT_SETTINGS },
+            startPoint: doc.startPoint,
+            lines: doc.lines,
+            shapes: doc.shapes,
+            sequence: doc.sequence,
+            settings: doc.settings || { ...DEFAULT_SETTINGS },
             color: colors[i],
           });
         }
@@ -1718,30 +1727,17 @@
       const versionWarning = newerVersionWarning(data.version);
       if (versionWarning) showToast(versionWarning, "warning");
 
-      startPoint = normalizeStartPose(data.startPoint ?? { x: 72, y: 72 });
-
-      // Normalize lines with all required fields
-      const normalizedLines = normalizePaths(data.lines || []);
-      lines = normalizedLines;
-
-      // Derive sequence from data or create default
-      sequence = (
-        data.sequence && data.sequence.length
-          ? data.sequence
-          : atomicSegments(normalizedLines).map((ln) => ({
-              kind: "path",
-              lineId: ln.id,
-            }))
-      ) as SequenceItem[];
-      // Load shapes with defaults
-      shapes = data.shapes || [];
-      fieldPoints = normalizeFieldPoints(data);
-      // Load settings (including robot size) if present
-      if (data.settings) {
-        settings = { ...settings, ...data.settings };
+      const doc = hydrateProjectDoc(data);
+      startPoint = doc.startPoint;
+      lines = doc.lines;
+      sequence = doc.sequence;
+      shapes = doc.shapes;
+      fieldPoints = doc.fieldPoints ?? [];
+      if (doc.settings) {
+        settings = { ...settings, ...doc.settings };
       }
 
-      activePaths.set(Array.isArray(data.activePaths) ? data.activePaths : []);
+      activePaths.set(doc.activePaths ?? []);
 
       isUnsaved.set(false);
       recordChange();
@@ -2226,12 +2222,13 @@
           };
         }
         segmentNumber += 1;
+        const shown = toDocFrame(node.endPoint, $fieldFrame);
         return {
           id: node.id,
           name: node.name || `Path ${segmentNumber}`,
           kind: "atomic" as const,
-          x: formatPathPoint(node.endPoint.x),
-          y: formatPathPoint(node.endPoint.y),
+          x: formatPathPoint(shown.x),
+          y: formatPathPoint(shown.y),
         };
       });
 
@@ -2931,7 +2928,12 @@
           </div>
         </div>
         <div class="module-footer">
-          Field · {FIELD_SIZE}&quot; x {FIELD_SIZE}&quot;
+          Field · {FIELD_SIZE}&quot; x {FIELD_SIZE}&quot; · {settings.origin ===
+          "center"
+            ? "center origin"
+            : "bottom-left origin"} · {settings.axes === "first"
+            ? "FIRST axes"
+            : "legacy axes"}
         </div>
       </main>
 

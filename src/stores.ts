@@ -1,4 +1,13 @@
 import { writable } from "svelte/store";
+import { DEFAULT_SETTINGS } from "./config/defaults";
+import { frameForSettings, type Frame } from "./utils/frame";
+
+/**
+ * The frame the UI displays coordinates in and that saved documents are
+ * written in. Mirrors the origin/axes settings; in-memory coordinates stay
+ * canonical regardless.
+ */
+export const fieldFrame = writable<Frame>(frameForSettings(DEFAULT_SETTINGS));
 
 // Math tools stores
 export const showRuler = writable(false);

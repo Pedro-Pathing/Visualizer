@@ -40,6 +40,8 @@ export const DEFAULT_SETTINGS: Settings = {
   maxAcceleration: 30,
   maxDeceleration: 30,
   fieldMap: "biobuzz.webp",
+  origin: "center",
+  axes: "first",
   robotImage: "/robot.png",
   showGhostPaths: false,
   showOnionLayers: false,

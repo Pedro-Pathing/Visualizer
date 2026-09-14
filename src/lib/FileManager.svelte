@@ -6,7 +6,6 @@
   import type {
     FileInfo,
     FieldPoint,
-    Heading,
     Path,
     Shape,
     SequenceItem,
@@ -19,17 +18,16 @@
     dualPathMode,
     secondFilePath,
   } from "../stores";
-  import { normalizeFieldPoints } from "../utils/fieldPoints";
+  import { normalizePaths, deriveSequence } from "../utils/normalize";
+  import { MIRROR_X, mapDoc } from "../utils/frame";
   import {
-    normalizePaths,
-    normalizeStartPose,
-    deriveSequence,
-  } from "../utils/normalize";
-  import { newerVersionWarning, serializeProject } from "../utils/project";
+    hydrateProjectDoc,
+    newerVersionWarning,
+    serializeProject,
+  } from "../utils/project";
   import { downloadJson } from "../utils/download";
   import { stripPpExtension } from "../utils/filename";
   import {
-    FIELD_SIZE,
     getDefaultPaths,
     getDefaultShapes,
     getDefaultStartPoint,
@@ -84,20 +82,12 @@
   let nameDialogOpen = $state(false);
   let nameDialogTitle = $state("");
   let nameDialogDefault = $state("");
-  let pendingMirrorData: any = null;
+  let pendingMirrorData: string | null = null;
 
   // Helper to get error message from unknown error type
   function getErrorMessage(error: unknown): string {
     if (error instanceof Error) return error.message;
     return String(error);
-  }
-
-  // Normalize lines to ensure ids and wait fields exist
-
-  // Normalize sequence data, falling back to path-only sequence if waits are missing
-
-  function hydrateFieldPoints(data: any): FieldPoint[] {
-    return normalizeFieldPoints(data);
   }
 
   // Debug logging
@@ -305,13 +295,13 @@
       const versionWarning = newerVersionWarning(data.version);
       if (versionWarning) showToast(versionWarning, "warning");
 
-      const normalizedLines = normalizePaths(data.lines || []);
+      const doc = hydrateProjectDoc(data);
       return {
-        startPoint: normalizeStartPose(data.startPoint),
-        lines: normalizedLines,
-        shapes: data.shapes || [],
-        sequence: deriveSequence(data, normalizedLines),
-        fieldPoints: hydrateFieldPoints(data),
+        startPoint: doc.startPoint,
+        lines: doc.lines,
+        shapes: doc.shapes,
+        sequence: doc.sequence,
+        fieldPoints: doc.fieldPoints ?? [],
       };
     } catch (error) {
       const errMsg = getErrorMessage(error);
@@ -618,6 +608,8 @@
 
       const newFilePath = newFileName;
 
+      // The copy keeps the original's coordinate frame, so the raw document is
+      // rewritten as-is rather than hydrated into canonical coordinates.
       const normalizedLines = normalizePaths(data.lines || []);
       const sequenceData = deriveSequence(data, normalizedLines);
       await browserFileStore.writeFile(
@@ -658,18 +650,19 @@
       const content = await browserFileStore.readFile(selectedFile.path);
       const data = JSON.parse(content);
 
-      // normalize before mirroring
-      data.lines = normalizePaths(data.lines || []);
-      data.startPoint = normalizeStartPose(data.startPoint ?? {});
-
-      const mirroredData = mirrorPathData(data);
-      mirroredData.sequence = deriveSequence(mirroredData, mirroredData.lines);
+      // Mirroring reflects the field's own x axis, so it runs on canonical
+      // coordinates and the copy is written back in the original's frame.
+      // Obstacles and markers stay put.
+      const doc = hydrateProjectDoc(data);
+      const mirroredData = mapDoc(doc, MIRROR_X, { scenery: false });
 
       const baseName = stripPpExtension(selectedFile.name);
       const defaultName = `${baseName}_mirrored`;
 
-      // Store the mirrored data and open custom dialog
-      pendingMirrorData = mirroredData;
+      pendingMirrorData = serializeProject(mirroredData, {
+        pretty: true,
+        overrides: { frame: doc.frame },
+      });
       nameDialogTitle = "Name Mirrored Path";
       nameDialogDefault = defaultName;
       nameDialogOpen = true;
@@ -696,10 +689,7 @@
         counter++;
       }
 
-      await browserFileStore.writeFile(
-        newFileName,
-        JSON.stringify(pendingMirrorData, null, 2),
-      );
+      await browserFileStore.writeFile(newFileName, pendingMirrorData);
       await refreshDirectory();
 
       // Select and load the new file
@@ -722,110 +712,6 @@
   function handleMirrorNameCancel() {
     pendingMirrorData = null;
     nameDialogOpen = false;
-  }
-
-  function mirrorHeading(heading: Heading): Heading {
-    switch (heading.type) {
-      // For linear heading, mirror both start and end degrees
-      case "linear":
-        return {
-          type: "linear",
-          startDeg: 180 - heading.startDeg,
-          endDeg: 180 - heading.endDeg,
-        };
-
-      // For constant heading, mirror the constant degree
-      case "constant":
-        return { type: "constant", degrees: 180 - heading.degrees };
-
-      // For tangential heading, keep the reverse flag unchanged so mirrored
-      // tangents stay mirrored
-      case "tangential":
-        return heading;
-
-      // Each piecewise segment carries its own angles, so mirror them all
-      case "piecewise":
-        return {
-          type: "piecewise",
-          piecewiseHeading: {
-            ...heading.piecewiseHeading,
-            segments: (heading.piecewiseHeading?.segments ?? []).map(
-              (segment) => {
-                const parameters = segment.parameters;
-                if (!parameters) return segment;
-                return {
-                  ...segment,
-                  parameters: {
-                    ...parameters,
-                    startDeg:
-                      parameters.startDeg === undefined
-                        ? undefined
-                        : 180 - parameters.startDeg,
-                    endDeg:
-                      parameters.endDeg === undefined
-                        ? undefined
-                        : 180 - parameters.endDeg,
-                    degrees:
-                      parameters.degrees === undefined
-                        ? undefined
-                        : 180 - parameters.degrees,
-                    point: parameters.point
-                      ? {
-                          ...parameters.point,
-                          x: FIELD_SIZE - parameters.point.x,
-                        }
-                      : undefined,
-                  },
-                };
-              },
-            ),
-          },
-        };
-    }
-  }
-
-  function mirrorPathData(data: any) {
-    const mirrored = JSON.parse(JSON.stringify(data)); // Deep clone
-
-    // Mirror start point
-    if (mirrored.startPoint) {
-      mirrored.startPoint.x = FIELD_SIZE - mirrored.startPoint.x;
-      mirrored.startPoint.headingDeg = 180 - mirrored.startPoint.headingDeg;
-    }
-
-    // Mirror lines, descending into groups so nested segments are mirrored too
-    const mirrorPaths = (paths: Path[]) => {
-      paths.forEach((path) => {
-        if (path.heading) {
-          path.heading = mirrorHeading(path.heading);
-        }
-
-        if (path.kind === "compound") {
-          mirrorPaths(path.segments);
-          return;
-        }
-
-        // Mirror end point
-        if (path.endPoint) {
-          path.endPoint.x = FIELD_SIZE - path.endPoint.x;
-        }
-
-        // Mirror control points
-        if (path.controlPoints && Array.isArray(path.controlPoints)) {
-          path.controlPoints.forEach((controlPoint) => {
-            controlPoint.x = FIELD_SIZE - controlPoint.x;
-          });
-        }
-      });
-    };
-    if (mirrored.lines && Array.isArray(mirrored.lines)) {
-      mirrorPaths(mirrored.lines);
-    }
-
-    // Don't mirror shapes/obstacles - they should remain in their original positions
-    // (removed mirroring logic for shapes)
-
-    return mirrored;
   }
 
   // Toast notification system
@@ -867,7 +753,10 @@
   onMount(() => {
     syncActiveProjectToStorage()
       .catch((error) => {
-        console.error("Failed to sync active project before opening files:", error);
+        console.error(
+          "Failed to sync active project before opening files:",
+          error,
+        );
       })
       .finally(() => loadDirectory());
     window.addEventListener("keydown", handleKeyDown);

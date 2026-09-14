@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { AtomicPath, BasePoint } from "../../types";
   import { snapToGrid, showGrid, gridSize } from "../../stores";
-  import { FIELD_SIZE } from "../../config";
+  import CoordinateInput from "./ui/CoordinateInput.svelte";
   import HeadingControls from "./HeadingControls.svelte";
 
   interface Props {
@@ -37,6 +37,11 @@
   let isPointLocked = $derived(Boolean(livePoint?.locked));
   let disabled = $derived(selectedLine.locked || isPointLocked);
   let coordinateStep = $derived($snapToGrid && $showGrid ? $gridSize : 0.1);
+  function moveTo(next: BasePoint) {
+    selectedPoint.x = next.x;
+    selectedPoint.y = next.y;
+    onCommit();
+  }
 
   const FIELD_CLASS =
     "w-24 rounded border border-[#444444] bg-[#111111] px-2 py-1 text-gray-100 focus:outline-none focus:ring-1 focus:ring-green-500 disabled:cursor-not-allowed disabled:opacity-50";
@@ -73,32 +78,19 @@
   </div>
 
   <div class="mt-3 flex flex-wrap items-end gap-2 text-[11px]">
-    <label class="flex flex-col gap-1">
-      <span class="text-gray-500">X</span>
-      <input
-        bind:value={selectedPoint.x}
-        type="number"
-        min="0"
-        max={FIELD_SIZE}
-        step={coordinateStep}
-        class={FIELD_CLASS}
-        onchange={onCommit}
-        {disabled}
-      />
-    </label>
-    <label class="flex flex-col gap-1">
-      <span class="text-gray-500">Y</span>
-      <input
-        bind:value={selectedPoint.y}
-        type="number"
-        min="0"
-        max={FIELD_SIZE}
-        step={coordinateStep}
-        class={FIELD_CLASS}
-        onchange={onCommit}
-        {disabled}
-      />
-    </label>
+    {#each ["x", "y"] as const as axis (axis)}
+      <label class="flex flex-col gap-1">
+        <span class="text-gray-500">{axis.toUpperCase()}</span>
+        <CoordinateInput
+          point={selectedPoint}
+          {axis}
+          onChange={moveTo}
+          step={coordinateStep}
+          class={FIELD_CLASS}
+          {disabled}
+        />
+      </label>
+    {/each}
   </div>
 
   {#if selectedPointIndex === 0}
