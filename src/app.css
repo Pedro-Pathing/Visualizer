@@ -114,16 +114,18 @@ select {
 }
 
 .slider {
-  @apply dark:bg-neutral-900
-  [&::-webkit-slider-runnable-track]:rounded-full 
-  [&::-webkit-slider-runnable-track]:bg-black/10 
-  [&::-webkit-slider-runnable-track]:dark:bg-neutral-700
-  [&::-webkit-slider-runnable-track]:shadow-inner
+  @apply bg-transparent
+  [&::-webkit-slider-runnable-track]:h-3
+  [&::-webkit-slider-runnable-track]:rounded-full
+  [&::-webkit-slider-runnable-track]:bg-transparent
   [&::-webkit-slider-thumb]:appearance-none 
-  [&::-webkit-slider-thumb]:h-5 
-  [&::-webkit-slider-thumb]:w-5 
+  [&::-webkit-slider-thumb]:-mt-1 
+  [&::-webkit-slider-thumb]:h-5
+  [&::-webkit-slider-thumb]:w-5
   [&::-webkit-slider-thumb]:rounded-full 
-  [&::-webkit-slider-thumb]:bg-gray-400
+  [&::-webkit-slider-thumb]:border-2
+  [&::-webkit-slider-thumb]:border-green-800
+  [&::-webkit-slider-thumb]:bg-green-600
   [&::-webkit-slider-thumb]:transition-all
   [&::-webkit-slider-thumb]:duration-200
   [&::-webkit-slider-thumb]:cursor-pointer;
@@ -131,6 +133,21 @@ select {
   &::-webkit-slider-thumb:hover {
     @apply shadow-lg;
   }
+}
+
+.slider::-moz-range-track {
+  height: 0.75rem;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+.slider::-moz-range-thumb {
+  height: 1.25rem;
+  width: 1.25rem;
+  border: 2px solid #166534;
+  border-radius: 9999px;
+  background: #16a34a;
+  cursor: pointer;
 }
 
 @font-face {

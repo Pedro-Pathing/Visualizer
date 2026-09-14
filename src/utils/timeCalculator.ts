@@ -190,6 +190,55 @@ export function calculatePathTime(
   };
 }
 
+/**
+ * Calculate playback timing with path-level visualization pauses.
+ * These waits are intentionally kept out of calculatePathTime so exports keep
+ * using the trajectory's actual timing.
+ */
+export function calculateVisualizationPathTime(
+  startPoint: StartPose,
+  lines: Path[],
+  settings: Settings,
+  sequence?: SequenceItem[],
+): TimePrediction {
+  const waitsByPathId = new Map(
+    flattenToAtomicSegments(startPoint, lines).map(({ line }) => [
+      line.id,
+      Math.max(0, Number(line.waitAfterMs) || 0),
+    ]),
+  );
+  const baseSequence =
+    sequence && sequence.length
+      ? sequence
+      : atomicSegments(lines).map((line) => ({
+          kind: "path" as const,
+          lineId: line.id,
+        }));
+  const visualizationSequence: SequenceItem[] = [];
+
+  baseSequence.forEach((item) => {
+    visualizationSequence.push(item);
+    if (item.kind === "path") {
+      const durationMs = waitsByPathId.get(item.lineId) ?? 0;
+      if (durationMs > 0) {
+        visualizationSequence.push({
+          kind: "wait",
+          id: `visualization-wait-${item.lineId}`,
+          name: "Path visualization wait",
+          durationMs,
+        });
+      }
+    }
+  });
+
+  return calculatePathTime(
+    startPoint,
+    lines,
+    settings,
+    visualizationSequence,
+  );
+}
+
 export function formatTime(totalSeconds: number): string {
   if (totalSeconds <= 0) return "0.0s";
   const minutes = Math.floor(totalSeconds / 60);

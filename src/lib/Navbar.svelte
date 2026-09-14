@@ -50,6 +50,7 @@
     settings: Settings;
     saveProject: () => any;
     saveFileAs: () => any;
+    renameCurrentFile: () => any;
     undoAction: () => any;
     redoAction: () => any;
     recordChange: () => any;
@@ -80,6 +81,7 @@
     settings = $bindable(),
     saveProject,
     saveFileAs,
+    renameCurrentFile,
     undoAction,
     redoAction,
     recordChange,
@@ -354,7 +356,17 @@
       {#if $currentFilePath}
         <span class="text-neutral-400 font-light text-sm mx-2">/</span>
         <span
-          class="text-sm font-normal text-neutral-600 dark:text-neutral-300"
+          class="text-sm font-normal text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-white cursor-pointer"
+          role="button"
+          tabindex="0"
+          title="Rename this path file"
+          onclick={renameCurrentFile}
+          onkeydown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              renameCurrentFile();
+            }
+          }}
         >
           {basename($currentFilePath)}
           {#if $isUnsaved}

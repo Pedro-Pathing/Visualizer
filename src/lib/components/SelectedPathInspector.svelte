@@ -20,6 +20,7 @@
     onDeleteControlPoint: () => void;
     onToggleLock: () => void;
     onCommitPointChange: () => void;
+    onVisualizationWaitChange: (durationMs: number) => void;
   }
 
   let {
@@ -39,6 +40,7 @@
     onDeleteControlPoint,
     onToggleLock,
     onCommitPointChange,
+    onVisualizationWaitChange,
   }: Props = $props();
 
   // Read the point off the line rather than the `selectedPoint` prop: locking
@@ -76,7 +78,7 @@
           max="3"
           step="0.1"
           bind:value={curveTension}
-          class="w-20 px-2 py-1 rounded border bg-[#111111] text-sm text-gray-200"
+          class="w-20 rounded border border-[#59636d] bg-[#111111] px-2 py-1 text-sm text-gray-100 shadow-inner placeholder:text-gray-500 focus:border-green-500 focus:ring-1 focus:ring-green-500"
           title="Curve tension (smaller = looser)"
         />
         <button
@@ -105,12 +107,13 @@
   {#if selectedLine}
     <div class="grid grid-cols-2 gap-2 text-[11px] text-gray-300">
       <div class="border border-[#333333] bg-[#1f1f1f] px-2 py-1.5">
-        <div class="text-gray-500">Name</div>
+        <label class="mb-1 block font-semibold uppercase tracking-wide text-gray-500" for="selected-path-name">Name</label>
         <input
+          id="selected-path-name"
           value={selectedLine.name || ""}
           placeholder={`Path ${selectedLinePathIndex + 1}`}
           type="text"
-          class="w-full bg-transparent font-medium text-gray-100 border-none outline-none focus:ring-1 focus:ring-green-500 rounded px-0 py-0.5"
+          class="w-full rounded border border-[#59636d] bg-[#111111] px-2 py-1.5 font-medium text-gray-100 shadow-inner placeholder:text-gray-600 focus:border-green-500 focus:ring-1 focus:ring-green-500"
           disabled={selectedLine.locked}
           oninput={(e) => onNameInput(e.currentTarget.value)}
           onchange={onRecordChange}
@@ -127,6 +130,27 @@
       <StatCell label="Locked">
         {isPointLocked ? "Yes" : "No"}
       </StatCell>
+      <div class="border border-[#333333] bg-[#1f1f1f] px-2 py-1.5">
+        <label class="mb-1 block font-semibold uppercase tracking-wide text-gray-500" for="visualization-wait-ms"
+          >Wait after path (ms)</label
+        >
+        <input
+          id="visualization-wait-ms"
+          type="number"
+          min="0"
+          step="100"
+          inputmode="numeric"
+          placeholder="0"
+          value={selectedLine.waitAfterMs ?? 0}
+          class="w-full rounded border border-[#59636d] bg-[#111111] px-2 py-1.5 font-medium text-gray-100 shadow-inner placeholder:text-gray-600 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+          disabled={selectedLine.locked}
+          oninput={(event) =>
+            onVisualizationWaitChange(
+              Math.max(0, Number(event.currentTarget.value) || 0),
+            )}
+          onchange={onRecordChange}
+        />
+      </div>
     </div>
 
     {#if selectedPoint}

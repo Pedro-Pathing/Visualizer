@@ -115,6 +115,30 @@
     }
   }
 
+  async function syncActiveProjectToStorage() {
+    if (!$currentFilePath) return;
+
+    const content = serializeProject({
+      startPoint,
+      lines,
+      shapes,
+      sequence,
+      fieldPoints,
+    });
+    await browserFileStore.writeFile($currentFilePath, content);
+    isUnsaved.set(false);
+  }
+
+  function handleExternalFileRename(event: Event) {
+    const { oldPath, newPath } = (
+      event as CustomEvent<{ oldPath: string; newPath: string }>
+    ).detail;
+    if (selectedFile?.path === oldPath) {
+      selectedFile = { ...selectedFile, path: newPath, name: newPath };
+    }
+    refreshDirectory();
+  }
+
   async function refreshDirectory() {
     try {
       const allFiles = await browserFileStore.listFiles();
@@ -195,6 +219,23 @@
         return;
       }
 
+      // Rename the current in-memory document only after writing its latest
+      // state, so switching to the renamed path cannot discard unsaved edits.
+      const renamingPrimary =
+        (selectedFile?.path ?? $currentFilePath) === renamingFile.path;
+      const renamingSecondary = selectedFile2?.path === renamingFile.path;
+      let currentContent: string | null = null;
+      if (renamingPrimary || renamingSecondary) {
+        currentContent = serializeProject({
+          startPoint: renamingPrimary ? startPoint : secondStartPoint!,
+          lines: renamingPrimary ? lines : secondLines,
+          shapes: renamingPrimary ? shapes : secondShapes,
+          sequence: renamingPrimary ? sequence : secondSequence,
+          fieldPoints,
+        });
+        await browserFileStore.writeFile(renamingFile.path, currentContent);
+      }
+
       // Perform the rename
       const result = await browserFileStore.renameFile(
         renamingFile.path,
@@ -210,6 +251,20 @@
             path: newFilePath,
           };
           currentFilePath.set(newFilePath);
+          isUnsaved.set(false);
+        }
+
+        if (renamingPrimary && currentContent) {
+          // Ensure the destination contains the exact in-memory state even if
+          // the storage provider implements rename as a copy operation.
+          await browserFileStore.writeFile(newFilePath, currentContent);
+          selectedFile = {
+            ...(selectedFile ?? renamingFile),
+            name: newFileName,
+            path: newFilePath,
+          };
+          currentFilePath.set(newFilePath);
+          isUnsaved.set(false);
         }
 
         if (selectedFile2 && selectedFile2.path === renamingFile.path) {
@@ -810,13 +865,19 @@
   }
 
   onMount(() => {
-    loadDirectory();
+    syncActiveProjectToStorage()
+      .catch((error) => {
+        console.error("Failed to sync active project before opening files:", error);
+      })
+      .finally(() => loadDirectory());
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("fileRenamed", handleExternalFileRename);
   });
 
   // Clean up event listener
   onDestroy(() => {
     window.removeEventListener("keydown", handleKeyDown);
+    window.removeEventListener("fileRenamed", handleExternalFileRename);
   });
 
   // Mock path.join for browser context
