@@ -1,5 +1,5 @@
 import type { Path, SequenceItem, StartPose } from "../../types";
-import { LEGACY_FRAME, type Frame } from "../../utils/frame";
+import type { Frame } from "../../utils/frame";
 import { emitSource } from "./emit";
 import { formatSource } from "./format";
 import { javaSpec } from "./languages/java";
@@ -16,18 +16,6 @@ export { PEDRO_API } from "./pedroApi";
 export { generatePointsArray } from "./points";
 export type { LanguageSpec } from "./languages/spec";
 export type * from "./types";
-
-/**
- * The frame exported code is written in.
- *
- * A Pose literal carries no record of which coordinate frame it is written in,
- * and PoseFactory offers no way to declare one, so exports use Pedro's own
- * frame no matter which frame the editor displays. Should PoseFactory gain a
- * way to state its convention, pass the user's frame here and have
- * `poseFactoryInitializer` emit that declaration plus any leftover translation;
- * the exported numbers would then match the ones on screen.
- */
-export const EXPORT_FRAME: Frame = LEGACY_FRAME;
 
 export type Language = "java" | "kotlin";
 

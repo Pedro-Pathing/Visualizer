@@ -6,9 +6,8 @@
   import { java, kotlin, plaintext } from "svelte-highlight/languages";
   import codeStyle from "svelte-highlight/styles/androidstudio";
   import Modal from "./ui/Modal.svelte";
-  import { currentFilePath } from "../../stores";
+  import { currentFilePath, fieldFrame } from "../../stores";
   import {
-    EXPORT_FRAME,
     generateCode,
     generatePointsArray,
     generateSequentialCommandCode,
@@ -46,6 +45,13 @@
   let currentLanguage: typeof java | typeof kotlin | typeof plaintext =
     $state(java);
   let copied = $state(false);
+
+  let originLabel = $derived(
+    $fieldFrame.center.x === 0 && $fieldFrame.center.y === 0
+      ? "bottom-left"
+      : "field-center",
+  );
+  let axesLabel = $derived($fieldFrame.axes === "first" ? "FIRST" : "legacy PedroPathing");
 
   // Update sequential class name when file changes
   run(() => {
@@ -95,10 +101,10 @@
   }
 
   function renderExport(format: ExportFormat): Promise<string> | string {
-    const input = { startPoint, lines, frame: EXPORT_FRAME };
+    const input = { startPoint, lines, frame: $fieldFrame };
     switch (format) {
       case "points":
-        return generatePointsArray(startPoint, lines, EXPORT_FRAME);
+        return generatePointsArray(startPoint, lines, $fieldFrame);
       case "sequential":
         return generateSequentialCommandCode({
           ...input,
@@ -221,6 +227,14 @@
       </button>
     </div>
   </div>
+
+  <p
+    class="w-full rounded border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs font-light text-neutral-700 dark:text-neutral-300"
+  >
+    This project uses a <strong class="font-medium">{originLabel}</strong>
+    origin and <strong class="font-medium">{axesLabel}</strong> axes. Make sure every
+    pose in your code follows the same conventions.
+  </p>
 
   <div class="relative w-full flex-1 overflow-auto">
     <Highlight language={currentLanguage} code={exportedCode} class="w-full" />
