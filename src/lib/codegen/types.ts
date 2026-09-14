@@ -1,9 +1,12 @@
+import type { Frame } from "../../utils/frame";
+
 export type ExportMode = "full" | "class" | "coordinates";
 
 export interface ExportOptions {
   mirrorHorizontally: boolean;
   className: string;
   packageName: string;
+  frame: Frame;
 }
 
 export interface PoseDecl {

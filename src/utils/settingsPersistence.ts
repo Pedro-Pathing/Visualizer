@@ -1,5 +1,6 @@
 import { DEFAULT_SETTINGS } from "../config/defaults";
 import type { Settings } from "../types";
+import { isAxes, isOrigin } from "./frame";
 
 // Versioning for settings schema
 const SETTINGS_VERSION = "1.0.0";
@@ -56,7 +57,19 @@ function migrateSettings(stored: Partial<StoredSettings>): Settings {
     }
   });
 
-  return normalizeLegacyFieldMap(migrated);
+  return normalizeCoordinateFrame(normalizeLegacyFieldMap(migrated));
+}
+
+/**
+ * migrateSettings copies any key it finds in the defaults without inspecting
+ * the value, so these two arrive unchecked.
+ */
+function normalizeCoordinateFrame(input: Settings): Settings {
+  return {
+    ...input,
+    origin: isOrigin(input.origin) ? input.origin : DEFAULT_SETTINGS.origin,
+    axes: isAxes(input.axes) ? input.axes : DEFAULT_SETTINGS.axes,
+  };
 }
 
 // Load settings from localStorage

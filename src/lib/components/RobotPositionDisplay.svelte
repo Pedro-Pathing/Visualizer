@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { BasePoint } from "../../types";
   import type * as d3 from "d3";
+  import { fieldFrame } from "../../stores";
+  import { headingToDocFrame, toDocFrame } from "../../utils/frame";
 
   interface Props {
     robotXY: BasePoint;
@@ -10,6 +12,12 @@
   }
 
   let { robotXY, robotHeading, x, y }: Props = $props();
+
+  // robotXY arrives in pixels, so it goes back through the scales first.
+  let shown = $derived(
+    toDocFrame({ x: x.invert(robotXY.x), y: y.invert(robotXY.y) }, $fieldFrame),
+  );
+  let shownHeading = $derived(headingToDocFrame(-robotHeading, $fieldFrame));
 </script>
 
 <div class="flex flex-col w-full justify-start items-start gap-2 text-sm">
@@ -20,7 +28,7 @@
     >
       <div class="font-extralight text-gray-400">X</div>
       <div class="font-medium text-gray-100">
-        {x.invert(robotXY.x).toFixed(3)}
+        {shown.x.toFixed(3)}
       </div>
     </div>
     <div
@@ -28,7 +36,7 @@
     >
       <div class="font-extralight text-gray-400">Y</div>
       <div class="font-medium text-gray-100">
-        {y.invert(robotXY.y).toFixed(3)}
+        {shown.y.toFixed(3)}
       </div>
     </div>
     <div
@@ -36,7 +44,7 @@
     >
       <div class="font-extralight text-gray-400">Heading</div>
       <div class="font-medium text-gray-100">
-        {robotHeading.toFixed(0) === "-0" ? "0" : -robotHeading.toFixed(0)}&deg;
+        {shownHeading.toFixed(0) === "-0" ? "0" : shownHeading.toFixed(0)}&deg;
       </div>
     </div>
   </div>

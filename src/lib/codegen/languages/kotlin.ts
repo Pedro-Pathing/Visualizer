@@ -35,6 +35,10 @@ export const kotlinSpec: LanguageSpec = {
     return Number.isInteger(rounded) ? `${rounded}.0` : rounded.toString();
   },
 
+  lambda(parameter: string, body: string): string {
+    return `{ ${parameter} -> ${body} }`;
+  },
+
   comment(text: string): string {
     return `// ${text}`;
   },

@@ -13,6 +13,9 @@
     segmentSupportsReverse,
     validatePiecewiseHeadingInterpolation,
   } from "../../utils/headingInterpolation";
+  import { fieldFrame } from "../../stores";
+  import { headingToCanonical, headingToDocFrame } from "../../utils/frame";
+  import CoordinateInput from "./ui/CoordinateInput.svelte";
 
   interface Props {
     config: PiecewiseHeadingInterpolation;
@@ -25,6 +28,11 @@
   }
 
   let { config, locked = false, onConfigChange }: Props = $props();
+
+  const showAngle = (degrees: number) =>
+    headingToDocFrame(degrees, $fieldFrame);
+  const storeAngle = (value: unknown) =>
+    headingToCanonical(Number(value), $fieldFrame);
 
   let advancedMode = $state(false);
   let activeBoundaryIndex: number | null = null;
@@ -446,8 +454,10 @@
                 step="1"
                 class={FIELD_CLASS}
                 value={segment.continueFromPrevious
-                  ? (linkedStart?.toFixed(1) ?? "")
-                  : (segment.parameters?.startDeg ?? 0)}
+                  ? linkedStart === null
+                    ? ""
+                    : showAngle(linkedStart).toFixed(1)
+                  : showAngle(segment.parameters?.startDeg ?? 0)}
                 readonly={segment.continueFromPrevious}
                 placeholder={segment.continueFromPrevious
                   ? "follows the path"
@@ -459,7 +469,7 @@
                 onchange={(event) =>
                   updateSegment(index, {
                     parameters: {
-                      startDeg: Number(
+                      startDeg: storeAngle(
                         (event.currentTarget as HTMLInputElement).value,
                       ),
                     },
@@ -472,12 +482,12 @@
                 type="number"
                 step="1"
                 class={FIELD_CLASS}
-                value={segment.parameters?.endDeg ?? 0}
+                value={showAngle(segment.parameters?.endDeg ?? 0)}
                 disabled={locked}
                 onchange={(event) =>
                   updateSegment(index, {
                     parameters: {
-                      endDeg: Number(
+                      endDeg: storeAngle(
                         (event.currentTarget as HTMLInputElement).value,
                       ),
                     },
@@ -494,8 +504,10 @@
                 step="1"
                 class={FIELD_CLASS}
                 value={segment.continueFromPrevious
-                  ? (linkedStart?.toFixed(1) ?? "")
-                  : (segment.parameters?.degrees ?? 0)}
+                  ? linkedStart === null
+                    ? ""
+                    : showAngle(linkedStart).toFixed(1)
+                  : showAngle(segment.parameters?.degrees ?? 0)}
                 readonly={segment.continueFromPrevious}
                 placeholder={segment.continueFromPrevious
                   ? "follows the path"
@@ -507,7 +519,7 @@
                 onchange={(event) =>
                   updateSegment(index, {
                     parameters: {
-                      degrees: Number(
+                      degrees: storeAngle(
                         (event.currentTarget as HTMLInputElement).value,
                       ),
                     },
@@ -517,48 +529,20 @@
           </div>
         {:else if segment.interpolationType === "facing-point"}
           <div class="mt-2 grid gap-2 sm:grid-cols-2">
-            <label class="space-y-1">
-              <div class={LABEL_CLASS}>Target X</div>
-              <input
-                type="number"
-                step="0.1"
-                class={FIELD_CLASS}
-                value={segment.parameters?.point?.x ?? 0}
-                disabled={locked}
-                onchange={(event) =>
-                  updateSegment(index, {
-                    parameters: {
-                      point: {
-                        x: Number(
-                          (event.currentTarget as HTMLInputElement).value,
-                        ),
-                        y: segment.parameters?.point?.y ?? 0,
-                      },
-                    },
-                  })}
-              />
-            </label>
-            <label class="space-y-1">
-              <div class={LABEL_CLASS}>Target Y</div>
-              <input
-                type="number"
-                step="0.1"
-                class={FIELD_CLASS}
-                value={segment.parameters?.point?.y ?? 0}
-                disabled={locked}
-                onchange={(event) =>
-                  updateSegment(index, {
-                    parameters: {
-                      point: {
-                        x: segment.parameters?.point?.x ?? 0,
-                        y: Number(
-                          (event.currentTarget as HTMLInputElement).value,
-                        ),
-                      },
-                    },
-                  })}
-              />
-            </label>
+            {#each ["x", "y"] as const as axis (axis)}
+              <label class="space-y-1">
+                <div class={LABEL_CLASS}>Target {axis.toUpperCase()}</div>
+                <CoordinateInput
+                  point={segment.parameters?.point ?? { x: 0, y: 0 }}
+                  {axis}
+                  onChange={(point) =>
+                    updateSegment(index, { parameters: { point } })}
+                  class={FIELD_CLASS}
+                  disabled={locked}
+                  bounded={false}
+                />
+              </label>
+            {/each}
           </div>
         {:else}
           <div class="mt-2 text-[10px] text-gray-500">

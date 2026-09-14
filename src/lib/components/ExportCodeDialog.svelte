@@ -6,14 +6,22 @@
   import { java, kotlin, plaintext } from "svelte-highlight/languages";
   import codeStyle from "svelte-highlight/styles/androidstudio";
   import Modal from "./ui/Modal.svelte";
-  import { currentFilePath } from "../../stores";
+  import { currentFilePath, fieldFrame } from "../../stores";
   import {
-    generateJavaCode,
-    generateKotlinCode,
+    generateCode,
     generatePointsArray,
     generateSequentialCommandCode,
   } from "../codegen";
   import { basename } from "../../utils/filename";
+
+  type ExportFormat = "java" | "kotlin" | "points" | "sequential";
+
+  const HIGHLIGHT = {
+    java,
+    kotlin,
+    points: plaintext,
+    sequential: java,
+  } as const;
 
   interface Props {
     isOpen?: boolean;
@@ -30,14 +38,20 @@
   }: Props = $props();
 
   let exportMode: "full" | "class" | "coordinates" = $state("class");
-  let exportFormat: "java" | "kotlin" | "points" | "sequential" =
-    $state("java");
+  let exportFormat: ExportFormat = $state("java");
   let sequentialClassName = $state("AutoPath");
   let mirrorHorizontally = $state(false);
   let exportedCode = $state("");
   let currentLanguage: typeof java | typeof kotlin | typeof plaintext =
     $state(java);
   let copied = $state(false);
+
+  let originLabel = $derived(
+    $fieldFrame.center.x === 0 && $fieldFrame.center.y === 0
+      ? "bottom-left"
+      : "field-center",
+  );
+  let axesLabel = $derived($fieldFrame.axes === "first" ? "FIRST" : "legacy PedroPathing");
 
   // Update sequential class name when file changes
   run(() => {
@@ -57,32 +71,11 @@
     }
   });
 
-  export async function openWithFormat(
-    format: "java" | "kotlin" | "points" | "sequential",
-  ) {
+  export async function openWithFormat(format: ExportFormat) {
     exportFormat = format;
 
     try {
-      if (format === "java") {
-        exportedCode = await generateJavaCode(
-          startPoint,
-          lines,
-          exportMode,
-          mirrorHorizontally,
-        );
-        currentLanguage = java;
-      } else if (format === "kotlin") {
-        exportedCode = await generateKotlinCode(
-          startPoint,
-          lines,
-          exportMode,
-          mirrorHorizontally,
-        );
-        currentLanguage = kotlin;
-      } else if (format === "points") {
-        exportedCode = generatePointsArray(startPoint, lines);
-        currentLanguage = plaintext;
-      } else if (format === "sequential") {
+      if (format === "sequential") {
         // Initialize the editable class name from the current file path
         // so the user sees the file-derived class name, but keep the
         // field editable for manual overrides.
@@ -94,14 +87,9 @@
               .replace(/[^a-zA-Z0-9]/g, "_");
           }
         }
-        exportedCode = await generateSequentialCommandCode(
-          startPoint,
-          lines,
-          sequentialClassName,
-          sequence,
-        );
-        currentLanguage = java;
       }
+      exportedCode = await renderExport(format);
+      currentLanguage = HIGHLIGHT[format];
       isOpen = true;
     } catch (error) {
       console.error("Export failed:", error);
@@ -112,64 +100,41 @@
     }
   }
 
-  async function refreshSequentialCode() {
-    if (exportFormat === "sequential" && isOpen) {
-      try {
-        // Use the user-editable `sequentialClassName` so manual edits are respected
-        exportedCode = await generateSequentialCommandCode(
-          startPoint,
-          lines,
-          sequentialClassName,
+  function renderExport(format: ExportFormat): Promise<string> | string {
+    const input = { startPoint, lines, frame: $fieldFrame };
+    switch (format) {
+      case "points":
+        return generatePointsArray(startPoint, lines, $fieldFrame);
+      case "sequential":
+        return generateSequentialCommandCode({
+          ...input,
+          className: sequentialClassName,
           sequence,
-        );
-      } catch (error) {
-        console.error("Refresh failed:", error);
-        exportedCode =
-          "// Error refreshing code. Please check the console for details.";
-      }
+        });
+      default:
+        return generateCode(format, {
+          ...input,
+          exportMode,
+          mirrorHorizontally,
+        });
     }
   }
 
-  async function handleExportModeChange() {
-    if (exportFormat === "java") {
-      exportedCode = await generateJavaCode(
-        startPoint,
-        lines,
-        exportMode,
-        mirrorHorizontally,
-      );
-    } else if (exportFormat === "kotlin") {
-      exportedCode = await generateKotlinCode(
-        startPoint,
-        lines,
-        exportMode,
-        mirrorHorizontally,
-      );
+  /** Re-render in place after a control that changes the emitted source. */
+  async function refreshExport(formats: ExportFormat[]) {
+    if (!isOpen || !formats.includes(exportFormat)) return;
+    try {
+      exportedCode = await renderExport(exportFormat);
+    } catch (error) {
+      console.error("Refresh failed:", error);
+      exportedCode =
+        "// Error refreshing code. Please check the console for details.";
     }
   }
 
-  async function handleMirrorChange() {
-    if (!isOpen) return;
-
-    if (exportFormat === "kotlin") {
-      exportedCode = await generateKotlinCode(
-        startPoint,
-        lines,
-        exportMode,
-        mirrorHorizontally,
-      );
-      return;
-    }
-
-    if (exportFormat === "java") {
-      exportedCode = await generateJavaCode(
-        startPoint,
-        lines,
-        exportMode,
-        mirrorHorizontally,
-      );
-    }
-  }
+  const refreshSequentialCode = () => refreshExport(["sequential"]);
+  const handleExportModeChange = () => refreshExport(["java", "kotlin"]);
+  const handleMirrorChange = () => refreshExport(["java", "kotlin"]);
 </script>
 
 <svelte:head>
@@ -262,6 +227,14 @@
       </button>
     </div>
   </div>
+
+  <p
+    class="w-full rounded border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs font-light text-neutral-700 dark:text-neutral-300"
+  >
+    This project uses a <strong class="font-medium">{originLabel}</strong>
+    origin and <strong class="font-medium">{axesLabel}</strong> axes. Make sure every
+    pose in your code follows the same conventions.
+  </p>
 
   <div class="relative w-full flex-1 overflow-auto">
     <Highlight language={currentLanguage} code={exportedCode} class="w-full" />

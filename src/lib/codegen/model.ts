@@ -11,6 +11,12 @@ import {
   lineCurvePoints,
 } from "../../utils/pathTraversal";
 import { headingAngleAt } from "../../utils/headingInterpolation";
+import {
+  LEGACY_FRAME,
+  headingToDocFrame,
+  toDocFrame,
+  type Frame,
+} from "../../utils/frame";
 import { headingCall } from "./heading";
 import { IdentifierAllocator, toClassName } from "./identifiers";
 import { PEDRO_API } from "./pedroApi";
@@ -30,6 +36,7 @@ export interface BuildModelInput {
   mirrorHorizontally?: boolean;
   className?: string | null;
   packageName?: string;
+  frame?: Frame;
 }
 
 const DEFAULT_PACKAGE = "org.firstinspires.ftc.teamcode";
@@ -42,10 +49,12 @@ export function buildExportModel(input: BuildModelInput): ExportModel {
   const { startPoint } = input;
   const lines = atomicSegments(input.lines);
 
+  const frame = input.frame ?? LEGACY_FRAME;
   const options: ExportOptions = {
     mirrorHorizontally: !!input.mirrorHorizontally,
     className: toClassName(input.className, "AutoPath"),
     packageName: input.packageName || DEFAULT_PACKAGE,
+    frame,
   };
 
   const poseNames = new IdentifierAllocator([PEDRO_API.factoryVar]);
@@ -266,7 +275,13 @@ export function buildExportModel(input: BuildModelInput): ExportModel {
   return {
     options,
     startPoseVar,
-    poses,
+    // Every pose the export can reference lands in this array, so converting
+    // here covers the whole emitted model.
+    poses: poses.map((pose) => ({
+      ...pose,
+      ...toDocFrame({ x: pose.x, y: pose.y }, frame),
+      headingDeg: headingToDocFrame(pose.headingDeg, frame),
+    })),
     paths,
     sequence: buildSequence(lines, paths, methodNameByLineId, input.sequence),
     warnings,

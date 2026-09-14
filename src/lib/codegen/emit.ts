@@ -1,3 +1,4 @@
+import { FIELD_SIZE } from "../../config/defaults";
 import { PEDRO_API } from "./pedroApi";
 import type { LanguageSpec } from "./languages/spec";
 import type {
@@ -80,13 +81,38 @@ export function pathExpression(path: PathDecl, spec: LanguageSpec): string {
   return expressionOf(path.expression, spec);
 }
 
+/**
+ * The alliance mirror reflects the field's x axis. Under FIRST axes that axis
+ * is the emitted y, so the reflection and its heading rule both change form.
+ */
+function poseFactoryInitializer(
+  options: ExportModel["options"],
+  spec: LanguageSpec,
+): string {
+  const base = PEDRO_API.poseFactory();
+  if (!options.mirrorHorizontally) return base;
+
+  const { frame } = options;
+  const first = frame.axes === "first";
+  const offset = frame.center.x * 2 - FIELD_SIZE;
+  // Reflecting about `a` maps v to `2a - v`, so the emitted literal is 2a.
+  const twiceAxis = first ? offset : -offset;
+  const axisName = first ? "y" : "x";
+  const reflect =
+    twiceAxis === 0
+      ? `-${axisName}`
+      : `${spec.numberLiteral(twiceAxis)} - ${axisName}`;
+
+  return (
+    base +
+    (first ? PEDRO_API.mapY : PEDRO_API.mapX)(spec.lambda(axisName, reflect)) +
+    PEDRO_API.mapHeading(spec.lambda("h", first ? "-h" : "Math.PI - h"))
+  );
+}
+
 export function emitPoseFields(model: ExportModel, spec: LanguageSpec): string {
   const out: string[] = [];
-  out.push(
-    spec.poseFactoryField(
-      PEDRO_API.poseFactory(model.options.mirrorHorizontally),
-    ),
-  );
+  out.push(spec.poseFactoryField(poseFactoryInitializer(model.options, spec)));
   out.push("");
   model.poses.forEach((pose) => {
     const args = PEDRO_API.pose(

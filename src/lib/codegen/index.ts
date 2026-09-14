@@ -1,4 +1,5 @@
 import type { Path, SequenceItem, StartPose } from "../../types";
+import type { Frame } from "../../utils/frame";
 import { emitSource } from "./emit";
 import { formatSource } from "./format";
 import { javaSpec } from "./languages/java";
@@ -16,49 +17,41 @@ export { generatePointsArray } from "./points";
 export type { LanguageSpec } from "./languages/spec";
 export type * from "./types";
 
-async function generate(
-  spec: LanguageSpec,
-  startPoint: StartPose,
-  lines: Path[],
-  exportMode: ExportMode,
-  mirrorHorizontally: boolean,
+export type Language = "java" | "kotlin";
+
+const SPECS: Record<Language, LanguageSpec> = {
+  java: javaSpec,
+  kotlin: kotlinSpec,
+};
+
+export interface GenerateInput {
+  startPoint: StartPose;
+  lines: Path[];
+  /** The frame the emitted coordinates are expressed in. */
+  frame: Frame;
+  exportMode?: ExportMode;
+  mirrorHorizontally?: boolean;
+}
+
+export async function generateCode(
+  language: Language,
+  { exportMode = "class", ...input }: GenerateInput,
 ): Promise<string> {
-  const model = buildExportModel({ startPoint, lines, mirrorHorizontally });
-  const source = emitSource(model, spec, exportMode);
+  const spec = SPECS[language];
+  const source = emitSource(buildExportModel(input), spec, exportMode);
   if (exportMode === "coordinates") return source;
   return formatSource(source, spec);
 }
 
-export function generateJavaCode(
-  startPoint: StartPose,
-  lines: Path[],
-  exportMode: ExportMode = "class",
-  mirrorHorizontally = false,
-): Promise<string> {
-  return generate(javaSpec, startPoint, lines, exportMode, mirrorHorizontally);
-}
-
-export function generateKotlinCode(
-  startPoint: StartPose,
-  lines: Path[],
-  exportMode: ExportMode = "class",
-  mirrorHorizontally = false,
-): Promise<string> {
-  return generate(
-    kotlinSpec,
-    startPoint,
-    lines,
-    exportMode,
-    mirrorHorizontally,
+export function generateSequentialCommandCode(input: {
+  startPoint: StartPose;
+  lines: Path[];
+  frame: Frame;
+  className?: string | null;
+  sequence?: SequenceItem[];
+}): Promise<string> {
+  return formatSource(
+    emitSource(buildExportModel(input), javaSpec, "full"),
+    javaSpec,
   );
-}
-
-export function generateSequentialCommandCode(
-  startPoint: StartPose,
-  lines: Path[],
-  className: string | null = null,
-  sequence?: SequenceItem[],
-): Promise<string> {
-  const model = buildExportModel({ startPoint, lines, sequence, className });
-  return formatSource(emitSource(model, javaSpec, "full"), javaSpec);
 }

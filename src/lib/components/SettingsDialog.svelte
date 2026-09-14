@@ -9,6 +9,7 @@
   import {
     AVAILABLE_FIELD_MAPS,
     DEFAULT_SETTINGS,
+    FIELD_SIZE,
   } from "../../config/defaults";
   import type { Settings } from "../../types";
 
@@ -312,6 +313,46 @@
             {/each}
           </select>
 
+          <label
+            for="origin-select"
+            class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 mt-4"
+          >
+            Coordinate Origin
+            <div class="text-xs text-neutral-500 dark:text-neutral-400">
+              Where (0, 0) sits. The field center makes a rotationally symmetric
+              field read symmetrically.
+            </div>
+          </label>
+          <select
+            id="origin-select"
+            bind:value={settings.origin}
+            class="w-full px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="center"
+              >Field center ({FIELD_SIZE / 2}, {FIELD_SIZE / 2})</option
+            >
+            <option value="bottom-left">Bottom-left corner (0, 0)</option>
+          </select>
+
+          <label
+            for="axes-select"
+            class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1 mt-4"
+          >
+            Axis Convention
+            <div class="text-xs text-neutral-500 dark:text-neutral-400">
+              FIRST points +x away from the audience and +y toward the blue
+              alliance station. Legacy is rotated a quarter turn from that.
+            </div>
+          </label>
+          <select
+            id="axes-select"
+            bind:value={settings.axes}
+            class="w-full px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="first">FIRST (+x away from audience)</option>
+            <option value="legacy">Legacy (+y away from audience)</option>
+          </select>
+
           <!-- Custom Field Image Upload -->
           {#if settings.fieldMap === "custom"}
             <div
@@ -323,8 +364,8 @@
               >
                 Upload Custom Field Image
                 <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                  Accepts PNG, JPG, WEBP (recommended: 141.5x141.5 inches aspect
-                  ratio)
+                  Accepts PNG, JPG, WEBP (recommended: {FIELD_SIZE}x{FIELD_SIZE}
+                  inches aspect ratio)
                 </div>
               </label>
               <input

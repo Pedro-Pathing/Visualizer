@@ -12,6 +12,8 @@ export interface LanguageSpec {
 
   numberLiteral(value: number): string;
 
+  lambda(parameter: string, body: string): string;
+
   comment(text: string): string;
 
   packageStatement(packageName: string): string;

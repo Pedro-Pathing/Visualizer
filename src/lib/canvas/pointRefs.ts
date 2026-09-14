@@ -1,5 +1,6 @@
 import type { BasePoint } from "../../types";
 import { FIELD_SIZE } from "../../config/defaults";
+import { toCanonical, toDocFrame, type Frame } from "../../utils/frame";
 
 /** Which state container a dragged point lives in, so callers know what to reassign. */
 export type PointContainer = "shapes" | "second" | "additional" | "main";
@@ -80,26 +81,30 @@ export interface GridSnapOptions {
   snapToGrid: boolean;
   showGrid: boolean;
   gridSize: number;
+  frame: Frame;
 }
 
 /** Snap to the nearest grid intersection and clamp into the field. */
 export function snapPointToGrid(
   inchX: number,
   inchY: number,
-  { snapToGrid, showGrid, gridSize }: GridSnapOptions,
+  { snapToGrid, showGrid, gridSize, frame }: GridSnapOptions,
 ): BasePoint {
   if (!snapToGrid || !showGrid || gridSize <= 0) {
     return { x: inchX, y: inchY };
   }
 
+  const doc = toDocFrame({ x: inchX, y: inchY }, frame);
+  const snapped = toCanonical(
+    {
+      x: Math.round(doc.x / gridSize) * gridSize,
+      y: Math.round(doc.y / gridSize) * gridSize,
+    },
+    frame,
+  );
+
   return {
-    x: Math.max(
-      0,
-      Math.min(FIELD_SIZE, Math.round(inchX / gridSize) * gridSize),
-    ),
-    y: Math.max(
-      0,
-      Math.min(FIELD_SIZE, Math.round(inchY / gridSize) * gridSize),
-    ),
+    x: Math.max(0, Math.min(FIELD_SIZE, snapped.x)),
+    y: Math.max(0, Math.min(FIELD_SIZE, snapped.y)),
   };
 }

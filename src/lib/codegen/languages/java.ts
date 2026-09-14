@@ -34,6 +34,10 @@ export const javaSpec: LanguageSpec = {
     return round(value).toString();
   },
 
+  lambda(parameter: string, body: string): string {
+    return `${parameter} -> ${body}`;
+  },
+
   comment(text: string): string {
     return `// ${text}`;
   },

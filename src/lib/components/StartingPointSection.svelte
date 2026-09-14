@@ -2,13 +2,16 @@
   import { stopPropagation } from "svelte/legacy";
 
   import type { StartPose } from "../../types";
-  import { FIELD_SIZE } from "../../config";
+  import CoordinateInput from "./ui/CoordinateInput.svelte";
 
   interface Props {
     startPoint: StartPose;
   }
 
   let { startPoint = $bindable() }: Props = $props();
+
+  const INPUT_CLASS =
+    "w-full rounded-md border-[0.5px] bg-neutral-100 px-2 py-1 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950";
 </script>
 
 <div class="flex flex-col w-full justify-start items-start gap-2">
@@ -76,30 +79,17 @@
       />
     </label>
 
-    <label class="flex flex-col gap-1 text-xs">
-      <span class="font-extralight">X</span>
-      <input
-        bind:value={startPoint.x}
-        min="0"
-        max={FIELD_SIZE}
-        type="number"
-        class="w-full rounded-md border-[0.5px] bg-neutral-100 px-2 py-1 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950"
-        step="0.1"
-        disabled={startPoint.locked}
-      />
-    </label>
-
-    <label class="flex flex-col gap-1 text-xs">
-      <span class="font-extralight">Y</span>
-      <input
-        bind:value={startPoint.y}
-        min="0"
-        max={FIELD_SIZE}
-        type="number"
-        class="w-full rounded-md border-[0.5px] bg-neutral-100 px-2 py-1 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950"
-        step="0.1"
-        disabled={startPoint.locked}
-      />
-    </label>
+    {#each ["x", "y"] as const as axis (axis)}
+      <label class="flex flex-col gap-1 text-xs">
+        <span class="font-extralight">{axis.toUpperCase()}</span>
+        <CoordinateInput
+          point={startPoint}
+          {axis}
+          onChange={(next) => (startPoint = { ...startPoint, ...next })}
+          class={INPUT_CLASS}
+          disabled={startPoint.locked}
+        />
+      </label>
+    {/each}
   </div>
 </div>
