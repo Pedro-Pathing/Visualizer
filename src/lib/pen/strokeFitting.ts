@@ -147,11 +147,11 @@ export function limitStrokeVertices(
 }
 
 /**
- * Turn a freehand stroke into a start point plus a chain of standard paths.
+ * Turn a freehand stroke into a start point plus one smooth path.
  *
- * Paths are plain straight segments: no control points and therefore no
- * Bezier curvature. `maxPaths` caps how many segments a single stroke may
- * produce; 0 or less means "no limit".
+ * The sampled stroke becomes the control polygon of one Bezier path. The
+ * vertex cap keeps the resulting curve stable instead of creating a very
+ * high-degree curve from every pointer event.
  */
 export function fitStrokeToLines(
   stroke: BasePoint[],
@@ -185,37 +185,33 @@ export function fitStrokeToLines(
     ];
   }
 
-  const pathLimit = Math.max(0, Math.round(Number(maxPaths) || 0));
-  if (pathLimit > 0) {
-    strokePoints = limitStrokeVertices(strokePoints, pathLimit + 1);
-  }
-
-  // Each remaining vertex after the first becomes the endpoint of one path.
-  const fittedLines: AtomicPath[] = strokePoints
-    .slice(1)
-    .map((point, index) => ({
-      kind: "atomic" as const,
-      id: makePathId(),
-      name: `Path ${index + 1}`,
-      endPoint: { x: point.x, y: point.y },
-      controlPoints: [],
-      heading: { type: "tangential" as const, reverse: false },
-      color: getRandomColor(),
-      locked: false,
-      waitBeforeMs: 0,
-      waitAfterMs: 0,
-      waitBeforeName: "",
-      waitAfterName: "",
-    }));
-
-  if (fittedLines.length === 0) return null;
+  const configuredLimit = Math.round(Number(maxPaths) || 0);
+  const vertexLimit = configuredLimit > 0 ? configuredLimit + 1 : 12;
+  strokePoints = limitStrokeVertices(strokePoints, Math.max(3, vertexLimit));
+  const firstPoint = strokePoints[0];
+  const lastPoint = strokePoints[strokePoints.length - 1];
+  const fittedLine: AtomicPath = {
+    kind: "atomic",
+    id: makePathId(),
+    name: "Pen Stroke",
+    endPoint: { x: lastPoint.x, y: lastPoint.y },
+    controlPoints: [],
+    throughPoints: strokePoints.slice(1, -1).map((point) => ({ ...point })),
+    heading: { type: "tangential", reverse: false },
+    color: getRandomColor(),
+    locked: false,
+    waitBeforeMs: 0,
+    waitAfterMs: 0,
+    waitBeforeName: "",
+    waitAfterName: "",
+  };
 
   return {
     startPoint: {
-      x: startAnchor?.x ?? strokePoints[0].x,
-      y: startAnchor?.y ?? strokePoints[0].y,
+      x: startAnchor?.x ?? firstPoint.x,
+      y: startAnchor?.y ?? firstPoint.y,
       headingDeg: 0,
     },
-    lines: fittedLines,
+    lines: [fittedLine],
   };
 }

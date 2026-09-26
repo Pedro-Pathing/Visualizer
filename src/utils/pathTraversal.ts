@@ -5,7 +5,12 @@ import type {
   Heading,
   Path,
 } from "../types";
-import { clamp, getCurvePoint, radiansToDegrees } from "./math";
+import {
+  clamp,
+  curveThroughPoints,
+  getCurvePoint,
+  radiansToDegrees,
+} from "./math";
 import { makePathId } from "./ids";
 
 /** Sample count used when approximating a curve's arc length. */
@@ -16,7 +21,25 @@ export function lineCurvePoints(
   startPoint: BasePoint,
   line: AtomicPath,
 ): BasePoint[] {
-  return [startPoint, ...line.controlPoints, line.endPoint];
+  if (!line.throughPoints?.length) {
+    return [startPoint, ...line.controlPoints, line.endPoint];
+  }
+
+  const poses = [startPoint, ...line.throughPoints, line.endPoint];
+  const cubicSegments = curveThroughPoints(1, poses);
+  const sampled: BasePoint[] = [{ ...startPoint }];
+  cubicSegments.forEach((segment) => {
+    const cubic = [
+      sampled[sampled.length - 1],
+      segment.cp1,
+      segment.cp2,
+      segment.end,
+    ];
+    for (let sample = 1; sample <= 20; sample += 1) {
+      sampled.push(getCurvePoint(sample / 20, cubic));
+    }
+  });
+  return sampled;
 }
 
 export function approximateCurveLength(

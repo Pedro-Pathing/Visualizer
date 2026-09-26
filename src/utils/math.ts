@@ -167,10 +167,9 @@ export function catmullToCubic(
  * Given an array of points (poses), generate cubic Bezier segments that pass
  * through the interior points using Catmull-Rom to Bezier conversion.
  *
- * Usage: provide an array where the first two entries are the prevPoint and
- * the startPoint (like the Java PathBuilder expects), followed by the rest of
- * the target points. The function will auto-append a mirrored final point so
- * the tangent for the last segment can be computed.
+ * The returned segments cover every interval between consecutive poses. End
+ * points are duplicated at the boundaries so the first and last tangents are
+ * well-defined.
  *
  * Returns an array of segments: { cp1, cp2, end }
  */
@@ -184,14 +183,21 @@ export function curveThroughPoints(
 }[] {
   if (!poses || poses.length < 3) return [];
 
-  // Clone to avoid mutating input
-  const pts = poses.map((p) => ({ x: p.x, y: p.y }));
-
-  // Auto-extend last point to create a valid tangent (mirror last diff)
-  const last = pts[pts.length - 1];
-  const penultimate = pts[pts.length - 2];
-  const diff = { x: last.x - penultimate.x, y: last.y - penultimate.y };
-  pts.push({ x: last.x + diff.x, y: last.y + diff.y });
+  // Remove tiny cursor jitters while preserving intentional corners.
+  const smoothingDistance = 0.35;
+  const pts = poses.reduce<{ x: number; y: number }[]>((result, point) => {
+    const previous = result[result.length - 1];
+    if (
+      !previous ||
+      Math.hypot(point.x - previous.x, point.y - previous.y) >= smoothingDistance
+    ) {
+      result.push({ x: point.x, y: point.y });
+    } else {
+      result[result.length - 1] = { x: point.x, y: point.y };
+    }
+    return result;
+  }, []);
+  if (pts.length < 3) return [];
 
   const scaledTension = tension / 3.0;
   const out: {
@@ -200,12 +206,11 @@ export function curveThroughPoints(
     end: { x: number; y: number };
   }[] = [];
 
-  // For i = 1 .. pts.length-3 produce segment between pts[i] and pts[i+1]
-  for (let i = 1; i < pts.length - 2; i++) {
-    const p0 = pts[i - 1];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i];
     const p1 = pts[i];
     const p2 = pts[i + 1];
-    const p3 = pts[i + 2];
+    const p3 = pts[i + 2] ?? p2;
     const seg = catmullToCubic(scaledTension, p0, p1, p2, p3);
     out.push({ cp1: seg.cp1, cp2: seg.cp2, end: seg.end });
   }

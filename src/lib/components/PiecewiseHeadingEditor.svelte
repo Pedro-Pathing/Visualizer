@@ -26,7 +26,6 @@
 
   let { config, locked = false, onConfigChange }: Props = $props();
 
-  let advancedMode = $state(false);
   let activeBoundaryIndex: number | null = null;
   let trackElement: HTMLDivElement | undefined = $state();
 
@@ -232,6 +231,46 @@
     commitConfig(normalized, true);
   }
 
+  function updateSegmentStart(index: number, value: number) {
+    if (locked || !Number.isFinite(value)) return;
+    const normalized = normalizePiecewiseHeadingInterpolation(config);
+    if (index === 0) {
+      normalized.segments[0].startProgress = 0;
+      commitConfig(normalized, true);
+      return;
+    }
+    const previous = normalized.segments[index - 1];
+    const current = normalized.segments[index];
+    if (!previous || !current) return;
+    const boundary = Math.min(
+      Math.max(value, previous.startProgress + MIN_SEGMENT_LENGTH),
+      current.endProgress - MIN_SEGMENT_LENGTH,
+    );
+    previous.endProgress = boundary;
+    current.startProgress = boundary;
+    commitConfig(normalized, true);
+  }
+
+  function updateSegmentEnd(index: number, value: number) {
+    if (locked || !Number.isFinite(value)) return;
+    const normalized = normalizePiecewiseHeadingInterpolation(config);
+    const current = normalized.segments[index];
+    if (!current) return;
+    if (index === normalized.segments.length - 1) {
+      current.endProgress = 1;
+      commitConfig(normalized, true);
+      return;
+    }
+    const next = normalized.segments[index + 1];
+    const boundary = Math.min(
+      Math.max(value, current.startProgress + MIN_SEGMENT_LENGTH),
+      next.endProgress - MIN_SEGMENT_LENGTH,
+    );
+    current.endProgress = boundary;
+    next.startProgress = boundary;
+    commitConfig(normalized, true);
+  }
+
   function setInterpolationType(
     index: number,
     interpolationType: PiecewiseHeadingInterpolationType,
@@ -285,10 +324,6 @@
         breaks.
       </div>
     </div>
-    <label class="flex items-center gap-2 text-[10px] text-gray-400">
-      <input type="checkbox" bind:checked={advancedMode} disabled={locked} />
-      Advanced progress editing
-    </label>
   </div>
 
   <div
@@ -349,11 +384,17 @@
             <div class={LABEL_CLASS}>Start progress</div>
             <input
               type="number"
+              min="0"
+              max="1"
+              step="0.001"
               class={FIELD_CLASS}
               value={segment.startProgress.toFixed(3)}
-              readonly
+              readonly={false}
               disabled={locked}
-              title="Segments run back to back, so this follows the previous segment's end."
+              title={index === 0
+                ? "The first segment always starts at 0."
+                : "Moves the boundary shared with the previous segment."}
+              onchange={(event) => updateSegmentStart(index, Number((event.currentTarget as HTMLInputElement).value))}
             />
           </label>
           <label class="space-y-1">
@@ -365,17 +406,12 @@
               step="0.001"
               class={FIELD_CLASS}
               value={segment.endProgress.toFixed(3)}
-              readonly={!advancedMode || index === segments.length - 1}
+              readonly={false}
               disabled={locked}
               title={index === segments.length - 1
                 ? "The last segment always ends at 1."
                 : undefined}
-              onchange={(event) =>
-                updateSegment(index, {
-                  endProgress: Number(
-                    (event.currentTarget as HTMLInputElement).value,
-                  ),
-                })}
+              onchange={(event) => updateSegmentEnd(index, Number((event.currentTarget as HTMLInputElement).value))}
             />
           </label>
         </div>
@@ -567,12 +603,6 @@
           </div>
         {/if}
 
-        {#if !advancedMode && index < segments.length - 1}
-          <div class="mt-2 text-[10px] text-gray-500">
-            Drag the timeline to move this segment's end, or enable advanced
-            mode to type it.
-          </div>
-        {/if}
       </div>
     {/each}
   </div>

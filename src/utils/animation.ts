@@ -65,7 +65,7 @@ function getCurveGeometry(
   line: AtomicPath,
 ): { points: BasePoint[]; length: number } {
   const end = line.endPoint;
-  const cps = line.controlPoints;
+  const cps = line.throughPoints ?? line.controlPoints;
 
   let key = start.x.toFixed(3) + "," + start.y.toFixed(3);
   for (let i = 0; i < cps.length; i++) {

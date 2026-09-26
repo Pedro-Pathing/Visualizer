@@ -65,7 +65,13 @@ function expressionOf(expr: PathExpr, spec: LanguageSpec): string {
       ? PEDRO_API.paths.group(
           expr.children.map((child) => expressionOf(child, spec)),
         )
-      : expr.controlPoseVars.length === 0
+      : expr.throughPoseVars.length > 0
+        ? PEDRO_API.paths.through([
+            expr.startPoseVar,
+            ...expr.throughPoseVars,
+            expr.endPoseVar,
+          ])
+        : expr.controlPoseVars.length === 0
         ? PEDRO_API.paths.line(expr.startPoseVar, expr.endPoseVar)
         : PEDRO_API.paths.curve(
             expr.startPoseVar,

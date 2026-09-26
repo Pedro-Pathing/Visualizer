@@ -42,6 +42,7 @@ export type PathExpr =
       kind: "segment";
       startPoseVar: string;
       controlPoseVars: string[];
+      throughPoseVars: string[];
       endPoseVar: string;
       heading: HeadingCall | null;
     }

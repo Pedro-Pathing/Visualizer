@@ -1,4 +1,5 @@
 import type {
+  BasePoint,
   ControlPoint,
   Heading,
   HeadingType,
@@ -59,6 +60,7 @@ export type StoredPath = StoredCommon & {
   kind?: "atomic" | "compound";
   endPoint?: LegacyPoint;
   controlPoints?: ControlPoint[];
+  throughPoints?: BasePoint[];
   segments?: StoredPath[];
 };
 
@@ -192,6 +194,11 @@ export function normalizePaths(input: StoredPath[] = []): Path[] {
         locked: path.endPoint?.locked,
       },
       controlPoints: path.controlPoints || [],
+      throughPoints: path.throughPoints?.map((point) => ({
+        x: Number(point.x) || 0,
+        y: Number(point.y) || 0,
+        locked: point.locked,
+      })),
       heading: normalizeHeading(path),
     };
   });

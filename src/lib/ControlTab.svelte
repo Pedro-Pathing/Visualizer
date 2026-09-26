@@ -23,9 +23,7 @@
   import {
     atomicSegments,
     findPathById,
-    findSegmentById,
     replaceSegment,
-    segmentStartById,
     updatePath,
   } from "../utils/pathTraversal";
 
@@ -193,58 +191,50 @@
     }
   });
 
-  // Convert selected line to cubic Bezier curve using a Catmull-Rom through-points approach.
-  // This replaces controlPoints with two control points (cubic) computed from adjacent points.
+  // Convert the complete ordered path to smooth cubics that pass through each
+  // endpoint, using all endpoints as through-points rather than control points.
   function curveFromSelected(tension = 1.0) {
     if (!selectedLine || selectedLineIndex == null) return;
 
-    // Find the index of this line in the sequence
-    const seqIndex = sequence.findIndex(
-      (item) => item.kind === "path" && item.lineId === selectedLine.id,
-    );
-    if (seqIndex === -1) return;
-
-    // Get previous point (startPoint for first line, or previous line's endPoint)
-    const prevPoint = segmentStartById(startPoint, lines, selectedLine.id);
-    if (!prevPoint) return;
-    const startPt = selectedLine.endPoint;
-
-    // Find next line in sequence
-    let nextLineId: string | null = null;
-    for (let i = seqIndex + 1; i < sequence.length; i++) {
-      if (sequence[i].kind === "path") {
-        nextLineId = (sequence[i] as any).lineId;
-        break;
-      }
-    }
-
-    const nextLine = findSegmentById(lines, nextLineId);
-    const endPt = nextLine?.endPoint || startPt;
-
-    // Build poses: prevPoint -> startPt -> endPt
-    const poses = [prevPoint, startPt, endPt];
+    const orderedLines = atomicSegments(lines);
+    const poses = [startPoint, ...orderedLines.map((line) => line.endPoint)];
 
     const segments = curveThroughPoints(tension, poses);
-    if (!segments || segments.length === 0) {
+    if (segments.length !== orderedLines.length || orderedLines.length < 2) {
       alert(
-        "Curve generation produced no segments — need at least two path points.",
+        "Curve generation needs at least two path points.",
       );
       return;
     }
 
-    const seg = segments[0];
-    const nextLines = replaceSegment(lines, selectedLine.id, (existing) => ({
-      ...existing,
-      controlPoints: [
-        { x: seg.cp1.x, y: seg.cp1.y },
-        { x: seg.cp2.x, y: seg.cp2.y },
-      ],
-      endPoint: { ...existing.endPoint, x: seg.end.x, y: seg.end.y },
-    }));
+    const firstLine = orderedLines[0];
+    const finalPoint = orderedLines[orderedLines.length - 1].endPoint;
+    const maxThroughPoints = Math.max(
+      1,
+      Math.round(settings.curveThroughMaxPoints ?? 4),
+    );
+    const startClearance = 2;
+    const candidateThroughPoints = orderedLines
+      .slice(0, -1)
+      .map((line) => ({ ...line.endPoint }))
+      .filter(
+        (point) =>
+          Math.hypot(point.x - startPoint.x, point.y - startPoint.y) >=
+          startClearance,
+      );
+    const throughLine: AtomicPath = {
+      ...firstLine,
+      endPoint: { ...finalPoint },
+      controlPoints: [],
+      throughPoints: candidateThroughPoints.slice(0, maxThroughPoints),
+    };
 
-    lines = normalizePaths(nextLines);
+    lines = normalizePaths([throughLine]);
+    sequence = [{ kind: "path", lineId: throughLine.id }];
+    onSelectPath(throughLine.id);
+    selectedPointIndex = 0;
     recordChange();
-    alert(`Curved path with tension ${tension}`);
+    alert(`Created a Paths.through curve through ${poses.length - 2} middle points.`);
   }
 
   function removeLine(idx: number) {

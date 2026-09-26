@@ -14,10 +14,11 @@ export const PEDRO_API = {
   },
 
   paths: {
-    line: (start: string, end: string) => `line(${start}, ${end})`,
+    line: (start: string, end: string) => `Paths.line(${start}, ${end})`,
     curve: (start: string, controls: string[], end: string) =>
-      `curve(${[start, ...controls, end].join(", ")})`,
-    group: (expressions: string[]) => `path(${expressions.join(", ")})`,
+      `Paths.curve(${[start, ...controls, end].join(", ")})`,
+    through: (poses: string[]) => `Paths.through(${poses.join(", ")})`,
+    group: (expressions: string[]) => `Paths.path(${expressions.join(", ")})`,
   },
 
   heading: {

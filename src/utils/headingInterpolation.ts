@@ -429,6 +429,30 @@ export function evaluatePiecewiseHeading(
     1,
   );
 
+  // Geometry-dependent rules do not have an explicit start angle. Blend them
+  // from the preceding rule briefly so changing rule type cannot snap the
+  // visualized robot heading at a piecewise boundary.
+  if (
+    index > 0 &&
+    localT < 0.12 &&
+    (segment.interpolationType === "tangential" ||
+      segment.interpolationType === "facing-point")
+  ) {
+    const previousAngle = piecewiseSegmentEndAngle(segments, index - 1, geometry);
+    if (previousAngle !== null) {
+      const targetAngle =
+        segment.interpolationType === "tangential"
+          ? tangentialAngle(geometry, segment.reversed)
+          : facingPointAngle(geometry, segment.parameters?.point, segment.reversed);
+      return interpolateAngleDegrees(
+        previousAngle,
+        targetAngle,
+        localT / 0.12,
+        false,
+      );
+    }
+  }
+
   switch (segment.interpolationType) {
     case "constant":
       return normalizeAngleDegrees(

@@ -135,7 +135,7 @@ export function buildPathPointMarkers(
     if (!line || !line.endPoint) return;
     const isSelectedLine = selection?.lineId === line.id;
 
-    [line.endPoint, ...line.controlPoints].forEach((point, idx1) => {
+    [line.endPoint, ...(line.throughPoints ?? line.controlPoints)].forEach((point, idx1) => {
       const baseId = `${idPrefix}-${idx + 1}-${idx1}`;
       const fill = color || line.color;
       // A point is locked if its segment is locked or it is locked itself.
