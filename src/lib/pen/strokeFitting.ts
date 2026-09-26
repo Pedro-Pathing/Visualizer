@@ -146,6 +146,14 @@ export function limitStrokeVertices(
   return resampled;
 }
 
+/** Keep live pen samples faithful to the cursor without smoothing them. */
+export function smoothStrokePreview(
+  stroke: BasePoint[],
+  _maxVertices = 3,
+): BasePoint[] {
+  return dedupeStrokePoints(stroke, 0.2);
+}
+
 /**
  * Turn a freehand stroke into a start point plus one smooth path.
  *
@@ -163,13 +171,13 @@ export function fitStrokeToLines(
       x: clampFieldCoordinate(point.x),
       y: clampFieldCoordinate(point.y),
     })),
-    0.25,
+    0.2,
   );
 
   if (cleanedStroke.length < 2) return null;
 
-  const simplifiedStroke = simplifyStrokePoints(cleanedStroke, 0.45);
-  let strokePoints = dedupeStrokePoints(simplifiedStroke, 0.05);
+  // Keep the cursor path; do not replace it with a smoothed approximation.
+  let strokePoints = smoothStrokePreview(cleanedStroke, 4);
 
   if (strokePoints.length < 2) return null;
 
