@@ -74,6 +74,8 @@ export interface Atomic {
   kind: "atomic";
   endPoint: Point;
   controlPoints: ControlPoint[];
+  /** Interior poses for Pedro's Paths.through(); never emitted as controls. */
+  throughPoints?: BasePoint[];
   heading: Heading;
 }
 
@@ -140,6 +142,7 @@ export interface Settings {
   leftPanelMinWidth?: number; // Minimum width of the left sidebar in pixels
   rightPanelMinWidth?: number; // Minimum width of the right sidebar in pixels
   penToolMaxPaths?: number; // Maximum number of paths a single pen stroke may create
+  curveThroughMaxPoints?: number; // Maximum interior through points per curve
   experimentalFeatures?: {
     optimize?: boolean;
     curveThrough?: boolean;

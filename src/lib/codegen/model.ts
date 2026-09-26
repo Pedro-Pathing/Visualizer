@@ -135,6 +135,20 @@ export function buildExportModel(input: BuildModelInput): ExportModel {
       });
       return varName;
     });
+    const throughPoseVars = (line.throughPoints ?? []).map(
+      (throughPoint, pointIndex) => {
+        const varName = poseNames.allocateExact(
+          `${endPoseVar}Through${pointIndex + 1}`,
+        );
+        poses.push({
+          varName,
+          x: throughPoint.x,
+          y: throughPoint.y,
+          headingDeg: 0,
+        });
+        return varName;
+      },
+    );
 
     // A group's interpolator replaces its children's, so emitting the child's
     // own heading here would be dead weight the reader has to discount.
@@ -161,6 +175,7 @@ export function buildExportModel(input: BuildModelInput): ExportModel {
       kind: "segment",
       startPoseVar: segmentStartPoseVar,
       controlPoseVars,
+      throughPoseVars,
       endPoseVar,
       heading,
     };

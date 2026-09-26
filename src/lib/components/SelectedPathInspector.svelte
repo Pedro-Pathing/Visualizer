@@ -84,10 +84,9 @@
         <button
           class="rounded border border-[#444444] bg-[#2b2b2b] px-2 py-1 text-[10px] font-semibold text-gray-200 hover:bg-[#333333] disabled:cursor-not-allowed disabled:opacity-50"
           onclick={() => onCurveFromSelected(curveTension)}
-          disabled={selectedLine.controlPoints.length === 0}
-          title="Convert this path to a smooth cubic Bezier"
+          title="Create one Paths.through curve through all path endpoints"
         >
-          Curve Path
+          Through Path
         </button>
       {/if}
       <button

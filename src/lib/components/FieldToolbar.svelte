@@ -6,8 +6,10 @@
   interface Props {
     playing?: boolean;
     penToolEnabled?: boolean;
+    coordinateToolEnabled?: boolean;
     onAddPath: () => void;
     onTogglePenTool: () => void;
+    onToggleCoordinateTool: () => void;
     onAddControlPoint: () => void;
     onRemoveControlPoint: () => void;
     onCreatePathToLastPoint: () => void;
@@ -17,8 +19,10 @@
   let {
     playing = false,
     penToolEnabled = false,
+    coordinateToolEnabled = false,
     onAddPath,
     onTogglePenTool,
+    onToggleCoordinateTool,
     onAddControlPoint,
     onRemoveControlPoint,
     onCreatePathToLastPoint,
@@ -39,6 +43,18 @@
     onclick={onCreatePathToLastPoint}
   >
     Create Path to Last Point
+  </button>
+  <button
+    class="toolbar-btn toolbar-btn--icon"
+    class:toolbar-btn--blue={coordinateToolEnabled}
+    aria-pressed={coordinateToolEnabled}
+    title={coordinateToolEnabled ? "Coordinate Picker (on)" : "Coordinate Picker"}
+    aria-label={coordinateToolEnabled ? "Disable coordinate picker" : "Enable coordinate picker"}
+    onclick={onToggleCoordinateTool}
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v18m9-9H3M12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" />
+    </svg>
   </button>
   <!-- The pen tool sits at the end of the tool list, shown as an icon. -->
   <button

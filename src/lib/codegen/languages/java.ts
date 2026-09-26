@@ -3,12 +3,14 @@ import { PEDRO_API } from "../pedroApi";
 import type { ClassKind, ImportNeeds, LanguageSpec } from "./spec";
 
 const PATHS_IMPORTS = `import static com.pedropathing.api.Paths.*;
+import com.pedropathing.api.Paths;
 
 import com.pedropathing.api.PoseFactory;
 import com.pedropathing.math.Pose;
 import com.pedropathing.paths.Path;`;
 
 const OPMODE_IMPORTS = `import static com.pedropathing.api.Paths.*;
+import com.pedropathing.api.Paths;
 
 import com.pedropathing.api.PoseFactory;
 import com.pedropathing.follower.Follower;

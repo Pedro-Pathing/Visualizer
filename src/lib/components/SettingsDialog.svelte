@@ -397,6 +397,20 @@
               {settings.penToolMaxPaths ?? 8}
             </span>
           </div>
+          <NumberField
+            id="curve-through-max-points"
+            label="Through Points Per Curve"
+            value={settings.curveThroughMaxPoints ??
+              DEFAULT_SETTINGS.curveThroughMaxPoints ??
+              4}
+            min={1}
+            max={20}
+            step={1}
+            onInput={(v) => handleNumberInput(v, "curveThroughMaxPoints", 1, 20)}
+          />
+          <div class="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+            Limits the number of interior poses used by Through Path curves.
+          </div>
         </div>
 
         <!-- Ghost Paths Toggle -->

@@ -8,7 +8,9 @@ export function generatePointsArray(
   const points: BasePoint[] = [startPoint];
 
   atomicSegments(paths).forEach((line) => {
-    line.controlPoints.forEach((controlPoint) => points.push(controlPoint));
+    (line.throughPoints ?? line.controlPoints).forEach((point) =>
+      points.push(point),
+    );
     points.push(line.endPoint);
   });
 

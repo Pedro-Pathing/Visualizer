@@ -6,6 +6,7 @@ import { getCurvePoint, quadraticToCubic } from "../../utils/math";
 import {
   CURVE_SAMPLES,
   flattenToAtomicSegments,
+  lineCurvePoints,
 } from "../../utils/pathTraversal";
 import type { PointContainer, PointRegistry } from "../canvas/pointRefs";
 import { LINE_WIDTH } from "../../config/defaults";
@@ -16,6 +17,26 @@ export function buildSegmentPath(
   line: AtomicPath,
   { x, y }: SceneScales,
 ): TwoPath | PathLine {
+  if (line.throughPoints?.length) {
+    const points = lineCurvePoints(startPoint, line);
+    const anchors = points.map(
+      (point, index) =>
+        new Two.Anchor(
+          x(point.x),
+          y(point.y),
+          0,
+          0,
+          0,
+          0,
+          index === 0 ? Two.Commands.move : Two.Commands.line,
+        ),
+    );
+    anchors.forEach((anchor) => (anchor.relative = false));
+    const elem = new Two.Path(anchors);
+    elem.automatic = false;
+    return elem;
+  }
+
   if (line.controlPoints.length > 2) {
     // Approximate an n-degree bezier curve by sampling it
     const cps = [startPoint, ...line.controlPoints, line.endPoint];

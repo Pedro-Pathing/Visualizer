@@ -122,6 +122,7 @@
     updateRobotImageDisplay,
     atomicSegments,
     findSegmentById,
+    replaceSegment,
     findPathById,
     groupPaths,
     groupingProblem,
@@ -301,6 +302,8 @@
     recordChange();
   }
   let penToolEnabled = $state(false);
+  let coordinateToolEnabled = $state(false);
+  let coordinateHover: BasePoint | null = $state(null);
   let penStroke: BasePoint[] = $state([]);
   let penIsDrawing = $state(false);
   let fieldMapLoaded = $state(false);
@@ -426,9 +429,21 @@
 
   function togglePenTool() {
     penToolEnabled = !penToolEnabled;
+    if (penToolEnabled) coordinateToolEnabled = false;
     if (!penToolEnabled) {
       penStroke = [];
       penIsDrawing = false;
+    }
+  }
+
+  function toggleCoordinateTool() {
+    coordinateToolEnabled = !coordinateToolEnabled;
+    if (coordinateToolEnabled) {
+      penToolEnabled = false;
+      penStroke = [];
+      penIsDrawing = false;
+    } else {
+      coordinateHover = null;
     }
   }
 
@@ -1412,6 +1427,12 @@
         return;
       }
 
+      if (coordinateToolEnabled) {
+        coordinateHover = getMouseFieldPoint(evt);
+        two.renderer.domElement.style.cursor = "crosshair";
+        return;
+      }
+
       if (isDown && currentElem) {
         const hit = pointRegistry.resolve(currentElem);
         const isPathPoint = hit?.container === "main";
@@ -1484,6 +1505,20 @@
     });
 
     two.renderer.domElement.addEventListener("mousedown", (evt: MouseEvent) => {
+      if (coordinateToolEnabled) {
+        const point = getMouseFieldPoint(evt);
+        if (point) {
+          coordinateHover = point;
+          void navigator.clipboard?.writeText(
+            `${point.x.toFixed(2)}, ${point.y.toFixed(2)}`,
+          );
+          showToast(`Copied (${point.x.toFixed(2)}, ${point.y.toFixed(2)})`, "success");
+        }
+        coordinateToolEnabled = false;
+        coordinateHover = null;
+        two.renderer.domElement.style.cursor = "auto";
+        return;
+      }
       if (penToolEnabled) {
         const mousePoint = getMouseFieldPoint(evt);
         if (!mousePoint) return;
@@ -1616,7 +1651,39 @@
   });
   onMount(() => {
     const handleSpaceKey = (evt: KeyboardEvent) => {
-      if (evt.code === "Space" && document.activeElement === document.body) {
+      const target = evt.target as HTMLElement | null;
+      const typing =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable;
+      if (typing) return;
+
+      if (evt.code === "KeyK") {
+        evt.preventDefault();
+        if (playing) pause();
+        else play();
+        return;
+      }
+
+      if (evt.code === "Delete") {
+        evt.preventDefault();
+        deleteSelectedPoint();
+        return;
+      }
+
+      if (evt.code === "Space") {
+        evt.preventDefault();
+        if (penToolEnabled || coordinateToolEnabled) {
+          penToolEnabled = false;
+          coordinateToolEnabled = false;
+          penStroke = [];
+          penIsDrawing = false;
+          coordinateHover = null;
+          if (two?.renderer?.domElement) {
+            two.renderer.domElement.style.cursor = "auto";
+          }
+          return;
+        }
         if (playing) {
           pause();
         } else {
@@ -1865,6 +1932,55 @@
         two?.update();
       }
     }
+  }
+
+  function deleteSelectedPoint() {
+    const line = findSegmentById(lines, selectedLineId);
+    if (!line) return;
+
+    if (selectedPointIndex === 0) {
+      if (atomicSegments(lines).length <= 1) return;
+
+      const remove = (nodes: Path[]): Path[] =>
+        nodes
+          .filter((node) => node.id !== line.id)
+          .map((node) =>
+            node.kind === "compound"
+              ? { ...node, segments: remove(node.segments) }
+              : node,
+          );
+      lines = remove(lines);
+      sequence = sequence.filter(
+        (item) => item.kind === "wait" || item.lineId !== line.id,
+      );
+      const nextLine = atomicSegments(lines)[
+        Math.max(
+          0,
+          Math.min(
+            selectedLineIndex,
+            Math.max(0, atomicSegments(lines).length - 1),
+          ),
+        )
+      ];
+      selectedPathIds = nextLine ? [nextLine.id] : [];
+      selectedPointIndex = 0;
+      recordChange();
+      two?.update();
+      return;
+    }
+
+    const controlPointIndex = selectedPointIndex - 1;
+    if (line.controlPoints[controlPointIndex]?.locked) return;
+
+    lines = replaceSegment(lines, line.id, (segment) => ({
+      ...segment,
+      controlPoints: segment.controlPoints.filter(
+        (_point, index) => index !== controlPointIndex,
+      ),
+    }));
+    selectedPointIndex = Math.max(0, selectedPointIndex - 1);
+    recordChange();
+    two?.update();
   }
 
   /**
@@ -2838,8 +2954,10 @@
         <FieldToolbar
           {playing}
           {penToolEnabled}
+          {coordinateToolEnabled}
           onAddPath={addNewLine}
           onTogglePenTool={togglePenTool}
+          onToggleCoordinateTool={toggleCoordinateTool}
           onAddControlPoint={addControlPoint}
           onRemoveControlPoint={removeControlPoint}
           onCreatePathToLastPoint={createPathBetweenSelectedPoints}
@@ -2868,6 +2986,15 @@
               fieldMapName={settings.fieldMap}
               onSettled={() => (fieldMapLoaded = true)}
             />
+            {#if coordinateToolEnabled && coordinateHover}
+              <div
+                class="pointer-events-none absolute z-40 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-black/85 px-2 py-1 text-[11px] font-medium text-white shadow"
+                style={`left: ${x(coordinateHover.x)}px; top: ${y(coordinateHover.y)}px;`}
+              >
+                <span class="mr-1 text-green-300">+</span>
+                {coordinateHover.x.toFixed(2)}, {coordinateHover.y.toFixed(2)}
+              </div>
+            {/if}
             <canvas
               bind:this={fieldPointsCanvas}
               class="absolute top-0 left-0 w-full h-full z-15 pointer-events-none"
