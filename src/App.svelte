@@ -53,7 +53,11 @@
   import { showToast } from "./lib/toast";
   import { basename, pathStem } from "./utils/filename";
   import { buildPathElements } from "./lib/scene/paths";
-  import { fitStrokeToLines } from "./lib/pen/strokeFitting";
+  import {
+    fitStrokeToLines,
+    smoothStrokePreview,
+  } from "./lib/pen/strokeFitting";
+  import { lineCurvePoints } from "./utils/pathTraversal";
   import {
     PointRegistry,
     pointKey,
@@ -1418,7 +1422,7 @@
           const lastPoint = penStroke[penStroke.length - 1];
           if (
             !lastPoint ||
-            distanceBetweenPoints(lastPoint, mousePoint) >= 0.35
+            distanceBetweenPoints(lastPoint, mousePoint) >= 0.2
           ) {
             penStroke = [...penStroke, mousePoint];
           }
@@ -2501,7 +2505,18 @@
       return [];
     }
 
-    const anchors = penStroke.map(
+    const previewPoints = smoothStrokePreview(penStroke, 4);
+    if (previewPoints.length < 2) return [];
+    const previewLine = {
+      kind: "atomic" as const,
+      id: "pen-preview",
+      endPoint: previewPoints[previewPoints.length - 1],
+      controlPoints: [],
+      throughPoints: previewPoints.slice(1, -1),
+      heading: { type: "tangential" as const, reverse: false },
+      color: "#facc15",
+    };
+    const anchors = lineCurvePoints(previewPoints[0], previewLine).map(
       (point, index) =>
         new Two.Anchor(
           x(point.x),
