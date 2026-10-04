@@ -105,7 +105,10 @@ export function buildExportModel(input: BuildModelInput): ExportModel {
     let segmentStartPoseVar = previous.varName;
     if (!overridden && line.heading.type === "linear") {
       const startHeadingDeg = headingAngleAt(line.heading, "start");
-      if (startHeadingDeg !== previous.headingDeg) {
+      if (segmentNumber === 1) {
+        poses[0].headingDeg = startHeadingDeg;
+        previous.headingDeg = startHeadingDeg;
+      } else {
         segmentStartPoseVar = poseNames.allocateExact(`${endPoseVar}Start`);
         poses.push({
           varName: segmentStartPoseVar,
