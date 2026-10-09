@@ -34,17 +34,22 @@
     "vite": "^8.2.2"
   },
   "dependencies": {
+    "@threlte/core": "^8.6.1",
+    "@threlte/extras": "^9.22.0",
     "@types/d3": "^7.4.3",
     "@types/lodash": "^4.17.25",
+    "@types/three": "^0.186.0",
     "d3": "^7.9.0",
     "gif.js": "^0.2.0",
     "hotkeys-js": "^4.0.7",
     "lodash": "^4.18.1",
+    "meshline": "^3.3.1",
     "modern-screenshot": "^4.7.0",
     "prettier": "^3.9.6",
     "prettier-plugin-java": "^2.10.3",
     "prettier-plugin-kotlin": "^2.1.0",
     "svelte-highlight": "~7.14.1",
+    "three": "^0.186.1",
     "two.js": "^0.8.23"
   }
 }

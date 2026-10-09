@@ -39,6 +39,8 @@
   import FieldMapImage from "./lib/components/FieldMapImage.svelte";
   import FieldLoadingOverlay from "./lib/components/FieldLoadingOverlay.svelte";
   import ToastHost from "./lib/components/ui/ToastHost.svelte";
+  import { Canvas } from "@threlte/core";
+  import Field3D from "./lib/scene/Field3D.svelte";
   import _ from "lodash";
   import hotkeys from "hotkeys-js";
   import { createAnimationController } from "./utils/animation";
@@ -160,6 +162,7 @@
   import { onDestroy, onMount, tick } from "svelte";
   import { debounce } from "lodash";
   import { createHistory, type AppState } from "./utils/history";
+    import { log } from "three";
   // Browser-only build: file operations use the browser file store and
   // localStorage. Electron-specific APIs have been removed.
 
@@ -198,6 +201,17 @@
   const initialLines = normalizePaths(getDefaultPaths());
   let lines: Path[] = $state(initialLines);
   let fieldPoints: FieldPoint[] = $state([]);
+  let is3D = $state(false);
+
+  
+  function toggle3D()
+  {
+    is3D = !is3D;
+    pause();
+    percent = 0;
+    animationController.reset();
+    two.update();
+  }
 
   function detectMobileDevice() {
     if (typeof window === "undefined" || typeof navigator === "undefined") {
@@ -475,7 +489,7 @@
       document.body.style.userSelect = "";
     }
   }
-
+ 
   function handlePanelResize(event: MouseEvent) {
     if (!panelResizeState) return;
 
@@ -2977,6 +2991,8 @@
           onRemoveControlPoint={removeControlPoint}
           onCreatePathToLastPoint={createPathBetweenSelectedPoints}
           onTogglePlay={() => (playing ? pause() : play())}
+          {is3D}
+          {toggle3D}
         />
 
         <div
@@ -2984,6 +3000,16 @@
           bind:clientWidth={fieldStageWidth}
           bind:clientHeight={fieldStageHeight}
         >
+          <div class="bg-neutral-50 dark:bg-neutral-900 relative overflow-clip"
+    style={`width: ${fieldPixelSize}px; height: ${fieldPixelSize}px; max-width: 100%; max-height: 100%; aspect-ratio: 1 / 1;`}
+  class:hidden={!is3D}>
+  {#if is3D}
+  <Canvas>
+    <Field3D rWidth={settings.rWidth} rHeight={settings.rHeight}  startPoint={startPoint} lines={lines} robotPos={{ x: x.invert(robotXY.x), y: y.invert(robotXY.y) }} robotHeading={robotHeading} />
+  </Canvas>
+{/if}
+
+          </div>
           <div
             bind:this={twoElement}
             bind:clientWidth={width}
@@ -2995,6 +3021,7 @@
             ondragstart={(e) => e.preventDefault()}
             onselectstart={(e) => e.preventDefault()}
             tabindex="-1"
+            class:hidden={is3D}
           >
             <FieldMapImage
               src={fieldMapSrc}

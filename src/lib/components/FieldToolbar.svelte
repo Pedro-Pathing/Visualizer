@@ -14,6 +14,8 @@
     onRemoveControlPoint: () => void;
     onCreatePathToLastPoint: () => void;
     onTogglePlay: () => void;
+    is3D?:boolean;
+    toggle3D: () => void;
   }
 
   let {
@@ -27,6 +29,8 @@
     onRemoveControlPoint,
     onCreatePathToLastPoint,
     onTogglePlay,
+    toggle3D,
+    is3D=false,
   }: Props = $props();
 </script>
 
@@ -78,6 +82,15 @@
       <PauseIcon className="size-5" strokeWidth={2} />
     {:else}
       <PlayIcon className="size-5" strokeWidth={2} />
+    {/if}
+  </button>
+  <button
+    class="toolbar-btn"
+    onclick={toggle3D}>
+    {#if is3D}
+      2D
+    {:else}
+      3D
     {/if}
   </button>
 </div>
