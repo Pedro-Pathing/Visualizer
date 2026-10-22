@@ -1,0 +1,56 @@
+{
+  "startPoint": {
+    "x": 20,
+    "y": 20,
+    "headingDeg": 45
+  },
+  "lines": [
+    {
+      "id": "line-1",
+      "color": "#5B9BD5",
+      "name": "",
+      "waitBeforeMs": 0,
+      "waitAfterMs": 0,
+      "waitBeforeName": "",
+      "waitAfterName": "",
+      "kind": "atomic",
+      "endPoint": {
+        "x": 80,
+        "y": 80
+      },
+      "controlPoints": [
+        {
+          "x": 80,
+          "y": 20
+        }
+      ],
+      "heading": {
+        "type": "tangential",
+        "reverse": false
+      }
+    }
+  ],
+  "shapes": [],
+  "sequence": [
+    {
+      "kind": "path",
+      "lineId": "line-1"
+    }
+  ],
+  "fieldPoints": [],
+  "robot": {
+    "xVelocity": 60,
+    "yVelocity": 55,
+    "aVelocity": 4,
+    "kFriction": 0.2,
+    "rWidth": 18,
+    "rHeight": 14,
+    "safetyMargin": 2,
+    "maxVelocity": 50,
+    "maxAcceleration": 35,
+    "maxDeceleration": 25
+  },
+  "activePaths": [
+    "other.pp"
+  ]
+}

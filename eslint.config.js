@@ -52,6 +52,7 @@ export default ts.config(
   {
     // The portable core: plain TypeScript that must run outside this app.
     files: [
+      "src/io/**/*.ts",
       "src/lib/codegen/**/*.ts",
       "src/utils/color.ts",
       "src/utils/geometry.ts",

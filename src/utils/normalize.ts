@@ -1,6 +1,7 @@
 import type {
   BasePoint,
   ControlPoint,
+  FieldPoint,
   Heading,
   HeadingType,
   AtomicPath,
@@ -202,6 +203,59 @@ export function normalizePaths(input: StoredPath[] = []): Path[] {
       heading: normalizeHeading(path),
     };
   });
+}
+
+function toFieldPoint(value: unknown): FieldPoint | null {
+  if (!value) return null;
+
+  if (Array.isArray(value)) {
+    const [x, y, color, radius, opacity] = value;
+    if (typeof x !== "number" || typeof y !== "number") return null;
+    const point: FieldPoint = { x, y };
+    if (typeof color === "string") point.color = color;
+    if (typeof radius === "number") point.radius = radius;
+    if (typeof opacity === "number") point.opacity = opacity;
+    return point;
+  }
+
+  if (typeof value === "object") {
+    const candidate = value as Partial<FieldPoint> & {
+      x?: unknown;
+      y?: unknown;
+      color?: unknown;
+      radius?: unknown;
+      opacity?: unknown;
+    };
+
+    if (typeof candidate.x !== "number" || typeof candidate.y !== "number") {
+      return null;
+    }
+
+    const point: FieldPoint = { x: candidate.x, y: candidate.y };
+    if (typeof candidate.color === "string") point.color = candidate.color;
+    if (typeof candidate.radius === "number") point.radius = candidate.radius;
+    if (typeof candidate.opacity === "number")
+      point.opacity = candidate.opacity;
+    return point;
+  }
+
+  return null;
+}
+
+export function normalizeFieldPoints(input: unknown): FieldPoint[] {
+  const rawPoints = Array.isArray(input)
+    ? input
+    : input && typeof input === "object"
+      ? ((input as any).fieldPoints ??
+        (input as any).points ??
+        (input as any).dots ??
+        [])
+      : [];
+
+  if (!Array.isArray(rawPoints)) return [];
+  return rawPoints
+    .map(toFieldPoint)
+    .filter((point): point is FieldPoint => Boolean(point));
 }
 
 export function deriveSequence(

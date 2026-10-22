@@ -8,13 +8,18 @@ import { fixtures, goldenPath, loadProject } from "./support/fixtures";
 const identity = scaleLinear();
 const round = (value: number) => Math.round(value * 1000) / 1000;
 
-describe.each(fixtures)("motion of $name", ({ name, raw }) => {
+function load(text: string) {
+  const doc = loadProject(text);
+  return { ...doc, settings: { ...DEFAULT_SETTINGS, ...doc.robot } };
+}
+
+describe.each(fixtures)("motion of $name", ({ name, text }) => {
   it("timeline", async () => {
-    const { startPoint, lines, sequence } = loadProject(raw);
+    const { startPoint, lines, sequence, settings } = load(text);
     const prediction = calculateVisualizationPathTime(
       startPoint,
       lines,
-      DEFAULT_SETTINGS,
+      settings,
       sequence,
     );
     await expect(
@@ -23,11 +28,11 @@ describe.each(fixtures)("motion of $name", ({ name, raw }) => {
   });
 
   it("robot poses", async () => {
-    const { startPoint, lines, sequence } = loadProject(raw);
+    const { startPoint, lines, sequence, settings } = load(text);
     const { timeline } = calculateVisualizationPathTime(
       startPoint,
       lines,
-      DEFAULT_SETTINGS,
+      settings,
       sequence,
     );
     const poses = Array.from({ length: 41 }, (_, step) => {
@@ -37,7 +42,7 @@ describe.each(fixtures)("motion of $name", ({ name, raw }) => {
         timeline,
         lines,
         startPoint,
-        DEFAULT_SETTINGS,
+        settings,
         identity,
         identity,
       );

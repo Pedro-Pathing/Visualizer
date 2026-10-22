@@ -5,7 +5,6 @@
   import { fade, fly } from "svelte/transition";
   import type {
     FileInfo,
-    FieldPoint,
     Heading,
     Path,
     Shape,
@@ -19,21 +18,20 @@
     dualPathMode,
     secondFilePath,
   } from "../stores";
-  import { normalizeFieldPoints } from "../utils/fieldPoints";
   import {
-    normalizePaths,
-    normalizeStartPose,
-    deriveSequence,
-  } from "../utils/normalize";
-  import { newerVersionWarning, serializeProject } from "../utils/project";
+    createDefaultProject,
+    parseProject,
+    serializeProject,
+    type ProjectDoc,
+  } from "../io";
   import { downloadJson } from "../utils/download";
   import { stripPpExtension } from "../utils/filename";
+  import { FIELD_SIZE } from "../config";
   import {
-    FIELD_SIZE,
-    getDefaultPaths,
-    getDefaultShapes,
-    getDefaultStartPoint,
-  } from "../config";
+    canPickExistingFile,
+    isPickerCancel,
+    overwritePickedFile,
+  } from "./files/localFiles";
   import { showToast } from "./toast";
   import NameDialog from "./components/NameDialog.svelte";
   import FileListItem from "./components/FileListItem.svelte";
@@ -41,28 +39,24 @@
 
   interface Props {
     isOpen?: boolean;
-    startPoint: StartPose;
-    lines: Path[];
-    shapes: Shape[];
-    sequence: SequenceItem[];
+    currentProject: () => ProjectDoc;
+    secondProject: () => ProjectDoc;
+    applyProject: (doc: ProjectDoc) => void;
     secondStartPoint?: StartPose | null;
     secondLines?: Path[];
     secondShapes?: Shape[];
     secondSequence?: SequenceItem[];
-    fieldPoints?: FieldPoint[];
   }
 
   let {
     isOpen = $bindable(false),
-    startPoint = $bindable(),
-    lines = $bindable(),
-    shapes = $bindable(),
-    sequence = $bindable(),
+    currentProject,
+    secondProject,
+    applyProject,
     secondStartPoint = $bindable(null),
     secondLines = $bindable([]),
     secondShapes = $bindable([]),
     secondSequence = $bindable([]),
-    fieldPoints = $bindable([]),
   }: Props = $props();
 
   let files: FileInfo[] = $state([]);
@@ -84,20 +78,12 @@
   let nameDialogOpen = $state(false);
   let nameDialogTitle = $state("");
   let nameDialogDefault = $state("");
-  let pendingMirrorData: any = null;
+  let pendingMirrorData: ProjectDoc | null = null;
 
   // Helper to get error message from unknown error type
   function getErrorMessage(error: unknown): string {
     if (error instanceof Error) return error.message;
     return String(error);
-  }
-
-  // Normalize lines to ensure ids and wait fields exist
-
-  // Normalize sequence data, falling back to path-only sequence if waits are missing
-
-  function hydrateFieldPoints(data: any): FieldPoint[] {
-    return normalizeFieldPoints(data);
   }
 
   // Debug logging
@@ -118,14 +104,10 @@
   async function syncActiveProjectToStorage() {
     if (!$currentFilePath) return;
 
-    const content = serializeProject({
-      startPoint,
-      lines,
-      shapes,
-      sequence,
-      fieldPoints,
-    });
-    await browserFileStore.writeFile($currentFilePath, content);
+    await browserFileStore.writeFile(
+      $currentFilePath,
+      serializeProject(currentProject()),
+    );
     isUnsaved.set(false);
   }
 
@@ -226,13 +208,9 @@
       const renamingSecondary = selectedFile2?.path === renamingFile.path;
       let currentContent: string | null = null;
       if (renamingPrimary || renamingSecondary) {
-        currentContent = serializeProject({
-          startPoint: renamingPrimary ? startPoint : secondStartPoint!,
-          lines: renamingPrimary ? lines : secondLines,
-          shapes: renamingPrimary ? shapes : secondShapes,
-          sequence: renamingPrimary ? sequence : secondSequence,
-          fieldPoints,
-        });
+        currentContent = serializeProject(
+          renamingPrimary ? currentProject() : secondProject(),
+        );
         await browserFileStore.writeFile(renamingFile.path, currentContent);
       }
 
@@ -287,54 +265,37 @@
     }
   }
 
-  /** Read, validate and normalize a path file. Reports errors and returns null. */
-  async function readPathFile(file: FileInfo) {
+  /** Read and normalize a stored path file. Reports errors and returns null. */
+  async function readPathFile(file: FileInfo): Promise<ProjectDoc | null> {
     if (file.error) {
       showToast(`Cannot load file: ${file.error}`, "error");
       return null;
     }
 
+    let content: string;
     try {
-      const content = await browserFileStore.readFile(file.path);
-      const data = JSON.parse(content);
-
-      if (!data.startPoint || !data.lines) {
-        throw new Error("Invalid file format: missing required fields");
-      }
-
-      const versionWarning = newerVersionWarning(data.version);
-      if (versionWarning) showToast(versionWarning, "warning");
-
-      const normalizedLines = normalizePaths(data.lines || []);
-      return {
-        startPoint: normalizeStartPose(data.startPoint),
-        lines: normalizedLines,
-        shapes: data.shapes || [],
-        sequence: deriveSequence(data, normalizedLines),
-        fieldPoints: hydrateFieldPoints(data),
-      };
+      content = await browserFileStore.readFile(file.path);
     } catch (error) {
-      const errMsg = getErrorMessage(error);
-      const message = errMsg.includes("Invalid file format")
-        ? "Invalid file format. This may not be a valid path file."
-        : `Error loading file: ${errMsg}`;
-
-      showToast(message, "error");
-      errorMessage = message;
+      errorMessage = `Error loading file: ${getErrorMessage(error)}`;
+      showToast(errorMessage, "error");
       return null;
     }
+
+    const result = parseProject(content, currentProject().robot);
+    if (!result.ok) {
+      errorMessage = result.error;
+      showToast(result.error, "error");
+      return null;
+    }
+    result.warnings.forEach((warning) => showToast(warning, "warning"));
+    return result.doc;
   }
 
   async function loadFile(file: FileInfo) {
     const doc = await readPathFile(file);
     if (!doc) return;
 
-    startPoint = doc.startPoint;
-    lines = doc.lines;
-    shapes = doc.shapes;
-    sequence = doc.sequence;
-    fieldPoints = doc.fieldPoints;
-
+    applyProject(doc);
     currentFilePath.set(file.path);
     isUnsaved.set(false);
     selectedFile = file;
@@ -363,7 +324,6 @@
     secondLines = doc.lines;
     secondShapes = doc.shapes;
     secondSequence = doc.sequence;
-    fieldPoints = doc.fieldPoints;
 
     secondFilePath.set(file.path);
     selectedFile2 = file;
@@ -378,15 +338,10 @@
     }
 
     try {
-      const content = serializeProject({
-        startPoint,
-        lines,
-        shapes,
-        sequence,
-        fieldPoints,
-      });
-
-      await browserFileStore.writeFile(selectedFile.path, content);
+      await browserFileStore.writeFile(
+        selectedFile.path,
+        serializeProject(currentProject()),
+      );
       await refreshDirectory();
 
       isUnsaved.set(false);
@@ -400,11 +355,7 @@
   // Download current project as a .pp file to the user's computer (Save As...)
   function downloadCurrentToDisk() {
     try {
-      const content = serializeProject(
-        { startPoint, lines, shapes, sequence, fieldPoints },
-        { pretty: true },
-      );
-
+      const content = serializeProject(currentProject(), { pretty: true });
       const defaultName = selectedFile?.name || "path.pp";
       downloadJson(content, defaultName);
       showToast(`Downloaded: ${defaultName}`, "success");
@@ -415,8 +366,7 @@
 
   // If the browser supports the File System Access API, allow picking an existing local file and overwrite it.
   async function pickAndOverwriteLocalFile() {
-    const win: any = window as any;
-    if (!win.showOpenFilePicker) {
+    if (!canPickExistingFile()) {
       showToast(
         "This browser does not support direct file overwrite. Use 'Download .pp' instead.",
         "warning",
@@ -425,31 +375,12 @@
     }
 
     try {
-      const [handle] = await win.showOpenFilePicker({
-        types: [
-          {
-            description: "Path files",
-            accept: { "application/json": [".pp", ".json"] },
-          },
-        ],
-        excludeAcceptAllOption: false,
-        multiple: false,
-      });
-
-      if (!handle) return;
-
-      const writable = await handle.createWritable();
-
-      const content = serializeProject(
-        { startPoint, lines, shapes, sequence, fieldPoints },
-        { pretty: true },
+      const name = await overwritePickedFile(
+        serializeProject(currentProject(), { pretty: true }),
       );
-
-      await writable.write(content);
-      await writable.close();
-
-      showToast(`Saved to local file: ${handle.name}`, "success");
+      showToast(`Saved to local file: ${name}`, "success");
     } catch (error) {
+      if (isPickerCancel(error)) return;
       console.error("File System API error:", error);
       showToast(
         `Failed to write local file: ${getErrorMessage(error)}`,
@@ -486,34 +417,14 @@
         }
       }
 
-      // Always start from the default path template instead of copying
-      // whatever path is currently loaded/selected.
-      const defaultStartPoint = getDefaultStartPoint();
-      const defaultLines = normalizePaths(getDefaultPaths());
-      const defaultShapes = getDefaultShapes();
-      const defaultSequence = deriveSequence({}, defaultLines);
-      const defaultFieldPoints: FieldPoint[] = [];
-
-      const content = serializeProject({
-        startPoint: defaultStartPoint,
-        lines: defaultLines,
-        shapes: defaultShapes,
-        sequence: defaultSequence,
-        fieldPoints: defaultFieldPoints,
-      });
-
-      await browserFileStore.writeFile(filePath, content);
+      const doc = createDefaultProject(currentProject().robot);
+      await browserFileStore.writeFile(filePath, serializeProject(doc));
 
       creatingNewFile = false;
       newFileName = "";
       await refreshDirectory();
 
-      // Load the fresh default path into editor state
-      startPoint = defaultStartPoint;
-      lines = defaultLines;
-      shapes = defaultShapes;
-      sequence = defaultSequence;
-      fieldPoints = defaultFieldPoints;
+      applyProject(doc);
 
       selectedFile = files.find((f) => f.name === fileName) || null;
       if (selectedFile) {
@@ -598,13 +509,8 @@
     }
 
     try {
-      const content = await browserFileStore.readFile(selectedFile.path);
-      const data = JSON.parse(content);
-
-      // Add "Copy" suffix to the name in the data
-      if (data.name) {
-        data.name += " Copy";
-      }
+      const doc = await readPathFile(selectedFile);
+      if (!doc) return;
 
       const baseName = stripPpExtension(selectedFile.name);
       let newFileName = `${baseName}_copy.pp`;
@@ -616,22 +522,7 @@
         counter++;
       }
 
-      const newFilePath = newFileName;
-
-      const normalizedLines = normalizePaths(data.lines || []);
-      const sequenceData = deriveSequence(data, normalizedLines);
-      await browserFileStore.writeFile(
-        newFilePath,
-        JSON.stringify(
-          {
-            ...data,
-            lines: normalizedLines,
-            sequence: sequenceData,
-          },
-          null,
-          2,
-        ),
-      );
+      await browserFileStore.writeFile(newFileName, serializeProject(doc));
       await refreshDirectory();
 
       // Select and load the new file
@@ -655,15 +546,9 @@
     }
 
     try {
-      const content = await browserFileStore.readFile(selectedFile.path);
-      const data = JSON.parse(content);
-
-      // normalize before mirroring
-      data.lines = normalizePaths(data.lines || []);
-      data.startPoint = normalizeStartPose(data.startPoint ?? {});
-
-      const mirroredData = mirrorPathData(data);
-      mirroredData.sequence = deriveSequence(mirroredData, mirroredData.lines);
+      const doc = await readPathFile(selectedFile);
+      if (!doc) return;
+      const mirroredData = mirrorPathData(doc);
 
       const baseName = stripPpExtension(selectedFile.name);
       const defaultName = `${baseName}_mirrored`;
@@ -698,7 +583,7 @@
 
       await browserFileStore.writeFile(
         newFileName,
-        JSON.stringify(pendingMirrorData, null, 2),
+        serializeProject(pendingMirrorData),
       );
       await refreshDirectory();
 
@@ -784,8 +669,8 @@
     }
   }
 
-  function mirrorPathData(data: any) {
-    const mirrored = JSON.parse(JSON.stringify(data)); // Deep clone
+  function mirrorPathData(data: ProjectDoc): ProjectDoc {
+    const mirrored: ProjectDoc = structuredClone(data);
 
     // Mirror start point
     if (mirrored.startPoint) {

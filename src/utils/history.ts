@@ -90,8 +90,17 @@ export function createHistory(maxSize = 200) {
     return deepClone(undoStack[undoStack.length - 1]);
   }
 
+  /** Forget all history and start again from `state`. */
+  function reset(state: AppState) {
+    undoStack.length = 0;
+    redoStack = [];
+    lastHash = "";
+    record(state);
+  }
+
   return {
     record,
+    reset,
     undo,
     redo,
     canUndo,

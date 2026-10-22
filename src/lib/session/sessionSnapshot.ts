@@ -1,83 +1,84 @@
-import type {
-  Path,
-  SequenceItem,
-  Settings,
-  Shape,
-  StartPose,
-} from "../../types";
+import type { Settings } from "../../types";
 import { DEFAULT_SETTINGS } from "../../config/defaults";
 import {
-  deriveSequence,
-  normalizePaths,
-  normalizeStartPose,
-} from "../../utils/normalize";
+  PROJECT_VERSION,
+  projectFromJson,
+  robotConfigOf,
+  type ProjectDoc,
+} from "../../io";
 import { normalizeLegacyFieldMap } from "../../utils/settingsPersistence";
 
 export const SESSION_RECOVERY_KEY = "pedro_session_recovery_v1";
 
+type SecondSlot = Pick<
+  ProjectDoc,
+  "startPoint" | "lines" | "sequence" | "shapes"
+>;
+
 export interface SessionSnapshot {
-  startPoint: StartPose;
-  lines: Path[];
-  sequence: SequenceItem[];
-  shapes: Shape[];
+  project: ProjectDoc;
   settings: Settings;
   currentFilePath: string | null;
   secondFilePath: string | null;
-  secondStartPoint: StartPose | null;
-  secondLines: Path[];
-  secondSequence: SequenceItem[];
-  secondShapes: Shape[];
-  activePaths: string[];
-  timestamp: string;
+  second: SecondSlot | null;
 }
 
+/** Stored with the project's fields at the top level, like a project file. */
 export function saveSessionSnapshot(snapshot: SessionSnapshot): void {
   try {
-    localStorage.setItem(SESSION_RECOVERY_KEY, JSON.stringify(snapshot));
+    const { project, second, ...rest } = snapshot;
+    localStorage.setItem(
+      SESSION_RECOVERY_KEY,
+      JSON.stringify({
+        version: PROJECT_VERSION,
+        ...project,
+        ...rest,
+        secondStartPoint: second?.startPoint ?? null,
+        secondLines: second?.lines ?? [],
+        secondSequence: second?.sequence ?? [],
+        secondShapes: second?.shapes ?? [],
+        timestamp: new Date().toISOString(),
+      }),
+    );
   } catch (error) {
     console.error("Session snapshot save failed:", error);
   }
 }
 
-/**
- * Read and normalize the recovery snapshot. Returns null when absent or
- * unusable, so callers can fall back to defaults.
- */
+/** The recovery snapshot, or null when absent or unusable. */
 export function loadSessionSnapshot(): SessionSnapshot | null {
   try {
     const raw = localStorage.getItem(SESSION_RECOVERY_KEY);
     if (!raw) return null;
 
-    const parsed: SessionSnapshot = JSON.parse(raw);
-    if (!parsed?.startPoint || !Array.isArray(parsed?.lines)) {
-      return null;
-    }
+    const parsed = JSON.parse(raw);
+    const settings = normalizeLegacyFieldMap({
+      ...DEFAULT_SETTINGS,
+      ...(parsed?.settings || {}),
+    });
+    const robot = robotConfigOf(settings);
 
-    const lines = normalizePaths(parsed.lines || []);
-    const secondLines = normalizePaths(parsed.secondLines || []);
+    const primary = projectFromJson(parsed, robot);
+    if (!primary.ok) return null;
+
+    const second = parsed.secondStartPoint
+      ? projectFromJson(
+          {
+            startPoint: parsed.secondStartPoint,
+            lines: parsed.secondLines ?? [],
+            sequence: parsed.secondSequence,
+            shapes: parsed.secondShapes,
+          },
+          robot,
+        )
+      : null;
 
     return {
-      startPoint: normalizeStartPose(parsed.startPoint),
-      lines,
-      sequence: deriveSequence(parsed, lines),
-      shapes: parsed.shapes || [],
-      settings: normalizeLegacyFieldMap({
-        ...DEFAULT_SETTINGS,
-        ...(parsed.settings || {}),
-      }),
+      project: primary.doc,
+      settings,
       currentFilePath: parsed.currentFilePath || null,
       secondFilePath: parsed.secondFilePath || null,
-      secondStartPoint: parsed.secondStartPoint
-        ? normalizeStartPose(parsed.secondStartPoint)
-        : null,
-      secondLines,
-      secondSequence: deriveSequence(
-        { sequence: parsed.secondSequence },
-        secondLines,
-      ),
-      secondShapes: parsed.secondShapes || [],
-      activePaths: parsed.activePaths || [],
-      timestamp: parsed.timestamp,
+      second: second?.ok ? second.doc : null,
     };
   } catch (error) {
     console.error("Session restore failed:", error);

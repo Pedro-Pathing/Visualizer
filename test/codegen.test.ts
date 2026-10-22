@@ -14,13 +14,13 @@ const languages = [
 ] as const;
 const modes: ExportMode[] = ["coordinates", "class", "full"];
 
-describe.each(fixtures)("code export of $name", ({ name, raw }) => {
+describe.each(fixtures)("code export of $name", ({ name, text }) => {
   for (const { id, ext, generate } of languages) {
     for (const mode of modes) {
       for (const mirrored of [false, true]) {
         const file = `${id}-${mode}${mirrored ? "-mirrored" : ""}.${ext}`;
         it(file, async () => {
-          const { startPoint, lines } = loadProject(raw);
+          const { startPoint, lines } = loadProject(text);
           const source = await generate(startPoint, lines, mode, mirrored);
           await expect(source).toMatchFileSnapshot(
             goldenPath(name, "codegen", file),
@@ -31,7 +31,7 @@ describe.each(fixtures)("code export of $name", ({ name, raw }) => {
   }
 
   it("sequential-command.java", async () => {
-    const { startPoint, lines, sequence } = loadProject(raw);
+    const { startPoint, lines, sequence } = loadProject(text);
     const source = await generateSequentialCommandCode(
       startPoint,
       lines,
@@ -44,7 +44,7 @@ describe.each(fixtures)("code export of $name", ({ name, raw }) => {
   });
 
   it("points-array.txt", async () => {
-    const { startPoint, lines } = loadProject(raw);
+    const { startPoint, lines } = loadProject(text);
     await expect(generatePointsArray(startPoint, lines)).toMatchFileSnapshot(
       goldenPath(name, "codegen", "points-array.txt"),
     );

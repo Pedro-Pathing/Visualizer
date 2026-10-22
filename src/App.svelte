@@ -47,9 +47,18 @@
   import { downloadBlob } from "./utils/download";
   import {
     PROJECT_VERSION,
-    buildProject,
-    newerVersionWarning,
-  } from "./utils/project";
+    parseProject,
+    robotConfigOf,
+    serializeProject,
+    type ProjectDoc,
+  } from "./io";
+  import {
+    canPickExistingFile,
+    canPickSaveFile,
+    isPickerCancel,
+    overwritePickedFile,
+    saveToPickedFile,
+  } from "./lib/files/localFiles";
   import { showToast } from "./lib/toast";
   import { basename, pathStem } from "./utils/filename";
   import { buildPathElements } from "./lib/scene/paths";
@@ -105,11 +114,7 @@
     buildOnionLayer,
     selectVisibleOnionLayers,
   } from "./lib/scene/polygons";
-  import {
-    normalizeFieldPoints,
-    renderFieldPoints,
-    type FieldPoint,
-  } from "./utils/fieldPoints";
+  import { renderFieldPoints, type FieldPoint } from "./utils/fieldPoints";
   import {
     calculateVisualizationPathTime,
     getAnimationDuration,
@@ -118,11 +123,8 @@
     generateOnionLayers,
     getRandomColor,
     normalizePaths,
-    normalizeStartPose,
     makePathId,
     createSegment,
-    downloadTrajectory,
-    loadTrajectoryFromFile,
     updateRobotImageDisplay,
     atomicSegments,
     findSegmentById,
@@ -356,14 +358,11 @@
   let secondShapes: Shape[] = $state([]);
 
   // Multiple paths data (new system - supports up to 4 paths total)
-  interface AdditionalPathData {
+  interface AdditionalPathData extends ProjectDoc {
     filePath: string;
-    startPoint: StartPose | null;
-    lines: Path[];
-    sequence: SequenceItem[];
-    shapes: Shape[];
+    /** The current settings with this file's robot config applied. */
     settings: Settings;
-    color?: string; // Optional custom color for this path
+    color?: string;
   }
   let additionalPaths: AdditionalPathData[] = $state([]);
 
@@ -559,19 +558,50 @@
     };
   }
 
-  function buildProjectData(overrides: Record<string, unknown> = {}) {
-    return buildProject(
-      {
-        startPoint,
-        lines,
-        shapes,
-        sequence,
-        fieldPoints,
-        activePaths: $activePaths,
-        settings,
-      },
-      overrides,
-    );
+  function currentProject(): ProjectDoc {
+    return {
+      startPoint,
+      lines,
+      shapes,
+      sequence,
+      fieldPoints,
+      robot: robotConfigOf(settings),
+      activePaths: $activePaths,
+    };
+  }
+
+  /** The dual-path second slot, saved with the primary's robot config. */
+  function secondProject(): ProjectDoc {
+    return {
+      ...currentProject(),
+      startPoint: secondStartPoint ?? getDefaultStartPoint(),
+      lines: secondLines,
+      shapes: secondShapes,
+      sequence: secondSequence,
+    };
+  }
+
+  /** Replace the open document, starting a fresh undo history. */
+  function applyProject(doc: ProjectDoc) {
+    startPoint = doc.startPoint;
+    lines = doc.lines;
+    shapes = doc.shapes;
+    sequence = doc.sequence;
+    fieldPoints = doc.fieldPoints;
+    settings = { ...settings, ...doc.robot };
+    activePaths.set(doc.activePaths);
+    history.reset(getAppState());
+  }
+
+  /** Report a failed load, or the warnings from a successful one. */
+  function readProject(text: string): ProjectDoc | null {
+    const result = parseProject(text, robotConfigOf(settings));
+    if (!result.ok) {
+      showToast(result.error, "error");
+      return null;
+    }
+    result.warnings.forEach((warning) => showToast(warning, "warning"));
+    return result.doc;
   }
 
   function getAppState(): AppState {
@@ -643,22 +673,12 @@
       const filePath = paths[i];
       try {
         const content = await browserFileStore.readFile(filePath);
-        const data = JSON.parse(content);
-
-        if (data.startPoint && data.lines) {
-          const normalizedLines = normalizePaths(data.lines || []);
+        const result = parseProject(content, robotConfigOf(settings));
+        if (result.ok) {
           newAdditionalPaths.push({
+            ...result.doc,
             filePath,
-            startPoint: normalizeStartPose(data.startPoint),
-            lines: normalizedLines,
-            shapes: data.shapes || [],
-            sequence:
-              data.sequence ||
-              atomicSegments(normalizedLines).map((ln) => ({
-                kind: "path",
-                lineId: ln.id,
-              })),
-            settings: data.settings || { ...DEFAULT_SETTINGS },
+            settings: { ...settings, ...result.doc.robot },
             color: colors[i],
           });
         }
@@ -672,19 +692,18 @@
 
   function buildSessionSnapshot(): SessionSnapshot {
     return {
-      startPoint,
-      lines,
-      sequence,
-      shapes,
+      project: currentProject(),
       settings,
       currentFilePath: $currentFilePath,
       secondFilePath: $secondFilePath,
-      secondStartPoint,
-      secondLines,
-      secondSequence,
-      secondShapes,
-      activePaths: $activePaths,
-      timestamp: new Date().toISOString(),
+      second: secondStartPoint
+        ? {
+            startPoint: secondStartPoint,
+            lines: secondLines,
+            sequence: secondSequence,
+            shapes: secondShapes,
+          }
+        : null,
     };
   }
 
@@ -692,21 +711,17 @@
     const snapshot = loadSessionSnapshot();
     if (!snapshot) return false;
 
-    startPoint = snapshot.startPoint;
-    lines = snapshot.lines;
-    sequence = snapshot.sequence;
-    shapes = snapshot.shapes;
     settings = snapshot.settings;
+    applyProject(snapshot.project);
 
     currentFilePath.set(snapshot.currentFilePath);
     secondFilePath.set(snapshot.secondFilePath);
 
-    secondStartPoint = snapshot.secondStartPoint;
-    secondLines = snapshot.secondLines;
-    secondSequence = snapshot.secondSequence;
-    secondShapes = snapshot.secondShapes;
+    secondStartPoint = snapshot.second?.startPoint ?? null;
+    secondLines = snapshot.second?.lines ?? [];
+    secondSequence = snapshot.second?.sequence ?? [];
+    secondShapes = snapshot.second?.shapes ?? [];
 
-    activePaths.set(snapshot.activePaths);
     isUnsaved.set(true);
 
     return true;
@@ -838,17 +853,8 @@
     if (!pathData || !pathData.filePath) return;
 
     try {
-      const fileData = JSON.stringify(
-        buildProjectData({
-          startPoint: pathData.startPoint,
-          lines: pathData.lines,
-          shapes: pathData.shapes,
-          sequence: pathData.sequence,
-          settings: pathData.settings,
-        }),
-      );
-
-      await browserFileStore.writeFile(pathData.filePath, fileData);
+      const { filePath, settings: _settings, color: _color, ...doc } = pathData;
+      await browserFileStore.writeFile(filePath, serializeProject(doc));
       console.log(`Auto-saved additional path: ${pathData.filePath}`);
     } catch (error) {
       console.error(
@@ -1254,101 +1260,34 @@
   }
 
   async function saveFileAs() {
-    const win: any = window as any;
     await saveAllAdditionalPaths();
-    const content = JSON.stringify(buildProjectData(), null, 2);
+    const content = serializeProject(currentProject(), { pretty: true });
 
-    // Prefer File System Access API if available: opens native Save dialog
-    if (win.showSaveFilePicker) {
+    if (canPickSaveFile() || canPickExistingFile()) {
       try {
-        const opts = {
-          suggestedName: basename($currentFilePath) || "path.pp",
-          types: [
-            {
-              description: "Path files",
-              accept: { "application/json": [".pp", ".json"] },
-            },
-          ],
-        };
-
-        const handle = await win.showSaveFilePicker(opts);
-        if (!handle) {
-          // User cancelled
-          return;
-        }
-
-        const writable = await handle.createWritable();
-        await writable.write(content);
-        await writable.close();
-
-        // Update app state to reflect saved file
-        try {
-          currentFilePath.set(
-            handle.name || (typeof handle === "string" ? handle : null),
-          );
-        } catch (e) {
-          // ignore
-        }
+        const name = canPickSaveFile()
+          ? await saveToPickedFile(
+              content,
+              basename($currentFilePath) || "path.pp",
+            )
+          : await overwritePickedFile(content);
+        currentFilePath.set(name);
         isUnsaved.set(false);
-        alert(`Saved to: ${handle.name || "selected file"}`);
-        return;
-      } catch (err) {
-        console.error("SaveFilePicker error:", err);
-        // fall through to download fallback
+        showToast(`Saved to ${name}`, "success");
+      } catch (error) {
+        if (isPickerCancel(error)) return;
+        console.error("Save As failed:", error);
+        showToast("Couldn't save to that file.", "error");
       }
+      return;
     }
 
-    // If showSaveFilePicker is not available or failed, try showOpenFilePicker to let user pick an existing file to overwrite
-    if (win.showOpenFilePicker) {
-      try {
-        const [handle] = await win.showOpenFilePicker({
-          types: [
-            {
-              description: "Path files",
-              accept: { "application/json": [".pp", ".json"] },
-            },
-          ],
-          multiple: false,
-        });
-
-        if (handle) {
-          const writable = await handle.createWritable();
-          await writable.write(content);
-          await writable.close();
-          try {
-            currentFilePath.set(handle.name || null);
-          } catch {
-            // Name is cosmetic; the write already succeeded.
-          }
-          isUnsaved.set(false);
-          alert(`Saved to local file: ${handle.name || "selected file"}`);
-          return;
-        }
-      } catch (err) {
-        console.error("showOpenFilePicker error:", err);
-        // fall through to download fallback
-      }
-    }
-
-    // Fallback for browsers without File System Access (e.g., Firefox).
-    // Automatically save into the app's browser-backed storage to avoid forcing a download.
-    try {
-      await saveFile();
-      alert(
-        "Your browser does not support native file dialogs. The project was saved to the app's storage.\n\nOpen the File Manager to download or export the file to your computer.",
-      );
-    } catch (err) {
-      console.error("Failed to save into app storage:", err);
-      // As a last resort, download the file
-      try {
-        downloadTrajectory(startPoint, lines, shapes, sequence, $activePaths);
-      } catch (err2) {
-        console.error("Save As fallback failed:", err2);
-        alert(
-          "Failed to save file. Your browser may not support file picker APIs.",
-        );
-      }
-    }
+    // Browsers without file pickers (e.g. Firefox) save into app storage.
+    await saveFile();
+    showToast(
+      "This browser can't save to your computer directly, so the project was saved in the app. Download it from the file manager.",
+      "info",
+    );
   }
 
   function play() {
@@ -1701,24 +1640,14 @@
   async function saveFile() {
     try {
       await saveAllAdditionalPaths();
-      const content = JSON.stringify(buildProjectData(), null, 2);
-
-      if ($currentFilePath) {
-        await browserFileStore.writeFile($currentFilePath, content);
-        isUnsaved.set(false);
-        // Provide simple feedback
-        alert(`Saved to project storage: ${$currentFilePath}`);
-      } else {
-        // No current project file selected — save into browser cache as a new file
-        const defaultName = `path_${Date.now()}.pp`;
-        await browserFileStore.writeFile(defaultName, content);
-        currentFilePath.set(defaultName);
-        isUnsaved.set(false);
-        alert(`Saved to project storage as: ${defaultName}`);
-      }
+      const name = $currentFilePath ?? `path_${Date.now()}.pp`;
+      await browserFileStore.writeFile(name, serializeProject(currentProject()));
+      currentFilePath.set(name);
+      isUnsaved.set(false);
+      showToast(`Saved ${name}`, "success");
     } catch (err) {
       console.error("Failed to save project to storage:", err);
-      alert("Failed to save project to browser storage.");
+      showToast("Couldn't save the project in the app.", "error");
     }
   }
 
@@ -1752,8 +1681,10 @@
         return;
       }
 
-      const content = JSON.stringify(buildProjectData(), null, 2);
-      await browserFileStore.writeFile(newFileName, content);
+      await browserFileStore.writeFile(
+        newFileName,
+        serializeProject(currentProject()),
+      );
       await browserFileStore.deleteFile(currentPath);
       currentFilePath.set(newFileName);
       isUnsaved.set(false);
@@ -1784,51 +1715,21 @@
       return;
     }
 
-    // Parse and load the uploaded file, then cache it into the browser store.
-    loadTrajectoryFromFile(evt, async (data) => {
-      const versionWarning = newerVersionWarning(data.version);
-      if (versionWarning) showToast(versionWarning, "warning");
-
-      startPoint = normalizeStartPose(data.startPoint ?? { x: 72, y: 72 });
-
-      // Normalize lines with all required fields
-      const normalizedLines = normalizePaths(data.lines || []);
-      lines = normalizedLines;
-
-      // Derive sequence from data or create default
-      sequence = (
-        data.sequence && data.sequence.length
-          ? data.sequence
-          : atomicSegments(normalizedLines).map((ln) => ({
-              kind: "path",
-              lineId: ln.id,
-            }))
-      ) as SequenceItem[];
-      // Load shapes with defaults
-      shapes = data.shapes || [];
-      fieldPoints = normalizeFieldPoints(data);
-      // Load settings (including robot size) if present
-      if (data.settings) {
-        settings = { ...settings, ...data.settings };
-      }
-
-      activePaths.set(Array.isArray(data.activePaths) ? data.activePaths : []);
-
-      isUnsaved.set(false);
-      recordChange();
-
-      // Cache the uploaded file into the browser-backed store for later access
-      try {
-        const content = JSON.stringify(data);
-        await browserFileStore.writeFile(file.name, content);
-        currentFilePath.set(file.name);
-      } catch (err) {
-        console.warn("Failed to cache uploaded file to store:", err);
-      }
-    });
-
-    // Reset the file input
+    const text = await file.text();
     elem.value = "";
+
+    const doc = readProject(text);
+    if (!doc) return;
+    applyProject(doc);
+    isUnsaved.set(false);
+
+    // Keep a copy in app storage so the file manager can reopen it.
+    try {
+      await browserFileStore.writeFile(file.name, serializeProject(doc));
+      currentFilePath.set(file.name);
+    } catch (err) {
+      console.warn("Failed to cache uploaded file to store:", err);
+    }
   }
 
   // Electron file-copying logic removed — browser store and upload are used instead.
@@ -2103,10 +2004,10 @@
           ? fileName
           : fileName + ".pp";
 
-        // Call the file manager's save function through the browser file store
-        const fileData = JSON.stringify(buildProjectData());
-
-        await browserFileStore.writeFile(fullFileName, fileData);
+        await browserFileStore.writeFile(
+          fullFileName,
+          serializeProject(currentProject()),
+        );
         currentFilePath.set(fullFileName);
         isUnsaved.set(false);
 
@@ -2131,40 +2032,21 @@
       isSaving = true;
       try {
         await saveAllAdditionalPaths();
-        if (target === "first" && $currentFilePath) {
-          const fileData = JSON.stringify(buildProjectData());
-          await browserFileStore.writeFile($currentFilePath, fileData);
-          isUnsaved.set(false);
-        } else if (target === "second" && $secondFilePath) {
-          const fileData = JSON.stringify(
-            buildProjectData({
-              startPoint: secondStartPoint,
-              lines: secondLines,
-              shapes: secondShapes,
-              sequence: secondSequence,
-            }),
+        const saveFirst = target === "first" || target === "both";
+        const saveSecond = target === "second" || target === "both";
+        if (saveFirst && $currentFilePath) {
+          await browserFileStore.writeFile(
+            $currentFilePath,
+            serializeProject(currentProject()),
           );
-          await browserFileStore.writeFile($secondFilePath, fileData);
-        } else if (target === "both") {
-          // Save first path
-          if ($currentFilePath) {
-            const fileData1 = JSON.stringify(buildProjectData());
-            await browserFileStore.writeFile($currentFilePath, fileData1);
-          }
-          // Save second path
-          if ($secondFilePath) {
-            const fileData2 = JSON.stringify(
-              buildProjectData({
-                startPoint: secondStartPoint,
-                lines: secondLines,
-                shapes: secondShapes,
-                sequence: secondSequence,
-              }),
-            );
-            await browserFileStore.writeFile($secondFilePath, fileData2);
-          }
-          isUnsaved.set(false);
         }
+        if (saveSecond && $secondFilePath) {
+          await browserFileStore.writeFile(
+            $secondFilePath,
+            serializeProject(secondProject()),
+          );
+        }
+        if (saveFirst) isUnsaved.set(false);
         showDualPathSaveDialog = false;
       } catch (error) {
         console.error("Dual path save failed:", error);
@@ -2877,15 +2759,17 @@
   <MobileBlocked />
 {:else}
   <Navbar
-    bind:lines
-    bind:startPoint
-    bind:shapes
-    bind:sequence
+    {lines}
+    {startPoint}
+    {shapes}
+    {sequence}
+    {currentProject}
+    {secondProject}
+    {applyProject}
     bind:secondStartPoint
     bind:secondLines
     bind:secondShapes
     bind:secondSequence
-    bind:fieldPoints
     bind:settings
     {percent}
     {saveProject}
@@ -2894,7 +2778,6 @@
     {loadFile}
     {undoAction}
     {redoAction}
-    {recordChange}
     {canUndo}
     {canRedo}
     {optimizeAllLines}

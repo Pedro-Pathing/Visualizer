@@ -2,13 +2,13 @@
   import { run } from "svelte/legacy";
 
   import type {
-    FieldPoint,
     Path,
     Shape,
     Settings,
     SequenceItem,
     StartPose,
   } from "../types";
+  import { createDefaultProject, type ProjectDoc } from "../io";
   import { onMount, onDestroy } from "svelte";
   import {
     showGrid,
@@ -18,16 +18,11 @@
     dualPathMode,
     activePaths,
   } from "../stores";
-  import {
-    getDefaultStartPoint,
-    getDefaultPaths,
-    getDefaultShapes,
-  } from "../config";
   import FileManager from "./FileManager.svelte";
   import SettingsDialog from "./components/SettingsDialog.svelte";
   import ExportCodeDialog from "./components/ExportCodeDialog.svelte";
   import MultiplePathsDialog from "./components/MultiplePathsDialog.svelte";
-  import { atomicSegments, calculatePathTime, formatTime } from "../utils";
+  import { calculatePathTime, formatTime } from "../utils";
   import { basename, pathStem } from "../utils/filename";
   import { downloadBlob } from "../utils/download";
   import NavDivider from "./components/ui/NavDivider.svelte";
@@ -37,11 +32,13 @@
 
   interface Props {
     loadFile: (evt: any) => any;
+    currentProject: () => ProjectDoc;
+    secondProject: () => ProjectDoc;
+    applyProject: (doc: ProjectDoc) => void;
     startPoint: StartPose;
     lines: Path[];
     shapes: Shape[];
     sequence: SequenceItem[];
-    fieldPoints?: FieldPoint[];
     secondStartPoint?: StartPose | null;
     secondLines?: Path[];
     secondShapes?: Shape[];
@@ -53,7 +50,6 @@
     renameCurrentFile: () => any;
     undoAction: () => any;
     redoAction: () => any;
-    recordChange: () => any;
     canUndo: boolean;
     canRedo: boolean;
     optimizeAllLines: () => Promise<void>;
@@ -68,11 +64,13 @@
 
   let {
     loadFile,
-    startPoint = $bindable(),
-    lines = $bindable(),
-    shapes = $bindable(),
-    sequence = $bindable(),
-    fieldPoints = $bindable([]),
+    currentProject,
+    secondProject,
+    applyProject,
+    startPoint,
+    lines,
+    shapes,
+    sequence,
     secondStartPoint = $bindable(null),
     secondLines = $bindable([]),
     secondShapes = $bindable([]),
@@ -84,7 +82,6 @@
     renameCurrentFile,
     undoAction,
     redoAction,
-    recordChange,
     canUndo,
     canRedo,
     optimizeAllLines,
@@ -208,14 +205,7 @@
   }
 
   function resetPath() {
-    startPoint = getDefaultStartPoint();
-    lines = getDefaultPaths();
-    sequence = atomicSegments(lines).map((ln) => ({
-      kind: "path",
-      lineId: ln.id,
-    }));
-    shapes = getDefaultShapes();
-    activePaths.set([]);
+    applyProject(createDefaultProject(currentProject().robot));
     dualPathMode.set(false);
   }
 
@@ -241,10 +231,7 @@
 
     message += "\n\nClick OK to reset, or Cancel to keep your current path.";
 
-    if (confirm(message)) {
-      resetPath();
-      if (recordChange) recordChange();
-    }
+    if (confirm(message)) resetPath();
   }
 
   function isOutside(event: MouseEvent, ...refs: (HTMLElement | undefined)[]) {
@@ -281,15 +268,13 @@
 {#if fileManagerOpen}
   <FileManager
     bind:isOpen={fileManagerOpen}
-    bind:startPoint
-    bind:lines
-    bind:shapes
-    bind:sequence
+    {currentProject}
+    {secondProject}
+    {applyProject}
     bind:secondStartPoint
     bind:secondLines
     bind:secondShapes
     bind:secondSequence
-    bind:fieldPoints
   />
 {/if}
 

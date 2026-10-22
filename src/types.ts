@@ -150,6 +150,21 @@ export interface Settings {
   };
 }
 
+/** The settings that change how a path drives, so they are saved with it. */
+export type RobotConfig = Pick<
+  Settings,
+  | "xVelocity"
+  | "yVelocity"
+  | "aVelocity"
+  | "kFriction"
+  | "rWidth"
+  | "rHeight"
+  | "safetyMargin"
+  | "maxVelocity"
+  | "maxAcceleration"
+  | "maxDeceleration"
+>;
+
 export interface Shape {
   id: string;
   name?: string;
