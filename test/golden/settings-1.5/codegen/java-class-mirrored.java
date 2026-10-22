@@ -10,7 +10,7 @@ public class Paths {
   private final PoseFactory poseFactory = PoseFactory.degrees().mirrorX(70.75);
 
   private final Pose start = poseFactory.of(20, 20, 45);
-  private final Pose point1 = poseFactory.of(80, 80, 89.7121);
+  private final Pose point1 = poseFactory.of(80, 80, 90);
   private final Pose point1Control1 = poseFactory.of(80, 20, 0);
 
   public Path path1() {

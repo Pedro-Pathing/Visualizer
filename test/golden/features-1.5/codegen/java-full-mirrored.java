@@ -26,9 +26,9 @@ public class AutoPath extends LinearOpMode {
 
   private final Pose start = poseFactory.of(9, 60, 0);
   private final Pose driveout = poseFactory.of(36, 60, 0);
-  private final Pose point2 = poseFactory.of(60, 84, 89.7121);
+  private final Pose point2 = poseFactory.of(60, 84, 90);
   private final Pose point2Control1 = poseFactory.of(60, 60, 0);
-  private final Pose point3 = poseFactory.of(84, 108, 172.3292);
+  private final Pose point3 = poseFactory.of(84, 108, 171.8699);
   private final Pose point3Control1 = poseFactory.of(60, 100, 0);
   private final Pose point3Control2 = poseFactory.of(70, 110, 0);
   private final Pose SweepStart = poseFactory.of(36, 60, 0);
@@ -41,7 +41,7 @@ public class AutoPath extends LinearOpMode {
   private final Pose point4Segment1End = poseFactory.of(120, 72, 45);
   private final Pose point4Segment2Target = poseFactory.of(132, 132, 0);
   private final Pose point4Segment3Heading = poseFactory.of(120, 72, 67.8596);
-  private final Pose curvethrough = poseFactory.of(40, 24, 168.958);
+  private final Pose curvethrough = poseFactory.of(40, 24, 143.1301);
   private final Pose curvethroughThrough1 = poseFactory.of(100, 40, 0);
   private final Pose curvethroughThrough2 = poseFactory.of(70, 20, 0);
 

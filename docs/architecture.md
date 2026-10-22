@@ -212,21 +212,32 @@ interface Workspace { primary: ProjectStore; overlays: OverlayDoc[] }  // overla
 ```ts
 // model/curve.ts
 interface Curve {
+  controlPoints: readonly BasePoint[];
   length: number;
-  pointAt(s: number): Vec2;      // s = arc-length fraction 0..1
-  tangentAt(s: number): Vec2;
-  svgPath(): string;             // the renderer draws *this*, so drawn == simulated
-  sample(n: number): Vec2[];     // for GIF, ghost, optimizer payload
+  pointAt(s: number): BasePoint;   // s = arc-length fraction 0..1
+  tangentAt(s: number): number;    // degrees, from the analytic derivative
+  parameterAt(s: number): number;  // the Bézier t, for the "current t" readout
+  sample(n: number): BasePoint[];  // GIF frames, high-degree rendering
 }
-curveOf(start: Vec2, path: AtomicPath): Curve   // Bézier (any degree) or piecewise-cubic through-points
+curveOf(start: BasePoint, path: AtomicPath): Curve
 ```
 
-- Arc-length reparameterization is built once per curve and memoized in a `WeakMap` keyed on the
-  immutable `AtomicPath` object. Immutable documents make this cache correct for free.
-- Every consumer goes through `Curve`: renderer, sim, heading (tangent), GIF, ghost/onion,
-  optimizer, mirror and the selected-point ring. This fixes problem 4 at the source.
-- Heading is computed in exactly one place: `model/heading.ts`, as
-  `headingAt(flatSegment, s, curve)`. The copies in `animation.ts` are deleted.
+- **Every segment is a single Bézier, as in Pedro.** A path with through-points is the curve
+  Pedro's `Paths.through` builds: one Bézier of degree n−1 that passes through the points at
+  evenly spaced t (`BezierCurve.through`). It is *not* a Catmull-Rom spline, which is what 2.0
+  drew.
+- Positions and headings are addressed by arc-length fraction `s`, matching Pedro:
+  - The follower advances by distance.
+  - Linear, constant and piecewise rules use path completion.
+  - Tangent and facing-point read the curve at the robot's position.
+  - Group overrides use completion across the whole group, as Pedro's `CompoundCurve` does.
+- **Caching:** curves are cached by coordinates for now, because paths are still edited in place.
+  Phase 3's immutable document allows a `WeakMap` keyed on the path object.
+- **Rendering:** `lib/scene/stroke.ts` turns a curve into what the renderer draws. Degree 3 or
+  lower becomes a native cubic; higher degrees are sampled. A property test checks every
+  simulated position against that stroke.
+- **Heading:** computed in one place, `segmentHeadingAt` in `utils/headingInterpolation.ts`, with
+  the motion profile in `sim/motionProfile.ts`. The copies in `animation.ts` are deleted.
 
 ### 2.5 Simulation
 
@@ -517,7 +528,7 @@ from phase 0. Whether to actually publish it is up to the maintainers.
 |---|---|---|---|
 | **0. Safety net** | Vitest. Golden tests for codegen (Java/Kotlin × modes × mirror) over fixture projects. Load round-trip tests. CI runs `check`, `lint`, `test` and `build` before the Vercel deploy. Turn perf logging off. | CI is green and gates deploys. | S |
 | **1. I/O pipeline** | `io/` with `parseProject`, `serializeProject` and migrations. Route all four loaders and all savers through it. Format `1.6.0` adds robot and motion config to the document (decision 1). The `FileStore` interface waits until a second backend (IndexedDB) needs it; until then `browserFileStore` is the only store. | One reader and one writer. Fixtures pass. | M |
-| **2. Curve and sim** | `model/curve.ts`, `model/heading.ts`, `sim/`. Point the renderer, animation, GIF and optimizer at them. Delete the duplicated math in `animation.ts`. | The robot follows the drawn curve, with property tests comparing render samples to sim samples. **This changes visible behavior on purpose**, so call it out in release notes. | M |
+| **2. Curve and sim** | `model/curve.ts`, `model/sweep.ts`, `sim/`. Point the renderer, animation, GIF, optimizer and codegen at them. Delete the duplicated math in `animation.ts`. | The robot follows the drawn curve, with property tests comparing render samples to sim samples. **This changes visible behavior on purpose**, so call it out in release notes. | M |
 | **3. ProjectStore** | `state/project.svelte.ts`, commands, structural history, transactions. Move document state out of App. Replace `bind:` chains with store reads and commands. | `recordChange` and `$bindable` document props are gone. App loses ~800 lines. | L |
 | **4. Workspace** | Overlays replace dual and multi-path. Delete `second*`, `dualPathMode`, `secondFilePath`. | One code path for N robots. | M |
 | **5. View layer** | Viewport, SVG scene components, tool state machine, shortcut table. Remove Two.js, d3 and hotkeys-js. | App is a layout shell under 200 lines. | L |

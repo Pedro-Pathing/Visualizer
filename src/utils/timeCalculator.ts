@@ -7,45 +7,10 @@ import type {
   TimelineEvent,
   SequenceItem,
 } from "../types";
+import { motionProfile } from "../sim/motionProfile";
 import { getAngularDifference } from "./math";
-import { getLineStartHeading, getLineEndHeading } from "./headingInterpolation";
-import {
-  atomicSegments,
-  effectiveHeadingAt,
-  flattenToAtomicSegments,
-} from "./pathTraversal";
-
-/**
- * Calculate time for a motion profile (trapezoidal or triangular)
- */
-function calculateMotionProfileTime(
-  distance: number,
-  maxVel: number,
-  maxAcc: number,
-  maxDec?: number,
-): number {
-  const deceleration = maxDec || maxAcc;
-
-  const accDist = (maxVel * maxVel) / (2 * maxAcc);
-  const decDist = (maxVel * maxVel) / (2 * deceleration);
-
-  if (distance >= accDist + decDist) {
-    const accTime = maxVel / maxAcc;
-    const decTime = maxVel / deceleration;
-    const constDist = distance - accDist - decDist;
-    const constTime = constDist / maxVel;
-
-    return accTime + constTime + decTime;
-  } else {
-    const vPeak = Math.sqrt(
-      (2 * distance * maxAcc * deceleration) / (maxAcc + deceleration),
-    );
-    const accTime = vPeak / maxAcc;
-    const decTime = vPeak / deceleration;
-
-    return accTime + decTime;
-  }
-}
+import { segmentHeadingAt } from "./headingInterpolation";
+import { atomicSegments, flattenToAtomicSegments } from "./pathTraversal";
 
 export function calculatePathTime(
   startPoint: StartPose,
@@ -58,10 +23,6 @@ export function calculatePathTime(
     if (!Number.isFinite(numeric) || numeric <= 0) return 0;
     return numeric / 1000;
   };
-
-  const useMotionProfile =
-    settings.maxVelocity !== undefined &&
-    settings.maxAcceleration !== undefined;
 
   const segmentLengths: number[] = [];
   const segmentTimes: number[] = [];
@@ -114,16 +75,10 @@ export function calculatePathTime(
     const prevPoint = segment.start;
 
     // --- ROTATION CHECK ---
-    // Read the heading the same way the animation does, so a group override
-    // does not leave the timeline turning to an angle that is never shown.
-    const startHeading = effectiveHeadingAt(pathSegments, segment.index, 0);
-    const endHeading = effectiveHeadingAt(pathSegments, segment.index, 1);
-
-    const requiredStartHeading = getLineStartHeading(
-      line,
-      prevPoint,
-      startHeading.heading,
-      startHeading.t,
+    const requiredStartHeading = segmentHeadingAt(
+      pathSegments,
+      segment.index,
+      0,
     );
     if (idx === 0) currentHeading = requiredStartHeading;
     const diff = Math.abs(
@@ -146,21 +101,9 @@ export function calculatePathTime(
     }
 
     // --- TRAVEL ---
-    const length = segment.arcLength;
+    const length = segment.curve.length;
     segmentLengths.push(length);
-    let segmentTime: number;
-
-    if (useMotionProfile) {
-      segmentTime = calculateMotionProfileTime(
-        length,
-        settings.maxVelocity!,
-        settings.maxAcceleration!,
-        settings.maxDeceleration,
-      );
-    } else {
-      const avgVelocity = (settings.xVelocity + settings.yVelocity) / 2;
-      segmentTime = length / avgVelocity;
-    }
+    const segmentTime = motionProfile(length, settings).duration;
     segmentTimes.push(segmentTime);
     timeline.push({
       type: "travel",
@@ -170,12 +113,7 @@ export function calculatePathTime(
       lineId: line.id,
     });
     currentTime += segmentTime;
-    currentHeading = getLineEndHeading(
-      line,
-      prevPoint,
-      endHeading.heading,
-      endHeading.t,
-    );
+    currentHeading = segmentHeadingAt(pathSegments, segment.index, 1);
     robotPoint = line.endPoint;
   });
 

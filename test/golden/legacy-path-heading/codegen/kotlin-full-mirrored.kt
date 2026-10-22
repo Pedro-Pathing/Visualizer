@@ -24,7 +24,7 @@ class AutoPath : LinearOpMode() {
 
     private val start = poseFactory.of(8.0, 64.0, 0.0)
     private val point1 = poseFactory.of(40.0, 64.0, 0.0)
-    private val point2 = poseFactory.of(60.0, 100.0, -90.16)
+    private val point2 = poseFactory.of(60.0, 100.0, -90.0)
     private val point2Control1 = poseFactory.of(60.0, 64.0, 0.0)
     private val point3Start = poseFactory.of(60.0, 100.0, 90.0)
     private val point3 = poseFactory.of(24.0, 120.0, 180.0)

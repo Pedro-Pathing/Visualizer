@@ -1,11 +1,13 @@
 import type {
-  BasePoint,
   Heading,
   PiecewiseHeadingInterpolation,
   PiecewiseHeadingSegment,
 } from "../../types";
-import { piecewiseSegmentEndAngle } from "../../utils/headingInterpolation";
-import { curveGeometryAtCompletion } from "../../utils/pathTraversal";
+import type { Curve } from "../../model/curve";
+import {
+  headingGeometryAt,
+  piecewiseSegmentEndAngle,
+} from "../../utils/headingInterpolation";
 import type { HeadingCall, InterpolatorRef, PiecewiseNode } from "./types";
 
 export interface HeadingCallContext {
@@ -14,7 +16,7 @@ export interface HeadingCallContext {
   endX: number;
   endY: number;
   /** The curve this heading runs along, when it is a single segment's. */
-  curvePoints?: BasePoint[];
+  curve?: Curve;
   definePose(
     nameHint: string,
     x: number,
@@ -104,11 +106,8 @@ function linkedStartAngle(
   const segment = segments[index];
   if (!segment.continueFromPrevious || index === 0) return null;
 
-  const geometry = ctx.curvePoints
-    ? {
-        ...curveGeometryAtCompletion(ctx.curvePoints, segment.startProgress),
-        curvePoints: ctx.curvePoints,
-      }
+  const geometry = ctx.curve
+    ? headingGeometryAt(ctx.curve, segment.startProgress)
     : undefined;
 
   const angle = piecewiseSegmentEndAngle(segments, index - 1, geometry);

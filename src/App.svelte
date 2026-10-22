@@ -66,7 +66,6 @@
     fitStrokeToLines,
     smoothStrokePreview,
   } from "./lib/pen/strokeFitting";
-  import { lineCurvePoints } from "./utils/pathTraversal";
   import {
     PointRegistry,
     pointKey,
@@ -116,11 +115,13 @@
   } from "./lib/scene/polygons";
   import { renderFieldPoints, type FieldPoint } from "./utils/fieldPoints";
   import {
+    generateGhostPathPoints,
+    generateOnionLayers,
+  } from "./model/sweep";
+  import {
     calculateVisualizationPathTime,
     getAnimationDuration,
     calculateRobotState,
-    generateGhostPathPoints,
-    generateOnionLayers,
     getRandomColor,
     normalizePaths,
     makePathId,
@@ -2389,16 +2390,7 @@
 
     const previewPoints = smoothStrokePreview(penStroke, 4);
     if (previewPoints.length < 2) return [];
-    const previewLine = {
-      kind: "atomic" as const,
-      id: "pen-preview",
-      endPoint: previewPoints[previewPoints.length - 1],
-      controlPoints: [],
-      throughPoints: previewPoints.slice(1, -1),
-      heading: { type: "tangential" as const, reverse: false },
-      color: "#facc15",
-    };
-    const anchors = lineCurvePoints(previewPoints[0], previewLine).map(
+    const anchors = previewPoints.map(
       (point, index) =>
         new Two.Anchor(
           x(point.x),
@@ -2445,7 +2437,6 @@
             startPoint,
             lines,
             settings.rWidth,
-            settings.rHeight,
             50,
           ),
           { id: "ghost-path", color: GHOST_COLOR },
@@ -2465,7 +2456,6 @@
             secondStartPoint,
             secondLines,
             settings.rWidth,
-            settings.rHeight,
             50,
           ),
           { id: "ghost-path-2", color: SECOND_PATH_COLOR },
@@ -2483,7 +2473,6 @@
               pathData.startPoint,
               pathData.lines,
               settings.rWidth,
-              settings.rHeight,
               50,
             ),
             {

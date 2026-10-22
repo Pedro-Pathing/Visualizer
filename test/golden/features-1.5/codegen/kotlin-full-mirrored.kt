@@ -25,9 +25,9 @@ class AutoPath : LinearOpMode() {
 
     private val start = poseFactory.of(9.0, 60.0, 0.0)
     private val driveout = poseFactory.of(36.0, 60.0, 0.0)
-    private val point2 = poseFactory.of(60.0, 84.0, 89.7121)
+    private val point2 = poseFactory.of(60.0, 84.0, 90.0)
     private val point2Control1 = poseFactory.of(60.0, 60.0, 0.0)
-    private val point3 = poseFactory.of(84.0, 108.0, 172.3292)
+    private val point3 = poseFactory.of(84.0, 108.0, 171.8699)
     private val point3Control1 = poseFactory.of(60.0, 100.0, 0.0)
     private val point3Control2 = poseFactory.of(70.0, 110.0, 0.0)
     private val SweepStart = poseFactory.of(36.0, 60.0, 0.0)
@@ -40,7 +40,7 @@ class AutoPath : LinearOpMode() {
     private val point4Segment1End = poseFactory.of(120.0, 72.0, 45.0)
     private val point4Segment2Target = poseFactory.of(132.0, 132.0, 0.0)
     private val point4Segment3Heading = poseFactory.of(120.0, 72.0, 67.8596)
-    private val curvethrough = poseFactory.of(40.0, 24.0, 168.958)
+    private val curvethrough = poseFactory.of(40.0, 24.0, 143.1301)
     private val curvethroughThrough1 = poseFactory.of(100.0, 40.0, 0.0)
     private val curvethroughThrough2 = poseFactory.of(70.0, 20.0, 0.0)
 

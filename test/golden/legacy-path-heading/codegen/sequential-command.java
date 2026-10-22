@@ -25,7 +25,7 @@ public class Auto extends LinearOpMode {
 
   private final Pose start = poseFactory.of(8, 64, 0);
   private final Pose point1 = poseFactory.of(40, 64, 0);
-  private final Pose point2 = poseFactory.of(60, 100, -90.16);
+  private final Pose point2 = poseFactory.of(60, 100, -90);
   private final Pose point2Control1 = poseFactory.of(60, 64, 0);
   private final Pose point3Start = poseFactory.of(60, 100, 90);
   private final Pose point3 = poseFactory.of(24, 120, 180);

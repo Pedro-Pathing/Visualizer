@@ -7,12 +7,9 @@ import type {
 } from "../../types";
 import { calculatePathTime } from "../../utils/timeCalculator";
 import { pathStem } from "../../utils/filename";
-import {
-  CURVE_SAMPLES,
-  flattenToAtomicSegments,
-} from "../../utils/pathTraversal";
-import { getCurvePoint } from "../../utils/math";
+import { flattenToAtomicSegments } from "../../utils/pathTraversal";
 import { LINE_WIDTH } from "../../config/defaults";
+import { POLYLINE_SAMPLES } from "../scene/stroke";
 
 export const GIF_EXPORT_SCALE = 0.65;
 export const GIF_EXPORT_FPS = 20;
@@ -63,8 +60,7 @@ export function drawPathLayer(
 
   for (const segment of segments) {
     const line = segment.line;
-    const points = segment.points; // [start, ...controlPoints, end] in inches
-    if (points.length < 2) continue;
+    const points = segment.curve.sample(POLYLINE_SAMPLES);
 
     const stroke = color || line.color;
     const locked = Boolean(line.locked);
@@ -80,16 +76,10 @@ export function drawPathLayer(
     );
 
     ctx.beginPath();
-    for (let i = 0; i <= CURVE_SAMPLES; i++) {
-      const point = getCurvePoint(i / CURVE_SAMPLES, points);
-      const px = toX(point.x);
-      const py = toY(point.y);
-      if (i === 0) {
-        ctx.moveTo(px, py);
-      } else {
-        ctx.lineTo(px, py);
-      }
-    }
+    points.forEach((point, i) => {
+      if (i === 0) ctx.moveTo(toX(point.x), toY(point.y));
+      else ctx.lineTo(toX(point.x), toY(point.y));
+    });
     ctx.stroke();
     ctx.restore();
   }

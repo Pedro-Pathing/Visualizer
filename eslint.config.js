@@ -53,7 +53,10 @@ export default ts.config(
     // The portable core: plain TypeScript that must run outside this app.
     files: [
       "src/io/**/*.ts",
+      "src/model/**/*.ts",
+      "src/sim/**/*.ts",
       "src/lib/codegen/**/*.ts",
+      "src/lib/scene/stroke.ts",
       "src/utils/color.ts",
       "src/utils/geometry.ts",
       "src/utils/headingInterpolation.ts",
@@ -61,7 +64,6 @@ export default ts.config(
       "src/utils/math.ts",
       "src/utils/normalize.ts",
       "src/utils/pathTraversal.ts",
-      "src/utils/project.ts",
       "src/utils/shapes.ts",
       "src/utils/timeCalculator.ts",
     ],

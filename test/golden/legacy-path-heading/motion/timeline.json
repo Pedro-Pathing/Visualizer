@@ -1,11 +1,11 @@
 {
-  "totalTime": 9.61787987083672,
+  "totalTime": 9.617939052997306,
   "segmentTimes": [
     2.0655911179772892,
-    2.4815396238225023,
-    2.570749129036929
+    2.4815490267088682,
+    2.570798908311149
   ],
-  "totalDistance": 127.75092491783941,
+  "totalDistance": 127.75319449200146,
   "timeline": [
     {
       "type": "travel",
@@ -41,16 +41,16 @@
     },
     {
       "type": "travel",
-      "duration": 2.4815396238225023,
+      "duration": 2.4815490267088682,
       "startTime": 3.5655911179772892,
-      "endTime": 6.0471307417997915,
+      "endTime": 6.047140144686157,
       "lineId": "line-mjuohs00-4qh0z0"
     },
     {
       "type": "wait",
       "duration": 1,
-      "startTime": 6.0471307417997915,
-      "endTime": 7.0471307417997915,
+      "startTime": 6.047140144686157,
+      "endTime": 7.047140144686157,
       "startHeading": -90,
       "targetHeading": 90,
       "atPoint": {
@@ -60,9 +60,9 @@
     },
     {
       "type": "travel",
-      "duration": 2.570749129036929,
-      "startTime": 7.0471307417997915,
-      "endTime": 9.61787987083672,
+      "duration": 2.570798908311149,
+      "startTime": 7.047140144686157,
+      "endTime": 9.617939052997306,
       "lineId": "line-mjuohs00-r79ise"
     }
   ]

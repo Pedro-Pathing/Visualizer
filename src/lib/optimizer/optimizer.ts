@@ -1,9 +1,11 @@
 import type { Path, Settings, Shape, StartPose } from "../../types";
 import { FIELD_SIZE } from "../../config/defaults";
-import { headingAngleAt } from "../../utils/headingInterpolation";
+import {
+  headingAngleAt,
+  headingGeometryAt,
+} from "../../utils/headingInterpolation";
 import {
   flattenToAtomicSegments,
-  getPointAndTangentAtProgress,
   replaceSegment,
 } from "../../utils/pathTraversal";
 
@@ -22,19 +24,21 @@ export function buildOptimizationPayload(
   );
   if (!segment) throw new Error("Line not found");
 
-  const line = segment.line;
-  const waypoints = segment.points.map((p) => [p.x, p.y]);
+  const { line, curve } = segment;
+  const waypoints = curve.controlPoints.map((p) => [p.x, p.y]);
 
   return {
     waypoints,
-    start_heading_degrees: headingAngleAt(line.heading, "start", {
-      ...getPointAndTangentAtProgress(segment.points, 0),
-      curvePoints: segment.points,
-    }),
-    end_heading_degrees: headingAngleAt(line.heading, "end", {
-      ...getPointAndTangentAtProgress(segment.points, 1),
-      curvePoints: segment.points,
-    }),
+    start_heading_degrees: headingAngleAt(
+      line.heading,
+      "start",
+      headingGeometryAt(curve, 0),
+    ),
+    end_heading_degrees: headingAngleAt(
+      line.heading,
+      "end",
+      headingGeometryAt(curve, 1),
+    ),
     x_velocity: settings.xVelocity,
     y_velocity: settings.yVelocity,
     angular_velocity: settings.aVelocity,

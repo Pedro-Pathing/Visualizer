@@ -218,7 +218,9 @@ export function buildSelectedPointRing(
     selectedLine && selection.pointIndex >= 0
       ? selection.pointIndex === 0
         ? selectedLine.endPoint
-        : selectedLine.controlPoints[selection.pointIndex - 1]
+        : (selectedLine.throughPoints ?? selectedLine.controlPoints)[
+            selection.pointIndex - 1
+          ]
       : null;
 
   if (!selectedLine || !selectedPoint) return [];
