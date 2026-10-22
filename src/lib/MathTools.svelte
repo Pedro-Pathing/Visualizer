@@ -1,28 +1,28 @@
 <script lang="ts">
   import { showRuler, showProtractor, showGrid } from "../stores";
+  import type { Axis } from "../view/viewport";
   import FieldGrid from "./components/mathtools/FieldGrid.svelte";
   import RulerOverlay from "./components/mathtools/RulerOverlay.svelte";
   import ProtractorOverlay from "./components/mathtools/ProtractorOverlay.svelte";
-  import type * as d3 from "d3";
 
   interface Props {
-    x: d3.ScaleLinear<number, number>;
-    y: d3.ScaleLinear<number, number>;
-    twoElement: HTMLDivElement;
+    x: Axis;
+    y: Axis;
+    fieldElement: HTMLDivElement | undefined;
     robotXY: { x: number; y: number };
   }
 
-  let { x, y, twoElement, robotXY }: Props = $props();
+  let { x, y, fieldElement, robotXY }: Props = $props();
 </script>
 
 {#if $showGrid}
   <FieldGrid {x} {y} />
 {/if}
 
-{#if $showRuler}
-  <RulerOverlay {x} {y} {twoElement} />
+{#if $showRuler && fieldElement}
+  <RulerOverlay {x} {y} {fieldElement} />
 {/if}
 
-{#if $showProtractor}
-  <ProtractorOverlay {x} {y} {twoElement} {robotXY} />
+{#if $showProtractor && fieldElement}
+  <ProtractorOverlay {x} {y} {fieldElement} {robotXY} />
 {/if}

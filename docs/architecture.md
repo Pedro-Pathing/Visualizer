@@ -541,6 +541,14 @@ from phase 0. Whether to actually publish it is up to the maintainers.
 | **7. Decluttered layout** | The §2.8 layout: File menu, view toggles on the field, tools-only toolbar with context menus, playback bar, selection-based inspector, layers panel, ⌘K palette, Settings split, opt-in auto-collapse. Restyle the surviving dialogs (Settings, Export, file manager, save/name dialogs) on the primitives. Then switch on the light theme and its toggle, Shiki for code export (removing `svelte-highlight`), and the duck logo. | No more than 12 always-visible controls. Every action has one home. The `app.css` bridge and the old `icons/` components are gone. Both themes look right. | L |
 | **8. Collision checks** | §2.10: `model/collision.ts`, sampled over the sim timeline. Results show on the field, the playback bar and the layers panel. | Golden tests on fixture projects with known hits and misses. Recomputing doesn't drop frames while dragging. | M |
 
+Phase 5 also changes two visible behaviors, for the release notes:
+
+- GIF export paints frames from the sim over the visualization timeline, so GIFs now include
+  the visualization waits after each path. Before, the GIF ran for the path time alone and cut
+  the waits off.
+- Robot poses are in field convention everywhere (inches, heading counter-clockwise). The
+  screen-space `calculateRobotState` is gone, and the pose goldens flipped sign to match.
+
 Phases 1 and 2 don't depend on each other and can run in parallel. Phase 3 comes before 4 and 5.
 Phase 8 needs phase 2 (sim) and is easier to show after 5. Phase 7 needs phase 3 (the commands
 drive the palette and context menus) and phase 5 (tools). Some of 7 is just markup and can ship

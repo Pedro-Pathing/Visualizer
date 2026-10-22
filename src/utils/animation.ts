@@ -1,15 +1,3 @@
-import { robotPoseAt } from "../sim/pose";
-import type { Path, TimelineEvent, Settings, StartPose } from "../types";
-import type { ScaleLinear } from "d3";
-
-/** A robot pose in screen space; `heading` is clockwise, as CSS rotates. */
-export interface RobotState {
-  x: number;
-  y: number;
-  heading: number;
-  t?: number | null;
-}
-
 type AnimationState = {
   playing: boolean;
   percent: number;
@@ -19,32 +7,6 @@ type AnimationState = {
   totalDuration: number;
   loop: boolean;
 };
-
-/** The robot `percent` of the way through the timeline, in screen space. */
-export function calculateRobotState(
-  percent: number,
-  timeline: TimelineEvent[],
-  lines: Path[],
-  startPoint: StartPose,
-  settings: Settings,
-  xScale: ScaleLinear<number, number>,
-  yScale: ScaleLinear<number, number>,
-): RobotState {
-  const totalDuration = timeline.at(-1)?.endTime ?? 0;
-  const pose = robotPoseAt(
-    (percent / 100) * totalDuration,
-    timeline,
-    startPoint,
-    lines,
-    settings,
-  );
-  return {
-    x: xScale(pose.x),
-    y: yScale(pose.y),
-    heading: -pose.heading,
-    t: pose.t,
-  };
-}
 
 /**
  * Create an animation controller for the robot simulation

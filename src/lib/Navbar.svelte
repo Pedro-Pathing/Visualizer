@@ -10,7 +10,6 @@
   import SettingsDialog from "./components/SettingsDialog.svelte";
   import ExportCodeDialog from "./components/ExportCodeDialog.svelte";
   import MultiplePathsDialog from "./components/MultiplePathsDialog.svelte";
-  import { calculatePathTime, formatTime } from "../utils";
   import { basename, pathStem } from "../utils/filename";
   import { downloadBlob } from "../utils/download";
   import NavDivider from "./components/ui/NavDivider.svelte";
@@ -22,14 +21,13 @@
     loadFile: (evt: any) => any;
     currentProject: () => ProjectDoc;
     applyProject: (doc: ProjectDoc) => void;
-    percent?: number;
     prefs: Settings;
     saveProject: () => any;
     saveFileAs: () => any;
     renameCurrentFile: () => any;
     optimizeAllLines: () => Promise<void>;
     optimizingAll?: boolean;
-    twoElement?: HTMLDivElement | null;
+    fieldElement?: HTMLDivElement;
     exportPathAsGif: () => Promise<void>;
     leftPanelHidden?: boolean;
     rightPanelHidden?: boolean;
@@ -41,14 +39,13 @@
     loadFile,
     currentProject,
     applyProject,
-    percent = 0,
     prefs = $bindable(),
     saveProject,
     saveFileAs,
     renameCurrentFile,
     optimizeAllLines,
     optimizingAll = false,
-    twoElement = null,
+    fieldElement,
     exportPathAsGif,
     leftPanelHidden = false,
     rightPanelHidden = false,
@@ -93,13 +90,6 @@
   let { startPoint, lines, shapes, sequence } = $derived(project.doc);
   let settings = $derived({ ...prefs, ...project.doc.robot });
 
-  let timePrediction = $derived(
-    calculatePathTime(startPoint, lines, settings, sequence),
-  );
-  let elapsedSeconds = $derived(
-    (percent / 100) * (timePrediction?.totalTime || 0),
-  );
-
   onMount(() => {
     const unsubscribeGridSize = gridSize.subscribe((value) => {
       selectedGridSize = value;
@@ -143,7 +133,7 @@
 
   async function exportFieldAsImage() {
     exportMenuOpen = false;
-    if (!twoElement) {
+    if (!fieldElement) {
       alert("Canvas not ready. Please try again.");
       return;
     }
@@ -152,7 +142,7 @@
     exportingFieldImage = true;
     try {
       // Capture the entire field including background, paths, and robots
-      const blob = await exportElementAsPng(twoElement, {
+      const blob = await exportElementAsPng(fieldElement, {
         scale: 2, // 2x resolution for better quality
       });
 
@@ -327,22 +317,6 @@
   <!-- Actions -->
   <div class="flex flex-row justify-end items-center gap-4">
     <div class="flex items-center gap-3">
-      <!-- time estimate -->
-      <div class="flex items-center gap-2 text-sm">
-        <div class="text-neutral-600 dark:text-neutral-300">
-          {#if timePrediction && timePrediction.totalTime > 0}
-            {formatTime(elapsedSeconds)} / {formatTime(
-              timePrediction.totalTime,
-            )}
-          {:else}
-            {formatTime(0)} / {formatTime(0)}
-          {/if}
-        </div>
-        <div class="text-neutral-500 dark:text-neutral-400">
-          ({(timePrediction?.totalDistance ?? 0).toFixed(0)} in)
-        </div>
-      </div>
-
       {#if settings.experimentalFeatures?.optimize}
         <button
           class="console-trigger console-trigger--accent relative text-sm disabled:opacity-50 disabled:cursor-not-allowed"

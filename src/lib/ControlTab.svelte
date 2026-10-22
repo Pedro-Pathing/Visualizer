@@ -8,75 +8,50 @@
     Path,
     Settings,
   } from "../types";
-  import type * as d3 from "d3";
   import ObstaclesSection from "./components/ObstaclesSection.svelte";
   import RobotPositionDisplay from "./components/RobotPositionDisplay.svelte";
   import StartingPointSection from "./components/StartingPointSection.svelte";
   import PlaybackControls from "./components/PlaybackControls.svelte";
-  import { calculateVisualizationPathTime, normalizePaths } from "../utils";
+  import { normalizePaths } from "../utils";
   import SelectedPathInspector from "./components/SelectedPathInspector.svelte";
   import SelectedGroupInspector from "./components/SelectedGroupInspector.svelte";
   import { curveThroughPoints } from "../utils/math";
   import { atomicSegments, findPathById } from "../utils/pathTraversal";
   import {
+    pointAt,
     removePath,
     updatePathById,
     updatePoint,
     updateSegment,
     type PointAddress,
   } from "../model/commands";
+  import type { Obstacle } from "../model/collision";
   import { useProject } from "../state/project.svelte";
+  import { useEditor } from "../state/editor.svelte";
+  import { usePlayback } from "../state/playback.svelte";
 
   interface Props {
-    percent: number;
-    playing: boolean;
-    play: () => any;
-    pause: () => any;
-    selectedLineId?: string | null;
-    /** The primary selection, which may be a group. */
-    selectedPathId?: string | null;
-    /** Selection is owned by the app, so changes are reported rather than bound. */
-    onSelectPath: (id: string | null) => void;
-    onUngroup: () => void;
-    selectedPointIndex?: number;
-    robotXY: BasePoint;
-    robotHeading: number;
-    x: d3.ScaleLinear<number, number>;
-    y: d3.ScaleLinear<number, number>;
     settings: Settings;
-    handleSeek: (percent: number) => void;
-    loopAnimation: boolean;
   }
 
-  let {
-    percent = $bindable(),
-    playing = $bindable(),
-    play,
-    pause,
-    selectedLineId = null,
-    selectedPathId = null,
-    onSelectPath,
-    onUngroup,
-    selectedPointIndex = $bindable(0),
-    robotXY,
-    robotHeading,
-    x,
-    y,
-    settings,
-    handleSeek,
-    loopAnimation = $bindable(),
-  }: Props = $props();
+  let { settings }: Props = $props();
 
   const project = useProject();
-  let { startPoint, lines, shapes, sequence } = $derived(project.doc);
+  const editor = useEditor();
+  const playback = usePlayback();
+  let { startPoint, lines, shapes } = $derived(project.doc);
 
   let curveTension = $state(1.0);
   let obstaclesOpen = $state(true);
 
+  const onSelectPath = (id: string | null) => editor.select(id ? [id] : []);
+
   // The inspector follows whatever is selected: a group shows group controls,
   // anything else falls back to the first drivable curve.
   let selectedPath: Path | null = $derived(
-    findPathById(lines, selectedPathId) ?? atomicSegments(lines)[0] ?? null,
+    findPathById(lines, editor.primarySelectedId) ??
+      atomicSegments(lines)[0] ??
+      null,
   );
   let selectedGroup: CompoundPath | null = $derived(
     selectedPath?.kind === "compound" ? selectedPath : null,
@@ -90,38 +65,24 @@
       : -1,
   );
   let selectedLinePathIndex = $derived(selectedLineIndex);
-  let selectedPoint: BasePoint | null = $derived.by(() => {
-    const line = selectedLine;
-    if (!line) return null;
-    return selectedPointIndex === 0
-      ? line.endPoint
-      : line.controlPoints[selectedPointIndex - 1] || null;
-  });
-  let selectedPointLabel = $derived(
-    selectedLine && selectedPoint
-      ? selectedPointIndex === 0
-        ? "Endpoint"
-        : `Control Point ${selectedPointIndex}`
-      : "Selected Point",
-  );
-
-  // Keep the selected point index inside the current line's range.
-  run(() => {
-    if (
-      selectedLine &&
-      selectedPointIndex > selectedLine.controlPoints.length
-    ) {
-      selectedPointIndex = selectedLine.controlPoints.length;
-    }
-    if (selectedPointIndex < 0) {
-      selectedPointIndex = 0;
-    }
-  });
-
   let selectedAddress: Extract<PointAddress, { kind: "path" }> | null = $derived(
     selectedLine
-      ? { kind: "path", lineId: selectedLine.id, index: selectedPointIndex }
+      ? {
+          kind: "path",
+          lineId: selectedLine.id,
+          index: editor.selectedPointIndex,
+        }
       : null,
+  );
+  let selectedPoint: BasePoint | null = $derived(
+    selectedAddress ? pointAt(project.doc, selectedAddress) : null,
+  );
+  let selectedPointLabel = $derived(
+    selectedLine && selectedPoint
+      ? editor.selectedPointIndex === 0
+        ? "Endpoint"
+        : `Control Point ${editor.selectedPointIndex}`
+      : "Selected Point",
   );
 
   function changeSelectedPoint(patch: Partial<BasePoint>) {
@@ -145,8 +106,20 @@
   }
 
   // Compute timeline markers for the UI (start of each travel segment)
-  let timePrediction = $derived(
-    calculateVisualizationPathTime(startPoint, lines, settings, sequence),
+  let timePrediction = $derived(playback.prediction);
+  function collisionLabel(obstacle: Obstacle) {
+    if (obstacle.kind === "wall") return "Hits the field wall";
+    const shape = shapes.find((candidate) => candidate.id === obstacle.shapeId);
+    return `Hits ${shape?.name || "an obstacle"}`;
+  }
+  let collisionBands = $derived(
+    playback.duration > 0
+      ? playback.collisions.map((collision) => ({
+          start: (collision.start / playback.duration) * 100,
+          end: (collision.end / playback.duration) * 100,
+          label: collisionLabel(collision.obstacle),
+        }))
+      : [],
   );
   let markers = $derived(
     (() => {
@@ -227,7 +200,7 @@
       sequence: [{ kind: "path", lineId: throughLine.id }],
     }));
     onSelectPath(throughLine.id);
-    selectedPointIndex = 0;
+    editor.selectedPointIndex = 0;
     alert(`Created a Paths.through curve through ${poses.length - 2} middle points.`);
   }
 
@@ -241,13 +214,13 @@
     project.apply(removePath(selectedLine.id));
     const remaining = atomicSegments(project.doc.lines);
     onSelectPath(remaining[Math.min(removedAt, remaining.length - 1)]?.id ?? null);
-    selectedPointIndex = 0;
+    editor.selectedPointIndex = 0;
   }
 
   function deleteSelectedControlPoint() {
-    if (!selectedLine || selectedPointIndex <= 0) return;
+    if (!selectedLine || editor.selectedPointIndex <= 0) return;
 
-    const controlPointIndex = selectedPointIndex - 1;
+    const controlPointIndex = editor.selectedPointIndex - 1;
     if (!selectedLine.controlPoints[controlPointIndex]) return;
 
     const controlPoints = selectedLine.controlPoints.filter(
@@ -259,7 +232,10 @@
         controlPoints,
       })),
     );
-    selectedPointIndex = Math.min(selectedPointIndex, controlPoints.length);
+    editor.selectedPointIndex = Math.min(
+      editor.selectedPointIndex,
+      controlPoints.length,
+    );
   }
 </script>
 
@@ -292,7 +268,7 @@
         <StartingPointSection />
       </div>
       <div class="w-full border border-[#333333] bg-[#222222] p-3">
-        <RobotPositionDisplay {robotXY} {robotHeading} {x} {y} />
+        <RobotPositionDisplay pose={playback.robotPose} />
       </div>
     </div>
 
@@ -306,14 +282,14 @@
           editPath(selectedGroup.id, "heading", (path) =>
             path.kind === "compound" ? { ...path, heading } : path,
           )}
-        {onUngroup}
+        onUngroup={() => editor.ungroupSelected()}
       />
     {:else}
       <SelectedPathInspector
         {selectedLine}
         {selectedLinePathIndex}
         {selectedPoint}
-        bind:selectedPointIndex
+        bind:selectedPointIndex={editor.selectedPointIndex}
         {selectedPointLabel}
         lineCount={lines.length}
         {settings}
@@ -349,13 +325,15 @@
   </div>
 
   <PlaybackControls
-    {playing}
-    {play}
-    {pause}
-    bind:percent
-    {handleSeek}
-    bind:loopAnimation
+    playing={playback.playing}
+    play={() => playback.play()}
+    pause={() => playback.pause()}
+    bind:percent={playback.percent}
+    handleSeek={(percent) => playback.seek(percent)}
+    bind:loopAnimation={playback.loop}
     {markers}
-    totalTime={timePrediction?.totalTime ?? 0}
+    bands={collisionBands}
+    totalTime={playback.duration}
+    distance={timePrediction.totalDistance}
   />
 </div>

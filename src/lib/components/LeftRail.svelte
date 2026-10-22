@@ -12,6 +12,8 @@
     /** Why the current selection cannot be grouped, or null when it can. */
     groupingBlockedReason: string | null;
     canUngroup: boolean;
+    /** How many collisions each segment has, by id. */
+    collisionCounts?: Record<string, number>;
     onToggleVisibility: () => void;
     onSelectPath: (
       id: string,
@@ -37,6 +39,7 @@
     primarySelectedId,
     groupingBlockedReason,
     canUngroup,
+    collisionCounts = {},
     onToggleVisibility,
     onSelectPath,
     onGroup,
@@ -166,6 +169,14 @@
     >
       <div class="list-item-top">
         <span class="list-item-name">{item.name}</span>
+        {#if collisionCounts[item.id]}
+          <span
+            class="ml-auto rounded-full bg-danger px-1.5 text-[10px] leading-4 font-semibold text-accent-foreground"
+            title={`${collisionCounts[item.id]} collision${collisionCounts[item.id] === 1 ? "" : "s"}`}
+          >
+            {collisionCounts[item.id]}
+          </span>
+        {/if}
       </div>
       <div class="list-item-sub">{item.x}, {item.y}</div>
     </button>

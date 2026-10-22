@@ -1,15 +1,12 @@
 <script lang="ts">
-  import type { BasePoint } from "../../types";
-  import type * as d3 from "d3";
+  import type { RobotPose } from "../../sim/pose";
 
   interface Props {
-    robotXY: BasePoint;
-    robotHeading: number;
-    x: d3.ScaleLinear<number, number>;
-    y: d3.ScaleLinear<number, number>;
+    pose: RobotPose;
   }
 
-  let { robotXY, robotHeading, x, y }: Props = $props();
+  let { pose }: Props = $props();
+  let heading = $derived(Math.round(pose.heading) || 0);
 </script>
 
 <div class="flex flex-col w-full justify-start items-start gap-2 text-sm">
@@ -20,7 +17,7 @@
     >
       <div class="font-extralight text-gray-400">X</div>
       <div class="font-medium text-gray-100">
-        {x.invert(robotXY.x).toFixed(3)}
+        {pose.x.toFixed(3)}
       </div>
     </div>
     <div
@@ -28,7 +25,7 @@
     >
       <div class="font-extralight text-gray-400">Y</div>
       <div class="font-medium text-gray-100">
-        {y.invert(robotXY.y).toFixed(3)}
+        {pose.y.toFixed(3)}
       </div>
     </div>
     <div
@@ -36,7 +33,7 @@
     >
       <div class="font-extralight text-gray-400">Heading</div>
       <div class="font-medium text-gray-100">
-        {robotHeading.toFixed(0) === "-0" ? "0" : -robotHeading.toFixed(0)}&deg;
+        {heading}&deg;
       </div>
     </div>
   </div>

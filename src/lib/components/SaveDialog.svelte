@@ -7,12 +7,14 @@
     isOpen?: boolean;
     fileName?: string;
     isSaving?: boolean;
+    onSave: (fileName: string) => void;
   }
 
   let {
     isOpen = $bindable(false),
     fileName = "",
     isSaving = false,
+    onSave,
   }: Props = $props();
 
   // Seeded from `fileName` each time the dialog opens (see below).
@@ -33,9 +35,7 @@
 
   function handleSave() {
     if (inputValue.trim()) {
-      window.dispatchEvent(
-        new CustomEvent("save", { detail: { fileName: inputValue.trim() } }),
-      );
+      onSave(inputValue.trim());
       close();
     }
   }

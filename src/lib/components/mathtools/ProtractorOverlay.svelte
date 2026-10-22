@@ -2,16 +2,16 @@
   import { protractorLockToRobot } from "../../../stores";
   import { FIELD_SIZE } from "../../../config";
   import { clamp } from "../../../utils/math";
-  import type * as d3 from "d3";
+  import type { Axis } from "../../../view/viewport";
 
   interface Props {
-    x: d3.ScaleLinear<number, number>;
-    y: d3.ScaleLinear<number, number>;
-    twoElement: HTMLDivElement;
+    x: Axis;
+    y: Axis;
+    fieldElement: HTMLDivElement;
     robotXY: { x: number; y: number };
   }
 
-  let { x, y, twoElement, robotXY }: Props = $props();
+  let { x, y, fieldElement, robotXY }: Props = $props();
 
   const MIN_PROTRACTOR_RADIUS = 30;
   const MAX_PROTRACTOR_RADIUS = 150;
@@ -40,7 +40,7 @@
   });
 
   function localMouse(event: MouseEvent) {
-    const rect = twoElement.getBoundingClientRect();
+    const rect = fieldElement.getBoundingClientRect();
     return { mx: event.clientX - rect.left, my: event.clientY - rect.top };
   }
 
@@ -68,7 +68,7 @@
   }
 
   function handleMouseMove(event: MouseEvent) {
-    if (!dragging || !twoElement) return;
+    if (!dragging) return;
 
     const { mx, my } = localMouse(event);
     const centerX = x(center.x);

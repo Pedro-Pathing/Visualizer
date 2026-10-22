@@ -9,8 +9,12 @@
     handleSeek: (percent: number) => void;
     loopAnimation?: boolean;
     markers?: { percent: number; color: string; name: string }[];
+    /** Stretches of the timeline where the robot collides. */
+    bands?: { start: number; end: number; label: string }[];
     // totalTime is in seconds
     totalTime?: number;
+    /** Inches driven over the whole timeline. */
+    distance?: number;
   }
 
   let {
@@ -21,7 +25,9 @@
     handleSeek,
     loopAnimation = $bindable(true),
     markers = [],
+    bands = [],
     totalTime = 0,
+    distance,
   }: Props = $props();
 
   let elapsedSeconds = $derived((percent / 100) * (totalTime || 0));
@@ -71,6 +77,20 @@
         class="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-green-500"
         style={`width: ${completionPercent}%`}
       ></div>
+      {#each bands as band, i (i)}
+        <div
+          class="absolute inset-y-0 z-20 cursor-pointer rounded-full bg-danger/80"
+          role="button"
+          tabindex="0"
+          title={band.label}
+          aria-label={band.label}
+          style={`left: ${band.start}%; width: ${Math.max(0.6, band.end - band.start)}%;`}
+          onclick={() => handleSeek(band.start)}
+          onkeydown={(e) => {
+            if (e.key === "Enter" || e.key === " ") handleSeek(band.start);
+          }}
+        ></div>
+      {/each}
       {#each markers as m, i (i)}
         <div
           class="absolute z-20"
@@ -103,6 +123,11 @@
       <div class="whitespace-nowrap">
         {formatTime(elapsedSeconds)} / {formatTime(totalTime || 0)}
       </div>
+      {#if distance !== undefined}
+        <div class="whitespace-nowrap text-neutral-500 dark:text-neutral-400">
+          ({distance.toFixed(0)} in)
+        </div>
+      {/if}
       <div
         class="flex h-8 w-14 items-center justify-center rounded border border-neutral-300 bg-neutral-100 px-2 font-semibold tabular-nums text-neutral-700 shadow-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
         aria-label="Playback completion"
