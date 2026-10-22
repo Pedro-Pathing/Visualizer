@@ -20,6 +20,7 @@
   import { ProjectFiles } from "./state/files.svelte";
   import { GifExport } from "./state/gifExport.svelte";
   import { Dialogs } from "./state/dialogs.svelte";
+  import { Theme } from "./state/theme.svelte";
 
   const project = new ProjectStore(
     createDefaultProject(robotConfigOf(DEFAULT_SETTINGS)),
@@ -32,10 +33,26 @@
   const files = new ProjectFiles(project, prefs, overlays);
   const gif = new GifExport(project, prefs, overlays);
   const dialogs = new Dialogs();
+  const theme = new Theme();
   provideProject(project);
   provideEditor(editor);
   providePlayback(playback);
   files.autosaveSession();
+
+  // Auto-collapse makes room while the field is busy, without touching the
+  // panels' own shown/hidden state.
+  let busy = $derived(
+    Boolean(prefs.settings.autoCollapsePanels) &&
+      (playback.playing || editor.tool === "pen"),
+  );
+  let leftHidden = $derived(layout.leftHidden || busy);
+  let rightHidden = $derived(
+    layout.rightHidden ||
+      busy ||
+      (Boolean(prefs.settings.autoCollapsePanels) &&
+        editor.selectedPathIds.length === 0 &&
+        !editor.selectedShape),
+  );
 
   let fieldElement = $state<HTMLDivElement>();
   let fieldPixels = $state(FIELD_SIZE);
@@ -50,6 +67,7 @@
     gif,
     layout,
     dialogs,
+    theme,
     field: () => ({ element: fieldElement, pixels: fieldPixels }),
     exportCode: (format) => appDialogs?.exportCode(format),
   };
@@ -96,23 +114,31 @@
   <MobileBlocked />
 {:else}
   <TopBar {actions} />
-  <AppDialogs bind:this={appDialogs} {dialogs} {files} {gif} {prefs} {actions} />
+  <AppDialogs
+    bind:this={appDialogs}
+    {dialogs}
+    {gif}
+    {prefs}
+    {theme}
+    {files}
+    {actions}
+  />
 
   <div class="h-screen w-screen px-3 pt-17 pb-3">
     <div
       class="desktop-grid h-full"
-      style={`--left-panel-width: ${layout.leftHidden ? "0px" : `${layout.leftWidth}px`}; --right-panel-width: ${layout.rightHidden ? "0px" : `${layout.rightWidth}px`};`}
+      style={`--left-panel-width: ${leftHidden ? "0px" : `${layout.leftWidth}px`}; --right-panel-width: ${rightHidden ? "0px" : `${layout.rightWidth}px`};`}
     >
       <LayersPanel
         settings={prefs.settings}
         {overlays}
-        hidden={layout.leftHidden}
+        hidden={leftHidden}
         onHide={() => layout.toggle("left")}
       />
 
       <PanelDivider
         side="left"
-        hidden={layout.leftHidden}
+        hidden={leftHidden}
         onResizeStart={(side, event) => layout.beginResize(side, event)}
         onRestore={() => layout.show("left")}
       />
@@ -126,14 +152,14 @@
 
       <PanelDivider
         side="right"
-        hidden={layout.rightHidden}
+        hidden={rightHidden}
         onResizeStart={(side, event) => layout.beginResize(side, event)}
         onRestore={() => layout.show("right")}
       />
 
       <Inspector
         {prefs}
-        hidden={layout.rightHidden}
+        hidden={rightHidden}
         onHide={() => layout.toggle("right")}
       />
     </div>

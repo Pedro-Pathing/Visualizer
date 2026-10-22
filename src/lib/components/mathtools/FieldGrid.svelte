@@ -62,7 +62,7 @@
       <text
         x={x(position)}
         y={y(0) + 15}
-        class="fill-gray-600 dark:fill-gray-400 {labelFontSize}"
+        class="field-label {labelFontSize}"
         text-anchor="middle"
       >
         {position}"
@@ -85,7 +85,7 @@
       <text
         x={x(0) - 5}
         y={y(position) + 4}
-        class="fill-gray-600 dark:fill-gray-400 {labelFontSize}"
+        class="field-label {labelFontSize}"
         text-anchor="end"
       >
         {position}"

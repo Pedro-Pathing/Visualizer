@@ -51,7 +51,8 @@
   class="fixed inset-x-0 top-0 z-100 flex h-14 items-center justify-between gap-4 border-b border-border bg-surface/80 px-4 backdrop-blur"
 >
   <div class="flex min-w-0 items-center gap-3">
-    <div class="flex items-baseline gap-2 pr-2">
+    <div class="flex items-center gap-2 pr-2">
+      <img src="/logo-duck.svg" alt="" class="size-6" draggable="false" />
       <span class="text-sm font-semibold whitespace-nowrap text-heading">
         Pedro Pathing Visualizer
       </span>

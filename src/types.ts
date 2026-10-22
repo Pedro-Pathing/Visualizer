@@ -143,6 +143,7 @@ export interface Settings {
   rightPanelMinWidth?: number; // Minimum width of the right sidebar in pixels
   penToolMaxPaths?: number; // Maximum number of paths a single pen stroke may create
   curveThroughMaxPoints?: number; // Maximum interior through points per curve
+  autoCollapsePanels?: boolean; // Hide the side panels while playing or drawing, and the inspector when nothing is selected
   experimentalFeatures?: {
     optimize?: boolean;
     curveThrough?: boolean;

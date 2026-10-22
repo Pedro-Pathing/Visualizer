@@ -1,16 +1,15 @@
 <script lang="ts">
-  import { currentFilePath } from "../stores";
-  import { pathStem } from "../utils/filename";
   import { useProject } from "../state/project.svelte";
   import type { Dialogs } from "../state/dialogs.svelte";
   import type { ProjectFiles } from "../state/files.svelte";
   import type { GifExport } from "../state/gifExport.svelte";
   import type { Prefs } from "../state/prefs.svelte";
+  import type { Theme } from "../state/theme.svelte";
   import FileManager from "../lib/FileManager.svelte";
   import ExportCodeDialog from "../lib/components/ExportCodeDialog.svelte";
   import SettingsDialog from "../lib/components/SettingsDialog.svelte";
-  import SaveDialog from "../lib/components/SaveDialog.svelte";
   import ProgressDialog from "../lib/components/ProgressDialog.svelte";
+  import DialogHost from "../lib/components/ui/DialogHost.svelte";
   import ToastHost from "../lib/components/ui/ToastHost.svelte";
   import CommandPalette from "./CommandPalette.svelte";
   import type { Action, CodeFormat } from "./actions";
@@ -20,10 +19,11 @@
     files: ProjectFiles;
     gif: GifExport;
     prefs: Prefs;
+    theme: Theme;
     actions: Action[];
   }
 
-  let { dialogs, files, gif, prefs, actions }: Props = $props();
+  let { dialogs, files, gif, prefs, theme, actions }: Props = $props();
 
   const project = useProject();
   let exportDialog = $state<ExportCodeDialog>();
@@ -50,13 +50,10 @@
   sequence={project.doc.sequence}
 />
 
-<SettingsDialog bind:isOpen={dialogs.settings} bind:prefs={prefs.value} />
-
-<SaveDialog
-  bind:isOpen={files.showSaveDialog}
-  isSaving={files.isSaving}
-  fileName={pathStem($currentFilePath) || "my_path"}
-  onSave={(name) => files.saveNamed(name)}
+<SettingsDialog
+  bind:isOpen={dialogs.settings}
+  bind:prefs={prefs.value}
+  {theme}
 />
 
 <ProgressDialog
@@ -68,4 +65,6 @@
 
 <CommandPalette {actions} bind:open={dialogs.palette} />
 
+<!-- Last, so a confirmation opened from another dialog draws on top of it. -->
+<DialogHost />
 <ToastHost />

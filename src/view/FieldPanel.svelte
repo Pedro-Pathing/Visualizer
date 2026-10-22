@@ -363,7 +363,7 @@
 
 <main class={[surfaceClass, "flex min-h-0 flex-col gap-2 p-2"]}>
   <div
-    class="relative flex min-h-0 flex-1 items-center justify-center rounded-xl bg-black/30"
+    class="relative flex min-h-0 flex-1 items-center justify-center rounded-xl bg-body/10"
     bind:clientWidth={stageWidth}
     bind:clientHeight={stageHeight}
   >

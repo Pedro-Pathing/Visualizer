@@ -135,7 +135,7 @@
         <text
           x={Math.cos(angle) * r3}
           y={-Math.sin(angle) * r3 + 4}
-          class="fill-blue-600 dark:fill-blue-400 text-xs font-semibold"
+          class="field-label text-xs font-semibold"
           text-anchor="middle"
         >
           {i * 10}°
@@ -156,7 +156,7 @@
     <text
       x={radius + 15}
       y="4"
-      class="fill-gray-400 dark:fill-gray-500 text-sm font-bold"
+      class="field-label text-sm font-bold opacity-70"
       text-anchor="middle">0°</text
     >
 
@@ -197,7 +197,7 @@
     <text
       x="0"
       y={-radius - 18}
-      class="fill-red-600 dark:fill-red-400 text-base font-bold"
+      class="field-label text-base font-bold"
       text-anchor="middle"
     >
       {360 - normalizedAngle}°

@@ -17,6 +17,8 @@ import {
   loadSessionSnapshot,
   saveSessionSnapshot,
 } from "../lib/session/sessionSnapshot";
+import { confirmDialog } from "../lib/dialog";
+import { askFileName } from "../lib/files/fileNames";
 import { showToast } from "../lib/toast";
 import { activePaths, currentFilePath } from "../stores";
 import * as browserFileStore from "../utils/browserFileStore";
@@ -25,16 +27,8 @@ import type { Overlays } from "./overlays.svelte";
 import type { Prefs } from "./prefs.svelte";
 import type { ProjectStore } from "./project.svelte";
 
-const FILE_NAME_PATTERN = /^[a-zA-Z0-9_\-. ]+\.pp$/;
-
-const withExtension = (name: string) =>
-  name.endsWith(".pp") ? name : `${name}.pp`;
-
 /** Opening, saving and renaming the project, and recovering the last session. */
 export class ProjectFiles {
-  showSaveDialog = $state(false);
-  isSaving = $state(false);
-
   #filePath = fromStore(currentFilePath);
   #activePaths = fromStore(activePaths);
   /** False until startup has had the chance to restore the last session. */
@@ -61,10 +55,15 @@ export class ProjectFiles {
   }
 
   /** Start a default project with the current robot, once confirmed. */
-  newProject() {
+  async newProject() {
     if (
       this.#project.dirty &&
-      !confirm("Start a new project? Your unsaved changes will be lost.")
+      !(await confirmDialog({
+        title: "Start a new project?",
+        message: "Your unsaved changes will be lost.",
+        confirmLabel: "Discard changes",
+        danger: true,
+      }))
     ) {
       return;
     }
@@ -83,11 +82,18 @@ export class ProjectFiles {
     return result.doc;
   }
 
-  /** Save into app storage under the current name, or a new one. */
+  /** Save into app storage under the open file's name, asking for one if it has none. */
   async save() {
+    const name =
+      get(currentFilePath) ??
+      (await askFileName({
+        title: "Save project",
+        value: "my_path",
+        confirmLabel: "Save",
+      }));
+    if (!name) return;
     try {
       await this.#overlays.saveAll();
-      const name = get(currentFilePath) ?? `path_${Date.now()}.pp`;
       await browserFileStore.writeFile(name, serializeProject(this.current()));
       currentFilePath.set(name);
       this.#project.markSaved();
@@ -95,30 +101,6 @@ export class ProjectFiles {
     } catch (error) {
       console.error("Failed to save project to storage:", error);
       showToast("Couldn't save the project in the app.", "error");
-    }
-  }
-
-  /** Save into app storage under `name`, from the save dialog. */
-  async saveNamed(name: string) {
-    this.isSaving = true;
-    try {
-      await this.#overlays.saveAll();
-      const fileName = withExtension(name);
-      await browserFileStore.writeFile(
-        fileName,
-        serializeProject(this.current()),
-      );
-      currentFilePath.set(fileName);
-      this.#project.markSaved();
-      this.showSaveDialog = false;
-    } catch (error) {
-      console.error("Save failed:", error);
-      showToast(
-        `Failed to save file: ${error instanceof Error ? error.message : String(error)}`,
-        "error",
-      );
-    } finally {
-      this.isSaving = false;
     }
   }
 
@@ -158,17 +140,12 @@ export class ProjectFiles {
     const currentPath = get(currentFilePath);
     if (!currentPath) return;
 
-    const requested = window.prompt("Rename path file", pathStem(currentPath));
-    if (!requested?.trim()) return;
-    const newName = withExtension(requested.trim());
-    if (!FILE_NAME_PATTERN.test(newName)) {
-      showToast(
-        "Invalid file name. Use only letters, numbers, underscores, dashes, and spaces.",
-        "error",
-      );
-      return;
-    }
-    if (newName === currentPath) return;
+    const newName = await askFileName({
+      title: "Rename project",
+      value: pathStem(currentPath),
+      confirmLabel: "Rename",
+    });
+    if (!newName || newName === currentPath) return;
 
     try {
       if (await browserFileStore.fileExists(newName)) {
@@ -182,11 +159,6 @@ export class ProjectFiles {
       await browserFileStore.deleteFile(currentPath);
       currentFilePath.set(newName);
       this.#project.markSaved();
-      window.dispatchEvent(
-        new CustomEvent("fileRenamed", {
-          detail: { oldPath: currentPath, newPath: newName },
-        }),
-      );
       showToast(`Renamed to: ${newName}`, "success");
     } catch (error) {
       console.error("Failed to rename path file:", error);

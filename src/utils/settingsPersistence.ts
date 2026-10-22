@@ -71,7 +71,7 @@ export async function loadSettings(): Promise<Settings> {
       // Optionally handle migration here
     }
     return migrateSettings(stored);
-  } catch (error) {
+  } catch {
     return { ...DEFAULT_SETTINGS };
   }
 }
@@ -86,7 +86,7 @@ export async function saveSettings(settings: Settings): Promise<boolean> {
     };
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(stored));
     return true;
-  } catch (error) {
+  } catch {
     return false;
   }
 }

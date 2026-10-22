@@ -12,7 +12,6 @@
   --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
 }
 
-/* The light theme is switched on once the dialogs below stop using the bridge. */
 :root {
   --base: #fafafa;
   --surface: #fefefe;
@@ -176,249 +175,29 @@ img[alt="Robot"] {
   cursor: pointer;
 }
 
-/*
- * Bridge: the class names the 2.0 dialogs still use, redrawn on the tokens
- * above. Each rule goes when the dialog that uses it is rebuilt.
- */
-:root {
-  --bridge-raised: color-mix(in srgb, var(--heading) 5%, var(--surface));
-  --bridge-hover: color-mix(in srgb, var(--heading) 10%, var(--surface));
-  --bridge-accent-tint: color-mix(
-    in srgb,
-    var(--color-primary) 14%,
-    transparent
-  );
-  --bridge-accent-ring: color-mix(
-    in srgb,
-    var(--color-primary) 35%,
-    transparent
-  );
-  --bridge-danger-tint: color-mix(
-    in srgb,
-    var(--color-danger) 16%,
-    transparent
-  );
+/* Text drawn over the field image, which looks the same in either theme. */
+.field-label {
+  fill: white;
+  stroke: rgb(0 0 0 / 0.75);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  paint-order: stroke;
 }
 
-.console-panel,
-.file-drawer {
-  background: color-mix(in srgb, var(--surface) 85%, transparent);
-  border: 1px solid var(--border);
-  backdrop-filter: blur(16px);
+/* Highlighted code carries both themes as variables; show the page's. */
+.shiki,
+.shiki span {
+  color: var(--shiki-light);
 }
 
-.console-panel {
-  border-radius: 1rem;
-  min-height: 0;
+.dark .shiki,
+.dark .shiki span {
+  color: var(--shiki-dark);
 }
 
-.file-drawer {
-  border-width: 0 1px 0 0;
-}
-
-.console-backdrop {
-  background: rgb(0 0 0 / 0.5);
-  backdrop-filter: blur(4px);
-}
-
-.console-icon-button,
-.console-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  background: var(--bridge-raised);
-  color: var(--heading);
-  font-weight: 500;
-  transition:
-    background-color 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease;
-}
-
-.console-action {
-  padding: 0.55rem 0.85rem;
-}
-
-.console-icon-button {
-  width: 2.35rem;
-  height: 2.35rem;
-  flex: none;
-  padding: 0;
-  line-height: 0;
-}
-
-.console-icon-button svg {
-  display: block;
-}
-
-.console-icon-button:hover,
-.console-action:hover {
-  background: var(--bridge-hover);
-}
-
-.console-icon-button:focus-visible,
-.console-action:focus-visible {
-  outline: 2px solid var(--bridge-accent-ring);
-  outline-offset: 2px;
-}
-
-.console-action--accent {
-  background: var(--bridge-accent-tint);
-  border-color: var(--bridge-accent-ring);
-  color: var(--color-primary);
-}
-
-.console-action--accent:hover {
-  background: color-mix(in srgb, var(--color-primary) 22%, transparent);
-}
-
-.console-action--danger {
-  background: var(--bridge-danger-tint);
-  border-color: color-mix(in srgb, var(--color-danger) 45%, transparent);
-  color: color-mix(in srgb, var(--color-danger) 35%, white);
-}
-
-.console-action--danger:hover {
-  background: color-mix(in srgb, var(--color-danger) 26%, transparent);
-}
-
-.console-action--compact {
-  padding: 0.4rem 0.55rem;
-  font-size: 0.75rem;
-}
-
-.console-action:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.console-section {
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  background: var(--bridge-raised);
-}
-
-.console-input {
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
+.code-export .shiki {
+  min-height: 100%;
+  padding: 1rem 1.25rem;
   background: var(--base);
-  color: var(--heading);
-}
-
-.console-input:focus {
-  border-color: var(--color-primary);
-  outline: 2px solid var(--bridge-accent-tint);
-}
-
-.console-checkbox {
-  border-radius: 0.375rem;
-  border-color: var(--border);
-}
-
-/* Squares off Tailwind rounding and shadows on nested markup. */
-.console-flat .rounded,
-.console-flat .rounded-md,
-.console-flat .rounded-lg,
-.console-flat .rounded-full {
-  border-radius: 0 !important;
-}
-
-.console-flat .shadow-sm,
-.console-flat .shadow-md,
-.console-flat .shadow-lg,
-.console-flat .shadow-xl,
-.console-flat .shadow-2xl {
-  box-shadow: none !important;
-}
-
-.file-drawer-band {
-  border-bottom: 1px solid var(--border);
-}
-
-.file-drawer-band--footer {
-  border-bottom: 0;
-  border-top: 1px solid var(--border);
-  background: var(--bridge-raised);
-}
-
-.file-drawer-caption {
-  color: var(--body);
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.file-row {
-  border-bottom: 1px solid var(--border);
-  border-left: 2px solid transparent;
-  transition:
-    background-color 160ms ease,
-    border-color 160ms ease;
-}
-
-.file-row:hover {
-  background: var(--bridge-hover);
-}
-
-.file-row--primary {
-  border-left-color: var(--color-primary);
-  background: var(--bridge-accent-tint);
-}
-
-.file-row-name {
-  color: var(--heading);
-  font-size: 0.82rem;
-  font-weight: 500;
-}
-
-.file-row-meta {
-  color: var(--body);
-  font-size: 0.7rem;
-}
-
-.file-icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.25rem;
-  border: 1px solid var(--border);
-  border-radius: 0.375rem;
-  background: var(--bridge-raised);
-  color: var(--heading);
-  transition:
-    background-color 160ms ease,
-    color 160ms ease;
-}
-
-.file-icon-btn:hover {
-  background: var(--bridge-hover);
-}
-
-.file-icon-btn--danger:hover {
-  background: var(--bridge-danger-tint);
-  color: var(--color-danger);
-}
-
-.module-caption {
-  color: var(--body);
-  font-size: 0.72rem;
-}
-
-.module-mono {
-  margin-top: 8px;
-  padding: 7px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  background: var(--base);
-  color: var(--heading);
   font-family: var(--font-mono);
-  font-size: 0.83rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }

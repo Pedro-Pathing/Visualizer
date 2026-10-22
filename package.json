@@ -50,6 +50,6 @@
     "prettier": "^3.9.6",
     "prettier-plugin-java": "^2.10.3",
     "prettier-plugin-kotlin": "^2.1.0",
-    "svelte-highlight": "~7.14.1"
+    "shiki": "^4.5.0"
   }
 }

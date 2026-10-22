@@ -57,7 +57,9 @@ export function buildOptimizationPayload(
   };
 }
 
-export async function runOptimization(payload: any) {
+export async function runOptimization(
+  payload: ReturnType<typeof buildOptimizationPayload>,
+): Promise<unknown> {
   const response = await fetch(`${OPTIMIZER_BASE_URL}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -88,22 +90,23 @@ export async function runOptimization(payload: any) {
 export function applyOptimizedWaypoints(
   paths: Path[],
   lineId: string,
-  result: any,
+  result: unknown,
   targetControlPointIndex?: number,
 ): Path[] | null {
-  const optimizedWaypoints = Array.isArray(result?.optimized_waypoints)
-    ? result.optimized_waypoints
-    : Array.isArray(result)
-      ? result
-      : null;
+  // The optimizer answers with either the waypoints or an object holding them.
+  const waypoints = Array.isArray(result)
+    ? result
+    : (result as { optimized_waypoints?: unknown } | null)?.optimized_waypoints;
 
-  if (!optimizedWaypoints || optimizedWaypoints.length < 2) {
+  if (!Array.isArray(waypoints) || waypoints.length < 2) {
     throw new Error("Unexpected optimizer response format.");
   }
 
-  const interior = optimizedWaypoints
-    .slice(1, optimizedWaypoints.length - 1)
-    .map((p: number[]) => ({ x: p[0], y: p[1] }));
+  const points = waypoints as number[][];
+  const [endX, endY] = points[points.length - 1];
+  const interior = points
+    .slice(1, points.length - 1)
+    .map((p) => ({ x: p[0], y: p[1] }));
 
   let applied = true;
   const next = replaceSegment(paths, lineId, (current) => {
@@ -125,8 +128,8 @@ export function applyOptimizedWaypoints(
       ...current,
       endPoint: {
         ...current.endPoint,
-        x: optimizedWaypoints[optimizedWaypoints.length - 1][0],
-        y: optimizedWaypoints[optimizedWaypoints.length - 1][1],
+        x: endX,
+        y: endY,
       },
       controlPoints: interior,
     };

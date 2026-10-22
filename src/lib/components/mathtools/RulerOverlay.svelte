@@ -86,7 +86,7 @@
   <text
     x={(x(rulerStart.x) + x(rulerEnd.x)) / 2}
     y={(y(rulerStart.y) + y(rulerEnd.y)) / 2 - 10}
-    class="fill-blue-600 dark:fill-blue-400 font-semibold pointer-events-none"
+    class="field-label pointer-events-none font-semibold"
     text-anchor="middle"
   >
     {rulerLength.toFixed(2)}"

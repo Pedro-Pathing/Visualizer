@@ -260,13 +260,15 @@ function toFieldPoint(value: unknown): FieldPoint | null {
 }
 
 export function normalizeFieldPoints(input: unknown): FieldPoint[] {
+  const container = input as {
+    fieldPoints?: unknown;
+    points?: unknown;
+    dots?: unknown;
+  } | null;
   const rawPoints = Array.isArray(input)
     ? input
     : input && typeof input === "object"
-      ? ((input as any).fieldPoints ??
-        (input as any).points ??
-        (input as any).dots ??
-        [])
+      ? (container?.fieldPoints ?? container?.points ?? container?.dots ?? [])
       : [];
 
   if (!Array.isArray(rawPoints)) return [];
@@ -276,10 +278,10 @@ export function normalizeFieldPoints(input: unknown): FieldPoint[] {
 }
 
 export function deriveSequence(
-  data: any,
+  data: { sequence?: unknown },
   normalizedLines: Path[],
 ): SequenceItem[] {
-  if (Array.isArray(data?.sequence) && data.sequence.length) {
+  if (Array.isArray(data.sequence) && data.sequence.length) {
     return data.sequence as SequenceItem[];
   }
 

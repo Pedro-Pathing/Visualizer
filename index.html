@@ -12,6 +12,19 @@
     <title>Pedro Pathing Visualizer</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- Applies the saved theme before first paint; state/theme.svelte.ts owns it after. -->
+    <script>
+      try {
+        const theme = (localStorage.getItem("theme") || "").replaceAll('"', "");
+        const dark =
+          theme === "light"
+            ? false
+            : theme === "system"
+              ? matchMedia("(prefers-color-scheme: dark)").matches
+              : true;
+        document.documentElement.classList.toggle("dark", dark);
+      } catch {}
+    </script>
   </head>
   <body class="h-full w-full">
     <script type="module" src="/src/main.ts"></script>

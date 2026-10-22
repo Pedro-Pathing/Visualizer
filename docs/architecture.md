@@ -556,9 +556,17 @@ Phase 7 ships in two parts:
   panel with overlays, the ⌘K palette, and one action table (`view/actions.ts`) behind the
   menus, palette and shortcuts. Robot and motion config move from Settings to the inspector.
   Always-visible controls: 5 on the top bar, 4 tools and 3 view toggles, for 12.
-- **7b, style.** The rest of the Settings split (Display, Advanced, About, experimental flags
-  collapsed), opt-in auto-collapse, restyled dialogs, removing the `app.css` bridge and the old
-  `icons/`, then the light theme, Shiki and the duck logo.
+- **7b, style.**
+  - Settings holds preferences only: Display, Advanced, and Experimental (collapsed), with
+    About and Reset in the footer.
+  - Opt-in auto-collapse.
+  - Every dialog and inspector editor is rebuilt on the primitives. The `app.css` bridge and
+    the old `icons/` are gone.
+  - Light, dark and system themes, stored under `theme` and dark by default.
+  - Shiki highlights exported code, loaded on first use.
+  - The duck logo is in the top bar.
+  - `alert`, `confirm`, `prompt`, the window event bus and `svelte/legacy` are replaced by
+    `lib/dialog.ts`, a promise-based confirm and prompt host. That finishes phase 6.
 
 Changes in 7a to call out:
 
@@ -566,8 +574,21 @@ Changes in 7a to call out:
 - **Save** writes to the open file and only asks for a name when there isn't one yet.
 - **Through-curves** run from the palette. The tension input is gone because it never changed
   the curve.
-- **Duplicate mirrored** isn't in the File menu yet, because `model/mirror.ts` (decision 3)
-  doesn't exist.
+- **Duplicate mirrored** stays in the file manager and isn't in the File menu yet. Its mirroring
+  lives in `FileManager.svelte` rather than in a `model/mirror.ts` checked against Pedro's
+  `mirrorX` (decision 3).
+
+Changes in 7b to call out:
+
+- **File manager:**
+  - Rename and New open a name dialog in place of the inline fields. This also fixes Enter
+    renaming twice.
+  - The open file is the selected one.
+  - Escape no longer closes the drawer.
+- **Piecewise headings:** the editor's segments start collapsed, one open at a time.
+- **Heading arrow:** its toggle moved from the robot section to Settings, next to its length,
+  color and thickness.
+- **Image upload errors** show a toast in place of an `alert()`.
 
 Phases 1 and 2 don't depend on each other and can run in parallel. Phase 3 comes before 4 and 5.
 Phase 8 needs phase 2 (sim) and is easier to show after 5. Phase 7 needs phase 3 (the commands

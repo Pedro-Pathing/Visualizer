@@ -1,6 +1,7 @@
 import { get } from "svelte/store";
 import type { Settings } from "../types";
 import type { MenuItem } from "../lib/components/ui/menu";
+import { dialogRequest } from "../lib/dialog";
 import { formatKeys, type KeySpec, type Shortcut } from "../lib/shortcuts";
 import { showToast } from "../lib/toast";
 import { currentFilePath } from "../stores";
@@ -8,6 +9,7 @@ import { downloadBlob } from "../utils/download";
 import { exportElementAsPng } from "../utils/exportImage";
 import { pathStem } from "../utils/filename";
 import type { Dialogs } from "../state/dialogs.svelte";
+import type { Theme, ThemeChoice } from "../state/theme.svelte";
 import type { EditorState } from "../state/editor.svelte";
 import type { ProjectFiles } from "../state/files.svelte";
 import type { GifExport } from "../state/gifExport.svelte";
@@ -45,6 +47,7 @@ export interface ActionDeps {
   gif: GifExport;
   layout: PanelLayout;
   dialogs: Dialogs;
+  theme: Theme;
   field: () => { element?: HTMLDivElement; pixels: number };
   exportCode: (format: CodeFormat) => void;
 }
@@ -52,8 +55,17 @@ export interface ActionDeps {
 type Flag = keyof NonNullable<Settings["experimentalFeatures"]>;
 
 export function createActions(deps: ActionDeps): Action[] {
-  const { project, editor, playback, prefs, files, gif, layout, dialogs } =
-    deps;
+  const {
+    project,
+    editor,
+    playback,
+    prefs,
+    files,
+    gif,
+    layout,
+    dialogs,
+    theme,
+  } = deps;
   const flag = (name: Flag) =>
     Boolean(prefs.settings.experimentalFeatures?.[name]);
   const toggleFlag = (name: Flag) => {
@@ -83,7 +95,7 @@ export function createActions(deps: ActionDeps): Action[] {
       id: "file.new",
       group: "File",
       title: "New project",
-      run: () => files.newProject(),
+      run: () => void files.newProject(),
     },
     {
       id: "file.open",
@@ -103,10 +115,7 @@ export function createActions(deps: ActionDeps): Action[] {
       group: "File",
       title: "Save",
       keys: ["mod+s"],
-      run: () =>
-        get(currentFilePath)
-          ? void files.save()
-          : (files.showSaveDialog = true),
+      run: () => void files.save(),
     },
     {
       id: "file.saveAs",
@@ -278,6 +287,26 @@ export function createActions(deps: ActionDeps): Action[] {
       keys: ["mod+,"],
       run: () => (dialogs.settings = true),
     },
+    ...(
+      [
+        ["light", "Light theme"],
+        ["dark", "Dark theme"],
+        ["system", "Theme from the system"],
+      ] as [ThemeChoice, string][]
+    ).map(([choice, title]) => ({
+      id: `theme.${choice}`,
+      group: "View",
+      title,
+      when: () => theme.choice !== choice,
+      run: () => (theme.choice = choice),
+    })),
+    {
+      id: "view.autoCollapse",
+      group: "View",
+      title: "Toggle auto-collapsing panels",
+      run: () =>
+        (prefs.value.autoCollapsePanels = !prefs.value.autoCollapsePanels),
+    },
 
     {
       id: "export.java",
@@ -361,7 +390,7 @@ export function createActions(deps: ActionDeps): Action[] {
 /** The actions as shortcuts; only the palette's works while a dialog is open. */
 export function shortcutsFor(actions: Action[], deps: ActionDeps): Shortcut[] {
   const idle = () =>
-    !deps.dialogs.anyOpen && !deps.files.showSaveDialog && !deps.gif.running;
+    !deps.dialogs.anyOpen && !get(dialogRequest) && !deps.gif.running;
   return actions.map((action) => ({
     keys: action.keys,
     run: action.run,

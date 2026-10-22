@@ -58,6 +58,7 @@ export const DEFAULT_SETTINGS: Settings = {
   rightPanelMinWidth: 0,
   penToolMaxPaths: 8,
   curveThroughMaxPoints: 4,
+  autoCollapsePanels: false,
   experimentalFeatures: {
     optimize: false,
     curveThrough: false,

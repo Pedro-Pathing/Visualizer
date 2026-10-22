@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { fieldClass } from "./styles";
+  import { fieldClass, labelClass } from "./styles";
 
   interface Props {
     id: string;
@@ -73,18 +73,9 @@
   }
 </script>
 
-<div>
-  <label for={id} class="mb-1 block text-sm font-medium text-heading">
-    {label}
-    {#if description}
-      <div class="text-xs font-normal text-body">{description}</div>
-    {/if}
-  </label>
-  <div
-    class:flex={Boolean(suffix)}
-    class:items-center={Boolean(suffix)}
-    class:gap-2={Boolean(suffix)}
-  >
+<div class="flex min-w-0 flex-col gap-1">
+  <label for={id} class={labelClass}>{label}</label>
+  <div class={suffix && "flex items-center gap-2"}>
     <input
       {id}
       type="number"
@@ -97,10 +88,13 @@
       onfocus={() => (focused = true)}
       onblur={handleBlur}
       onkeydown={handleKeydown}
-      class={[fieldClass, inputClass]}
+      class={[fieldClass, "font-mono", inputClass]}
     />
     {#if suffix}
-      <span class="text-sm text-body">{suffix}</span>
+      <span class="text-xs text-body">{suffix}</span>
     {/if}
   </div>
+  {#if description}
+    <p class="text-xs text-body">{description}</p>
+  {/if}
 </div>
