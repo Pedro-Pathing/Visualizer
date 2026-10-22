@@ -2,7 +2,13 @@
   import type { BasePoint, Settings } from "../types";
   import { FIELD_SIZE, LINE_WIDTH } from "../config/defaults";
   import { gridSize, showGrid, snapToGrid } from "../stores";
-  import { pointAt, updatePoint, type PointAddress } from "../model/commands";
+  import {
+    pointAt,
+    setShapes,
+    updatePoint,
+    type PointAddress,
+  } from "../model/commands";
+  import { atomicSegments } from "../utils/pathTraversal";
   import { robotFootprint } from "../model/collision";
   import {
     generateGhostPathPoints,
@@ -17,7 +23,9 @@
   import { useEditor } from "../state/editor.svelte";
   import { usePlayback } from "../state/playback.svelte";
   import type { Overlays } from "../state/overlays.svelte";
-  import FieldToolbar from "../lib/components/FieldToolbar.svelte";
+  import ContextMenu from "../lib/components/ui/ContextMenu.svelte";
+  import type { MenuEntry } from "../lib/components/ui/menu";
+  import { surfaceClass } from "../lib/components/ui/styles";
   import FieldMapImage from "../lib/components/FieldMapImage.svelte";
   import FieldLoadingOverlay from "../lib/components/FieldLoadingOverlay.svelte";
   import RobotSprite from "../lib/components/RobotSprite.svelte";
@@ -32,6 +40,9 @@
     GHOST_COLOR,
     PEN_PREVIEW_COLOR,
   } from "./scene/colors";
+  import ToolRail from "./ToolRail.svelte";
+  import FieldViewToggles from "./FieldViewToggles.svelte";
+  import PlaybackBar from "./PlaybackBar.svelte";
   import { fieldMapSource } from "./fieldMap";
   import { snapPoint } from "./snap";
   import { createViewport } from "./viewport";
@@ -173,6 +184,16 @@
       ?.setPointerCapture(event.pointerId);
   }
 
+  type PressTarget = "path" | "shape" | "field";
+  /** The open context menu, and what the right-click that opened it landed on. */
+  let menu = $state<{
+    x: number;
+    y: number;
+    target: PressTarget;
+    at: BasePoint;
+  } | null>(null);
+  let pressedTarget: PressTarget = "field";
+
   function onProjectPointDown(
     address: PointAddress,
     locked: boolean,
@@ -180,17 +201,94 @@
   ) {
     if (editor.tool !== "select") return;
     event.stopPropagation();
+    pressedTarget = "path";
     if (address.kind === "path") {
       editor.selectPoint(address.lineId, address.index);
     }
-    if (!locked) beginDrag({ kind: "project", address }, event);
+    if (!locked && event.button === 0) {
+      beginDrag({ kind: "project", address }, event);
+    }
   }
 
   function onSegmentDown(lineId: string, event: PointerEvent) {
     if (editor.tool !== "select") return;
     event.stopPropagation();
+    pressedTarget = "path";
     editor.selectPoint(lineId, 0);
   }
+
+  function onShapePress(shapeId: string, event: PointerEvent) {
+    if (editor.tool !== "select") return;
+    event.stopPropagation();
+    pressedTarget = "shape";
+    editor.selectShape(shapeId);
+  }
+
+  function onContextMenu(event: MouseEvent) {
+    event.preventDefault();
+    if (editor.tool !== "select" || overlays.active) return;
+    menu = {
+      x: event.clientX,
+      y: event.clientY,
+      target: pressedTarget,
+      at: snapped(fieldPoint(event)),
+    };
+  }
+
+  let menuEntries = $derived.by((): MenuEntry[] => {
+    if (!menu) return [];
+    const { target, at } = menu;
+    const line = editor.selectedLine;
+    if (target === "shape" && editor.selectedShape) {
+      const shapeId = editor.selectedShape.id;
+      return [
+        {
+          label: "Delete obstacle",
+          danger: true,
+          run: () => {
+            project.apply(
+              setShapes(doc.shapes.filter((shape) => shape.id !== shapeId)),
+            );
+            editor.clearSelection();
+          },
+        },
+      ];
+    }
+    if (target === "field" || !line) {
+      return [
+        { label: "Add path here", run: () => editor.addPathAt(at) },
+        ...(line
+          ? [
+              {
+                label: `Add control point to ${line.name || "the selected path"}`,
+                run: () => editor.addControlPoint(at),
+              },
+            ]
+          : []),
+      ];
+    }
+    const onEndPoint = editor.selectedPointIndex === 0;
+    return [
+      {
+        label: "Add control point here",
+        hint: "A",
+        run: () => editor.addControlPoint(at),
+      },
+      {
+        label: "Insert a path before this point",
+        run: () => editor.insertPathBeforeSelection(),
+      },
+      "separator",
+      {
+        label: onEndPoint ? "Delete path" : "Delete control point",
+        hint: "Del",
+        danger: true,
+        disabled:
+          onEndPoint && atomicSegments(doc.lines).length <= 1,
+        run: () => editor.deleteSelectedPoint(),
+      },
+    ];
+  });
 
   /** Drag edits are applied once per frame; the scene redraw is the heavy part. */
   function scheduleMove(move: () => void) {
@@ -205,9 +303,12 @@
   }
 
   function onPointerDown(event: PointerEvent) {
+    pressedTarget = "field";
     if (event.button !== 0) return;
     const point = fieldPoint(event);
-    if (editor.tool === "pen") {
+    if (editor.tool === "select") {
+      editor.clearSelection();
+    } else if (editor.tool === "pen") {
       editor.penStroke = [snapped(point)];
       (event.currentTarget as Element).setPointerCapture(event.pointerId);
     } else if (editor.tool === "coordinate") {
@@ -260,35 +361,21 @@
   }
 </script>
 
-<main class="panel-box center-stage">
-  <div class="module-header-row mb-2">
-    <h3 class="module-title">Field</h3>
-    <span class="module-caption">Click a line or point to select it</span>
-  </div>
-  <FieldToolbar
-    playing={playback.playing}
-    penToolEnabled={editor.tool === "pen"}
-    coordinateToolEnabled={editor.tool === "coordinate"}
-    onAddPath={() => editor.addPath()}
-    onTogglePenTool={() => editor.setTool("pen")}
-    onToggleCoordinateTool={() => editor.setTool("coordinate")}
-    onAddControlPoint={() => editor.addControlPoint()}
-    onRemoveControlPoint={() => editor.removeControlPoint()}
-    onCreatePathToLastPoint={() => editor.insertPathBeforeSelection()}
-    onTogglePlay={() => playback.toggle()}
-  />
-
+<main class={[surfaceClass, "flex min-h-0 flex-col gap-2 p-2"]}>
   <div
-    class="field-stage flex h-full items-center justify-center"
+    class="relative flex min-h-0 flex-1 items-center justify-center rounded-xl bg-black/30"
     bind:clientWidth={stageWidth}
     bind:clientHeight={stageHeight}
   >
+    <div class="absolute top-2 left-2 z-50"><ToolRail /></div>
+    <div class="absolute top-2 right-2 z-50"><FieldViewToggles /></div>
+
     <div
       bind:this={element}
-      class="relative overflow-clip bg-base select-none"
+      class="relative overflow-clip rounded-lg bg-base select-none"
       role="application"
       style={`width: ${pixels}px; height: ${pixels}px; max-width: 100%; max-height: 100%; aspect-ratio: 1 / 1; -webkit-touch-callout: none;`}
-      oncontextmenu={(event) => event.preventDefault()}
+      oncontextmenu={onContextMenu}
     >
       <FieldMapImage
         src={fieldMapSrc}
@@ -363,6 +450,19 @@
           tValue={playback.robotPose.t}
           onImageSettled={() => (loadedRobotImage = robotImageSrc)}
         />
+        {@const clearance = x(Math.max(settings.rWidth, settings.rHeight)) * 0.75}
+        {@const below = xy.y + clearance + 20 < pixels}
+        <div
+          class={[
+            "pointer-events-none absolute z-21 -translate-x-1/2 rounded bg-black/70 px-1.5 py-0.5 font-mono text-[10px] whitespace-nowrap text-white tabular-nums",
+            !below && "-translate-y-full",
+          ]}
+          style={`left: ${xy.x}px; top: ${below ? xy.y + clearance : xy.y - clearance}px;`}
+          aria-label="Robot position"
+        >
+          {playback.robotPose.x.toFixed(1)}, {playback.robotPose.y.toFixed(1)} ·
+          {playback.robotPose.heading.toFixed(0)}°
+        </div>
       {/if}
 
       <svg
@@ -386,10 +486,16 @@
           {#if obstaclesOn}
             <Obstacles
               shapes={doc.shapes}
+              selectedId={editor.selectedShape?.id}
+              onShapeDown={onShapePress}
               onVertexDown={(address, event) => {
-                if (editor.tool !== "select") return;
-                event.stopPropagation();
-                beginDrag({ kind: "project", address }, event);
+                if (editor.tool !== "select" || address.kind !== "vertex") {
+                  return;
+                }
+                onShapePress(address.shapeId, event);
+                if (event.button === 0) {
+                  beginDrag({ kind: "project", address }, event);
+                }
               }}
             />
           {/if}
@@ -512,7 +618,15 @@
       {/if}
     </div>
   </div>
-  <div class="module-footer">
-    Field · {FIELD_SIZE}&quot; x {FIELD_SIZE}&quot;
-  </div>
+
+  <PlaybackBar />
 </main>
+
+{#if menu}
+  <ContextMenu
+    x={menu.x}
+    y={menu.y}
+    entries={menuEntries}
+    onClose={() => (menu = null)}
+  />
+{/if}

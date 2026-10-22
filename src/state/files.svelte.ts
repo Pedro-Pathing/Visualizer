@@ -1,6 +1,11 @@
 import { fromStore, get } from "svelte/store";
 import { debounce } from "lodash";
-import { parseProject, serializeProject, type ProjectDoc } from "../io";
+import {
+  createDefaultProject,
+  parseProject,
+  serializeProject,
+  type ProjectDoc,
+} from "../io";
 import {
   canPickExistingFile,
   canPickSaveFile,
@@ -53,6 +58,18 @@ export class ProjectFiles {
   open(doc: ProjectDoc, options: { saved?: boolean } = {}) {
     this.#project.load(doc, options);
     activePaths.set(doc.activePaths);
+  }
+
+  /** Start a default project with the current robot, once confirmed. */
+  newProject() {
+    if (
+      this.#project.dirty &&
+      !confirm("Start a new project? Your unsaved changes will be lost.")
+    ) {
+      return;
+    }
+    this.open(createDefaultProject(this.#project.doc.robot));
+    currentFilePath.set(null);
   }
 
   /** Parse a project file, reporting a failure or any warnings. */
@@ -175,6 +192,15 @@ export class ProjectFiles {
       console.error("Failed to rename path file:", error);
       showToast("Failed to rename the path file.", "error");
     }
+  }
+
+  /** Ask for a project file on disk and open it. */
+  openFromDisk() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".pp,.json";
+    input.onchange = () => void this.upload(input);
+    input.click();
   }
 
   /** Open a file chosen from disk and keep a copy in app storage. */

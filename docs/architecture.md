@@ -549,6 +549,26 @@ Phase 5 also changes two visible behaviors, for the release notes:
 - Robot poses are in field convention everywhere (inches, heading counter-clockwise). The
   screen-space `calculateRobotState` is gone, and the pose goldens flipped sign to match.
 
+Phase 7 ships in two parts:
+
+- **7a, layout and controls.** The §2.8 layout: top bar with a File menu, tools and view toggles
+  on the field, a right-click menu, one playback bar, the selection-based inspector, the layers
+  panel with overlays, the ⌘K palette, and one action table (`view/actions.ts`) behind the
+  menus, palette and shortcuts. Robot and motion config move from Settings to the inspector.
+  Always-visible controls: 5 on the top bar, 4 tools and 3 view toggles, for 12.
+- **7b, style.** The rest of the Settings split (Display, Advanced, About, experimental flags
+  collapsed), opt-in auto-collapse, restyled dialogs, removing the `app.css` bridge and the old
+  `icons/`, then the light theme, Shiki and the duck logo.
+
+Changes in 7a to call out:
+
+- **New** clears the open file name, so the next save asks for one. Reset used to keep it.
+- **Save** writes to the open file and only asks for a name when there isn't one yet.
+- **Through-curves** run from the palette. The tension input is gone because it never changed
+  the curve.
+- **Duplicate mirrored** isn't in the File menu yet, because `model/mirror.ts` (decision 3)
+  doesn't exist.
+
 Phases 1 and 2 don't depend on each other and can run in parallel. Phase 3 comes before 4 and 5.
 Phase 8 needs phase 2 (sim) and is easier to show after 5. Phase 7 needs phase 3 (the commands
 drive the palette and context menus) and phase 5 (tools). Some of 7 is just markup and can ship

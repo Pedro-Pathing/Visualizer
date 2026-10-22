@@ -11,9 +11,15 @@ async function openApp(page: Page) {
   return errors;
 }
 
-/** The selected path's end point, as the inspector shows it. */
-const endpointText = (page: Page) =>
-  page.getByText(/^\d+\.\d, \d+\.\d$/).first();
+/** The selected point, as the inspector's X and Y fields show it. */
+async function selectedPoint(page: Page) {
+  const value = async (label: string) =>
+    Number(await page.getByLabel(label, { exact: true }).inputValue()).toFixed(1);
+  return `${await value("X")}, ${await value("Y")}`;
+}
+
+const expectSelectedPoint = (page: Page, text: string) =>
+  expect.poll(() => selectedPoint(page)).toBe(text);
 
 async function drag(page: Page, selector: string, dx: number, dy: number) {
   const box = (await page.locator(selector).boundingBox())!;
@@ -44,35 +50,35 @@ test("dragging a point moves it, and undo and redo restore it", async ({
   page,
 }) => {
   await openApp(page);
-  await expect(endpointText(page)).toHaveText("56.0, 36.0");
+  await expectSelectedPoint(page, "56.0, 36.0");
 
   await drag(page, ENDPOINT, 120, 0);
-  const moved = await endpointText(page).textContent();
+  const moved = await selectedPoint(page);
   expect(moved).not.toBe("56.0, 36.0");
 
   await undo(page);
-  await expect(endpointText(page)).toHaveText("56.0, 36.0");
+  await expectSelectedPoint(page, "56.0, 36.0");
   await redo(page);
-  await expect(endpointText(page)).toHaveText(moved!);
+  await expectSelectedPoint(page, moved);
 });
 
 test("one drag is one undo step", async ({ page }) => {
   await openApp(page);
   await drag(page, ENDPOINT, 60, 0);
-  const afterFirst = await endpointText(page).textContent();
+  const afterFirst = await selectedPoint(page);
   await drag(page, ENDPOINT, 60, 0);
 
   await undo(page);
-  await expect(endpointText(page)).toHaveText(afterFirst!);
+  await expectSelectedPoint(page, afterFirst);
   await undo(page);
-  await expect(endpointText(page)).toHaveText("56.0, 36.0");
+  await expectSelectedPoint(page, "56.0, 36.0");
 });
 
 test("adding a path is undoable", async ({ page }) => {
   await openApp(page);
   expect(await pathCount(page)).toBe(1);
 
-  await page.getByRole("button", { name: "+ Add Path" }).click();
+  await page.getByRole("button", { name: "Add path" }).click();
   await expect.poll(() => pathCount(page)).toBe(2);
 
   await undo(page);
@@ -83,21 +89,51 @@ test("typing a coordinate moves the point in one undo step", async ({
   page,
 }) => {
   await openApp(page);
-  const x = page.getByLabel("X", { exact: true }).last();
-  await x.fill("100");
-  await expect(endpointText(page)).toHaveText("100.0, 36.0");
+  await page.getByLabel("X", { exact: true }).fill("100");
+  await expectSelectedPoint(page, "100.0, 36.0");
 
   await undo(page);
-  await expect(endpointText(page)).toHaveText("56.0, 36.0");
+  await expectSelectedPoint(page, "56.0, 36.0");
 });
 
 test("the session survives a reload", async ({ page }) => {
   await openApp(page);
   await drag(page, ENDPOINT, 120, 0);
-  const moved = await endpointText(page).textContent();
+  const moved = await selectedPoint(page);
   await page.waitForTimeout(1000);
 
   await page.reload();
   await expect(page.locator(ENDPOINT)).toBeVisible();
-  await expect(endpointText(page)).toHaveText(moved!);
+  await expectSelectedPoint(page, moved);
+});
+
+test("clicking empty field shows the project, and Escape does too", async ({
+  page,
+}) => {
+  await openApp(page);
+  await expect(page.getByRole("heading", { name: "Path" })).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("heading", { name: "Project" })).toBeVisible();
+
+  await page.locator(ENDPOINT).click();
+  await expect(page.getByRole("heading", { name: "Path" })).toBeVisible();
+  const field = (await page.getByRole("application").boundingBox())!;
+  await page.mouse.click(field.x + 10, field.y + field.height - 10);
+  await expect(page.getByRole("heading", { name: "Project" })).toBeVisible();
+});
+
+test("the command palette runs an action", async ({ page }) => {
+  await openApp(page);
+  await page.keyboard.press("ControlOrMeta+k");
+  await page.getByRole("combobox", { name: "Command" }).fill("add path");
+  await page.keyboard.press("Enter");
+  await expect.poll(() => pathCount(page)).toBe(2);
+});
+
+test("the context menu adds a control point", async ({ page }) => {
+  await openApp(page);
+  await page.locator(ENDPOINT).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Add control point here" }).click();
+  await expect(page.getByRole("button", { name: "CP1" })).toBeVisible();
 });

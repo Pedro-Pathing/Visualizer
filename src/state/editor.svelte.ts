@@ -44,6 +44,7 @@ function formatPathPoint(value: number): string {
 export class EditorState {
   #project: ProjectStore;
   #selectedIds = $state<string[]>([]);
+  #shapeId = $state<string | null>(null);
   #pointIndex = $state(0);
 
   tool = $state<Tool>("select");
@@ -80,6 +81,12 @@ export class EditorState {
     this.selectedAddress
       ? pointAt(this.#project.doc, this.selectedAddress)
       : null,
+  );
+  /** An obstacle, selected instead of paths. */
+  selectedShape = $derived.by(
+    () =>
+      this.#project.doc.shapes.find((shape) => shape.id === this.#shapeId) ??
+      null,
   );
   groupingBlockedReason = $derived.by(() =>
     groupingProblem(this.#project.doc.lines, this.selectedPathIds),
@@ -147,6 +154,17 @@ export class EditorState {
 
   select(ids: string[]) {
     this.#selectedIds = ids;
+    this.#shapeId = null;
+  }
+
+  selectShape(id: string) {
+    this.#selectedIds = [];
+    this.#shapeId = id;
+  }
+
+  clearSelection() {
+    this.#selectedIds = [];
+    this.#shapeId = null;
   }
 
   selectFromList(
@@ -222,16 +240,18 @@ export class EditorState {
     );
   }
 
-  addControlPoint() {
+  /** Append a control point at `at`, or somewhere mid-field. */
+  addControlPoint(at?: BasePoint) {
     const target = this.#targetSegment();
     if (!target) return;
     const controlPoints = [
       ...target.controlPoints,
-      { x: randomFieldCoordinate(), y: randomFieldCoordinate() },
+      at ?? { x: randomFieldCoordinate(), y: randomFieldCoordinate() },
     ];
     this.#project.apply(
       updateSegment(target.id, (segment) => ({ ...segment, controlPoints })),
     );
+    this.select([target.id]);
     this.selectedPointIndex = controlPoints.length;
   }
 
@@ -382,6 +402,54 @@ export class EditorState {
     } finally {
       this.optimizing = false;
     }
+  }
+
+  /**
+   * Replace every path with one `Paths.through` curve from the start to the
+   * last endpoint, passing through up to `settings.curveThroughMaxPoints` of
+   * the endpoints between.
+   */
+  curveThroughAll(settings: Settings) {
+    const { startPoint } = this.#project.doc;
+    const segments = atomicSegments(this.#lines);
+    if (segments.length < 2) {
+      showToast("Curve generation needs at least two paths.", "warning");
+      return;
+    }
+
+    const maxThroughPoints = Math.max(
+      1,
+      Math.round(settings.curveThroughMaxPoints ?? 4),
+    );
+    // Endpoints right on top of the start would make a degenerate curve.
+    const startClearance = 2;
+    const throughPoints = segments
+      .slice(0, -1)
+      .map((line) => ({ ...line.endPoint }))
+      .filter(
+        (point) =>
+          Math.hypot(point.x - startPoint.x, point.y - startPoint.y) >=
+          startClearance,
+      )
+      .slice(0, maxThroughPoints);
+    const curve = {
+      ...segments[0],
+      endPoint: { ...segments[segments.length - 1].endPoint },
+      controlPoints: [],
+      throughPoints,
+    };
+
+    this.#project.apply((doc) => ({
+      ...doc,
+      lines: normalizePaths([curve]),
+      sequence: [{ kind: "path", lineId: curve.id }],
+    }));
+    this.select([curve.id]);
+    this.selectedPointIndex = 0;
+    showToast(
+      `Created a Paths.through curve through ${throughPoints.length} points.`,
+      "success",
+    );
   }
 
   /** Turn the pen stroke into paths, after the selected one or as a new chain. */

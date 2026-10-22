@@ -1,11 +1,8 @@
 <script lang="ts">
-  import { Monitor, Paintbrush, Wrench, Zap } from "@lucide/svelte";
+  import { Paintbrush, Wrench } from "@lucide/svelte";
   import Modal from "./ui/Modal.svelte";
   import CollapsibleSection from "./ui/CollapsibleSection.svelte";
   import NumberField from "./ui/NumberField.svelte";
-  import MotionSettingsSection from "./settings/MotionSettingsSection.svelte";
-  import RobotSettingsSection from "./settings/RobotSettingsSection.svelte";
-  import { showToast } from "../toast";
   import { robotConfigOf } from "../../io";
   import { updateRobot } from "../../model/commands";
   import { useProject } from "../../state/project.svelte";
@@ -28,8 +25,6 @@
 
   // Track which sections are collapsed
   let collapsedSections = $state({
-    robot: true,
-    motion: true,
     advanced: true,
     interface: true,
   });
@@ -114,7 +109,14 @@
     <h2 id="settings-title" class="text-xl font-semibold text-[#e8e8e8]">
       Settings
     </h2>
-    <span class="text-xs text-[#888888] mt-1"> Pedro Pathing Visualizer </span>
+    <a
+      class="mt-1 text-xs text-body underline-offset-2 hover:text-heading hover:underline"
+      href="https://github.com/Pedro-Pathing/Visualizer"
+      target="_blank"
+      rel="noreferrer"
+    >
+      Pedro Pathing Visualizer on GitHub
+    </a>
     <button
       onclick={() => (isOpen = false)}
       aria-label="Close settings"
@@ -157,8 +159,9 @@
       <div class="text-sm text-[#d0d0d0]">
         <div class="font-medium mb-1">UI Settings Only</div>
         <div class="text-xs opacity-90">
-          These settings only affect the visualizer/UI. Ensure your robot code
-          matches these values for accurate simulation.
+          These settings only affect the visualizer. The robot and its motion
+          belong to the project: deselect everything to edit them in the
+          inspector.
         </div>
       </div>
     </div>
@@ -166,26 +169,6 @@
 
   <!-- Settings Content -->
   <div class="w-full flex-1 overflow-y-auto pr-2">
-    <!-- Robot Settings Section -->
-    <CollapsibleSection
-      title="Robot Configuration"
-      icon={Monitor}
-      collapsed={collapsedSections.robot}
-      onToggle={() => (collapsedSections.robot = !collapsedSections.robot)}
-    >
-      <RobotSettingsSection bind:settings />
-    </CollapsibleSection>
-
-    <!-- Motion Settings Section -->
-    <CollapsibleSection
-      title="Motion Parameters"
-      icon={Zap}
-      collapsed={collapsedSections.motion}
-      onToggle={() => (collapsedSections.motion = !collapsedSections.motion)}
-    >
-      <MotionSettingsSection />
-    </CollapsibleSection>
-
     <!-- Field Settings Section -->
     <CollapsibleSection
       title="Interface Settings"

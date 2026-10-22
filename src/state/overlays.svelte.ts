@@ -7,7 +7,7 @@ import * as browserFileStore from "../utils/browserFileStore";
 import type { ProjectStore } from "./project.svelte";
 
 /** Up to this many saved files can be shown at once. */
-const MAX_OVERLAYS = 4;
+export const MAX_OVERLAYS = 4;
 const OVERLAY_COLORS = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A"];
 
 export interface Overlay {

@@ -56,6 +56,22 @@ describe("installShortcuts", () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
+  it("skips a shortcut whose condition is false", () => {
+    const play = vi.fn();
+    const exitTool = vi.fn();
+    let drawing = true;
+    uninstall = installShortcuts([
+      { keys: ["space"], when: () => drawing, run: exitTool },
+      { keys: ["space"], run: play },
+    ]);
+
+    press({ key: " ", code: "Space" });
+    drawing = false;
+    press({ key: " ", code: "Space" });
+    expect(exitTool).toHaveBeenCalledTimes(1);
+    expect(play).toHaveBeenCalledTimes(1);
+  });
+
   it("ignores keys typed into a field", () => {
     const addPath = vi.fn();
     uninstall = installShortcuts([{ keys: ["w"], run: addPath }]);

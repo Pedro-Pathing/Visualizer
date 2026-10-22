@@ -5,7 +5,9 @@
 export type KeySpec = string;
 
 export interface Shortcut {
-  keys: KeySpec[];
+  keys?: KeySpec[];
+  /** The shortcut is ignored while this returns false. */
+  when?: () => boolean;
   run: () => void;
 }
 
@@ -39,8 +41,9 @@ function isTyping(target: EventTarget | null): boolean {
 export function installShortcuts(shortcuts: Shortcut[]): () => void {
   const onKeyDown = (event: KeyboardEvent) => {
     if (isTyping(event.target)) return;
-    const shortcut = shortcuts.find(({ keys }) =>
-      keys.some((spec) => matches(event, spec)),
+    const shortcut = shortcuts.find(
+      ({ keys, when }) =>
+        keys?.some((spec) => matches(event, spec)) && (when?.() ?? true),
     );
     if (!shortcut) return;
     event.preventDefault();
@@ -48,4 +51,24 @@ export function installShortcuts(shortcuts: Shortcut[]): () => void {
   };
   document.addEventListener("keydown", onKeyDown);
   return () => document.removeEventListener("keydown", onKeyDown);
+}
+
+const isMac =
+  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+
+const KEY_LABELS: Record<string, string> = {
+  mod: isMac ? "⌘" : "Ctrl",
+  ctrl: isMac ? "⌃" : "Ctrl",
+  shift: isMac ? "⇧" : "Shift",
+  space: "Space",
+  delete: "Del",
+  escape: "Esc",
+};
+
+/** How a key spec reads in menus, e.g. `⌘⇧Z` or `Ctrl+Shift+Z`. */
+export function formatKeys(spec: KeySpec): string {
+  const labels = spec
+    .split("+")
+    .map((part) => KEY_LABELS[part.toLowerCase()] ?? part.toUpperCase());
+  return labels.join(isMac ? "" : "+");
 }

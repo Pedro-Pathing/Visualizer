@@ -1,21 +1,16 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import Navbar from "./lib/Navbar.svelte";
-  import SaveDialog from "./lib/components/SaveDialog.svelte";
-  import ProgressDialog from "./lib/components/ProgressDialog.svelte";
   import PanelDivider from "./lib/components/PanelDivider.svelte";
   import MobileBlocked from "./lib/components/MobileBlocked.svelte";
-  import LeftRail from "./lib/components/LeftRail.svelte";
-  import RightRail from "./lib/components/RightRail.svelte";
-  import ToastHost from "./lib/components/ui/ToastHost.svelte";
+  import TopBar from "./view/TopBar.svelte";
+  import LayersPanel from "./view/LayersPanel.svelte";
   import FieldPanel from "./view/FieldPanel.svelte";
-  import { fieldMapSource } from "./view/fieldMap";
+  import Inspector from "./view/Inspector.svelte";
+  import AppDialogs from "./view/AppDialogs.svelte";
+  import { createActions, shortcutsFor, type ActionDeps } from "./view/actions";
   import { installShortcuts } from "./lib/shortcuts";
-  import { PROJECT_VERSION, createDefaultProject, robotConfigOf } from "./io";
+  import { createDefaultProject, robotConfigOf } from "./io";
   import { DEFAULT_SETTINGS, FIELD_SIZE } from "./config";
-  import { currentFilePath } from "./stores";
-  import { basename, pathStem } from "./utils/filename";
-  import { atomicSegments } from "./utils/pathTraversal";
   import { ProjectStore, provideProject } from "./state/project.svelte";
   import { EditorState, provideEditor } from "./state/editor.svelte";
   import { Playback, providePlayback } from "./state/playback.svelte";
@@ -24,6 +19,7 @@
   import { PanelLayout } from "./state/layout.svelte";
   import { ProjectFiles } from "./state/files.svelte";
   import { GifExport } from "./state/gifExport.svelte";
+  import { Dialogs } from "./state/dialogs.svelte";
 
   const project = new ProjectStore(
     createDefaultProject(robotConfigOf(DEFAULT_SETTINGS)),
@@ -35,6 +31,7 @@
   const layout = new PanelLayout(prefs);
   const files = new ProjectFiles(project, prefs, overlays);
   const gif = new GifExport(project, prefs, overlays);
+  const dialogs = new Dialogs();
   provideProject(project);
   provideEditor(editor);
   providePlayback(playback);
@@ -42,14 +39,21 @@
 
   let fieldElement = $state<HTMLDivElement>();
   let fieldPixels = $state(FIELD_SIZE);
+  let appDialogs = $state<AppDialogs>();
 
-  let collisionCounts = $derived.by(() => {
-    const counts: Record<string, number> = {};
-    for (const { lineId } of playback.collisions) {
-      if (lineId) counts[lineId] = (counts[lineId] ?? 0) + 1;
-    }
-    return counts;
-  });
+  const deps: ActionDeps = {
+    project,
+    editor,
+    playback,
+    prefs,
+    files,
+    gif,
+    layout,
+    dialogs,
+    field: () => ({ element: fieldElement, pixels: fieldPixels }),
+    exportCode: (format) => appDialogs?.exportCode(format),
+  };
+  const actions = createActions(deps);
 
   /** Only trust the browser's own report of a phone or tablet. */
   function isMobileDevice() {
@@ -79,25 +83,7 @@
     };
   });
 
-  onMount(() =>
-    installShortcuts([
-      { keys: ["mod+s"], run: () => (files.showSaveDialog = true) },
-      { keys: ["mod+z"], run: () => project.undo() },
-      { keys: ["mod+shift+z", "ctrl+y"], run: () => project.redo() },
-      { keys: ["w"], run: () => editor.addPath() },
-      { keys: ["a"], run: () => editor.addControlPoint() },
-      { keys: ["s"], run: () => editor.removeControlPoint() },
-      { keys: ["k"], run: () => playback.toggle() },
-      { keys: ["Delete"], run: () => editor.deleteSelectedPoint() },
-      {
-        keys: ["space"],
-        run: () =>
-          editor.tool === "select"
-            ? playback.toggle()
-            : editor.setTool(editor.tool),
-      },
-    ]),
-  );
+  onMount(() => installShortcuts(shortcutsFor(actions, deps)));
 </script>
 
 <svelte:window
@@ -109,62 +95,19 @@
 {#if isMobileBlocked}
   <MobileBlocked />
 {:else}
-  <Navbar
-    currentProject={() => files.current()}
-    applyProject={(doc) => files.open(doc)}
-    bind:prefs={prefs.value}
-    saveProject={() => files.save()}
-    saveFileAs={() => files.saveAs()}
-    renameCurrentFile={() => files.rename()}
-    loadFile={(event: Event) => files.upload(event.target as HTMLInputElement)}
-    optimizeAllLines={() => editor.optimizeAll(prefs.settings)}
-    optimizingAll={editor.optimizing}
-    {fieldElement}
-    exportPathAsGif={() => gif.run(fieldMapSource(prefs.settings), fieldPixels)}
-    leftPanelHidden={layout.leftHidden}
-    rightPanelHidden={layout.rightHidden}
-    onToggleLeftPanel={() => layout.toggle("left")}
-    onToggleRightPanel={() => layout.toggle("right")}
-  />
+  <TopBar {actions} />
+  <AppDialogs bind:this={appDialogs} {dialogs} {files} {gif} {prefs} {actions} />
 
-  <SaveDialog
-    bind:isOpen={files.showSaveDialog}
-    isSaving={files.isSaving}
-    fileName={pathStem($currentFilePath) || "my_path"}
-    onSave={(name) => files.saveNamed(name)}
-  />
-
-  <ProgressDialog
-    isOpen={gif.running}
-    progress={gif.progress}
-    statusMessage={gif.status}
-    onCancel={() => gif.cancel()}
-  />
-
-  <ToastHost />
-
-  <div class="ui-shell w-screen h-screen pt-[5.1rem] px-3 pb-3">
+  <div class="h-screen w-screen px-3 pt-17 pb-3">
     <div
       class="desktop-grid h-full"
-      style={`--left-panel-width: ${layout.leftHidden ? "0px" : `${layout.leftWidth}px`}; --right-panel-width: ${layout.rightHidden ? "0px" : `${layout.rightWidth}px`}; --center-width: ${layout.centerWidth}px;`}
+      style={`--left-panel-width: ${layout.leftHidden ? "0px" : `${layout.leftWidth}px`}; --right-panel-width: ${layout.rightHidden ? "0px" : `${layout.rightWidth}px`};`}
     >
-      <LeftRail
+      <LayersPanel
+        settings={prefs.settings}
+        {overlays}
         hidden={layout.leftHidden}
-        fileName={basename($currentFilePath) || "untitled_path.pp"}
-        version={`v${PROJECT_VERSION}`}
-        lineCount={atomicSegments(project.doc.lines).length}
-        pathPreviewItems={editor.pathListItems}
-        selectedPathIds={editor.selectedPathIds}
-        primarySelectedId={editor.primarySelectedId}
-        groupingBlockedReason={editor.groupingBlockedReason}
-        canUngroup={editor.selectedPath?.kind === "compound"}
-        {collisionCounts}
-        onToggleVisibility={() => layout.toggle("left")}
-        onSelectPath={(id, modifiers) => editor.selectFromList(id, modifiers)}
-        onGroup={() => editor.groupSelected()}
-        onUngroup={() => editor.ungroupSelected()}
-        onReorderPath={(dragged, target, position) =>
-          editor.reorderPath(dragged, target, position)}
+        onHide={() => layout.toggle("left")}
       />
 
       <PanelDivider
@@ -188,10 +131,10 @@
         onRestore={() => layout.show("right")}
       />
 
-      <RightRail
+      <Inspector
+        {prefs}
         hidden={layout.rightHidden}
-        settings={prefs.settings}
-        onToggleVisibility={() => layout.toggle("right")}
+        onHide={() => layout.toggle("right")}
       />
     </div>
   </div>

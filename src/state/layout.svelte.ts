@@ -3,7 +3,6 @@ import { DEFAULT_SETTINGS } from "../config/defaults";
 import type { Prefs } from "./prefs.svelte";
 import {
   clampPanelWidth,
-  getCenterWidth,
   getLeftPanelMinWidth,
   getMinCenterWidthForSquare,
   getRightPanelMinWidth,
@@ -15,18 +14,10 @@ type Side = "left" | "right";
 
 /** The two side panels around the field: their widths, visibility and resizing. */
 export class PanelLayout {
-  leftWidth = $state(DEFAULT_SETTINGS.leftPanelWidth ?? 370);
-  rightWidth = $state(DEFAULT_SETTINGS.rightPanelWidth ?? 620);
+  leftWidth = $state(DEFAULT_SETTINGS.leftPanelWidth ?? 280);
+  rightWidth = $state(DEFAULT_SETTINGS.rightPanelWidth ?? 360);
   leftHidden = $state(false);
   rightHidden = $state(false);
-  centerWidth = $derived(
-    getCenterWidth(
-      this.leftWidth,
-      this.rightWidth,
-      this.leftHidden,
-      this.rightHidden,
-    ),
-  );
 
   #prefs: Prefs;
   #resize: { side: Side; startX: number; startWidth: number } | null = null;
