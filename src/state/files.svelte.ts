@@ -19,6 +19,7 @@ import {
 } from "../lib/session/sessionSnapshot";
 import { confirmDialog } from "../lib/dialog";
 import { askFileName } from "../lib/files/fileNames";
+import { mirrorProject } from "../model/mirror";
 import { showToast } from "../lib/toast";
 import { activePaths, currentFilePath } from "../stores";
 import * as browserFileStore from "../utils/browserFileStore";
@@ -163,6 +164,37 @@ export class ProjectFiles {
     } catch (error) {
       console.error("Failed to rename path file:", error);
       showToast("Failed to rename the path file.", "error");
+    }
+  }
+
+  /** Save a copy mirrored across the field's center line as a new file, and open it. */
+  async duplicateMirrored() {
+    const name = await askFileName({
+      title: "Duplicate mirrored",
+      value: `${pathStem(get(currentFilePath)) || "path"}_mirrored`,
+      confirmLabel: "Create",
+    });
+    if (!name) return;
+    try {
+      if (
+        (await browserFileStore.fileExists(name)) &&
+        !(await confirmDialog({
+          title: `Overwrite ${name}?`,
+          message: "A file with this name already exists.",
+          confirmLabel: "Overwrite",
+          danger: true,
+        }))
+      ) {
+        return;
+      }
+      const mirrored = mirrorProject(this.current());
+      await browserFileStore.writeFile(name, serializeProject(mirrored));
+      this.open(mirrored);
+      currentFilePath.set(name);
+      showToast(`Created ${name}`, "success");
+    } catch (error) {
+      console.error("Failed to save the mirrored project:", error);
+      showToast("Couldn't save the mirrored project.", "error");
     }
   }
 

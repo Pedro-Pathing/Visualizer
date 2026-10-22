@@ -14,6 +14,7 @@ import {
   findSegmentById,
   groupPaths,
   groupingProblem,
+  insertPaths,
   movePath,
   reorderSequenceToMatch,
   segmentStartById,
@@ -315,13 +316,7 @@ export class EditorState {
       (previous.y + anchor.y) / 2,
     );
 
-    const topLevelIndex = lines.findIndex((line) => line.id === selected.id);
-    const nextLines = [...lines];
-    nextLines.splice(
-      Math.max(0, topLevelIndex >= 0 ? topLevelIndex : lines.length - 1),
-      0,
-      segment,
-    );
+    const nextLines = insertPaths(lines, selected.id, "before", [segment]);
     const sequenceIndex = sequence.findIndex(
       (item) => item.kind === "path" && item.lineId === selected.id,
     );
@@ -463,9 +458,7 @@ export class EditorState {
 
     if (selected) {
       this.#project.apply((doc) => {
-        const insertAt = doc.lines.findIndex((line) => line.id === selected.id);
-        const lines = [...doc.lines];
-        lines.splice(insertAt >= 0 ? insertAt + 1 : lines.length, 0, ...newLines);
+        const lines = insertPaths(doc.lines, selected.id, "after", newLines);
         const sequenceIndex = doc.sequence.findIndex(
           (item) => item.kind === "path" && item.lineId === selected.id,
         );

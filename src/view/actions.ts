@@ -125,6 +125,12 @@ export function createActions(deps: ActionDeps): Action[] {
       run: () => void files.saveAs(),
     },
     {
+      id: "file.mirror",
+      group: "File",
+      title: "Duplicate mirrored…",
+      run: () => void files.duplicateMirrored(),
+    },
+    {
       id: "file.rename",
       group: "File",
       title: "Rename…",

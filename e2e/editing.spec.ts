@@ -131,6 +131,19 @@ test("the command palette runs an action", async ({ page }) => {
   await expect.poll(() => pathCount(page)).toBe(2);
 });
 
+test("duplicate mirrored opens a mirrored copy", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("button", { name: "File" }).click();
+  await page.getByRole("menuitem", { name: "Duplicate mirrored…" }).click();
+  await page.getByRole("button", { name: "Create" }).click();
+  await expect(
+    page.getByText("path_mirrored.pp", { exact: true }),
+  ).toBeVisible();
+  // The field is 141.5" wide, so x = 56 lands on 85.5.
+  await page.locator(ENDPOINT).click();
+  await expectSelectedPoint(page, "85.5, 36.0");
+});
+
 test("the context menu adds a control point", async ({ page }) => {
   await openApp(page);
   await page.locator(ENDPOINT).click({ button: "right" });

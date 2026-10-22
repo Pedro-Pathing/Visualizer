@@ -6,7 +6,6 @@
     HardDriveDownload,
     Pencil,
     Save,
-    SquareSplitHorizontal,
     Trash2,
   } from "@lucide/svelte";
   import type { FileInfo } from "../../types";
@@ -19,7 +18,6 @@
     onRename: (file: FileInfo) => void;
     onDelete: (file: FileInfo) => void;
     onDuplicate: () => void;
-    onDuplicateAndMirror: () => void;
     onOverwrite: () => void;
     onNew: () => void;
     onDownload: () => void;
@@ -31,7 +29,6 @@
     onRename,
     onDelete,
     onDuplicate,
-    onDuplicateAndMirror,
     onOverwrite,
     onNew,
     onDownload,
@@ -64,17 +61,6 @@
         <Trash2 />
       </IconButton>
     </div>
-
-    <Button
-      variant="secondary"
-      size="sm"
-      class="w-full"
-      title="Create a mirrored copy of this path"
-      onclick={onDuplicateAndMirror}
-    >
-      <SquareSplitHorizontal class="size-3.5" />
-      Duplicate &amp; mirror
-    </Button>
 
     <div class="flex flex-col gap-1.5">
       <span class={labelClass}>Save</span>

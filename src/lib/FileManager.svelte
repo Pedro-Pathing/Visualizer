@@ -3,7 +3,7 @@
   import { cubicInOut } from "svelte/easing";
   import { fade, fly } from "svelte/transition";
   import { FolderOpen, LoaderCircle, Plus, TriangleAlert, X } from "@lucide/svelte";
-  import type { FileInfo, Heading, Path } from "../types";
+  import type { FileInfo } from "../types";
   import * as browserFileStore from "../utils/browserFileStore";
   import { currentFilePath } from "../stores";
   import { useProject } from "../state/project.svelte";
@@ -15,14 +15,13 @@
   } from "../io";
   import { downloadJson } from "../utils/download";
   import { stripPpExtension } from "../utils/filename";
-  import { FIELD_SIZE } from "../config";
   import {
     canPickExistingFile,
     isPickerCancel,
     overwritePickedFile,
   } from "./files/localFiles";
   import { showToast } from "./toast";
-  import { confirmDialog, promptDialog } from "./dialog";
+  import { confirmDialog } from "./dialog";
   import { askFileName } from "./files/fileNames";
   import Button from "./components/ui/Button.svelte";
   import IconButton from "./components/ui/IconButton.svelte";
@@ -223,28 +222,6 @@
     }
   }
 
-  async function duplicateAndMirrorFile() {
-    if (!selectedFile) return;
-    const doc = await readPathFile(selectedFile);
-    if (!doc) return;
-
-    const stem = await promptDialog({
-      title: "Name mirrored path",
-      value: `${stripPpExtension(selectedFile.name)}_mirrored`,
-      placeholder: "my_path_mirrored",
-      hint: "A number is added if the name is taken.",
-      confirmLabel: "Create",
-    });
-    if (!stem) return;
-
-    try {
-      const name = await saveAsNewFile(mirrorPathData(doc), stripPpExtension(stem));
-      showToast(`Created mirrored: ${name}`, "success");
-    } catch (error) {
-      showToast(`Failed to save mirrored file: ${getErrorMessage(error)}`, "error");
-    }
-  }
-
   async function saveCurrentToFile() {
     if (!selectedFile) return;
     try {
@@ -288,81 +265,6 @@
       if (isPickerCancel(error)) return;
       showToast(`Failed to write local file: ${getErrorMessage(error)}`, "error");
     }
-  }
-
-  function mirrorAngle<T extends number | undefined>(degrees: T): T {
-    return (degrees === undefined ? undefined : 180 - degrees) as T;
-  }
-
-  function mirrorHeading(heading: Heading): Heading {
-    switch (heading.type) {
-      case "linear":
-        return {
-          type: "linear",
-          startDeg: mirrorAngle(heading.startDeg),
-          endDeg: mirrorAngle(heading.endDeg),
-        };
-      case "constant":
-        return { type: "constant", degrees: mirrorAngle(heading.degrees) };
-      // Mirroring the path also mirrors its tangent, so the reverse flag holds.
-      case "tangential":
-        return heading;
-      case "piecewise":
-        return {
-          type: "piecewise",
-          piecewiseHeading: {
-            ...heading.piecewiseHeading,
-            segments: (heading.piecewiseHeading?.segments ?? []).map(
-              (segment) => {
-                const parameters = segment.parameters;
-                if (!parameters) return segment;
-                return {
-                  ...segment,
-                  parameters: {
-                    ...parameters,
-                    startDeg: mirrorAngle(parameters.startDeg),
-                    endDeg: mirrorAngle(parameters.endDeg),
-                    degrees: mirrorAngle(parameters.degrees),
-                    point: parameters.point && {
-                      ...parameters.point,
-                      x: FIELD_SIZE - parameters.point.x,
-                    },
-                  },
-                };
-              },
-            ),
-          },
-        };
-    }
-  }
-
-  /** Mirror the paths across the field's vertical center line. Obstacles stay put. */
-  function mirrorPathData(data: ProjectDoc): ProjectDoc {
-    const mirrored: ProjectDoc = structuredClone(data);
-
-    if (mirrored.startPoint) {
-      mirrored.startPoint.x = FIELD_SIZE - mirrored.startPoint.x;
-      mirrored.startPoint.headingDeg = mirrorAngle(mirrored.startPoint.headingDeg);
-    }
-
-    const mirrorPaths = (paths: Path[]) => {
-      for (const path of paths) {
-        if (path.heading) path.heading = mirrorHeading(path.heading);
-
-        if (path.kind === "compound") {
-          mirrorPaths(path.segments);
-          continue;
-        }
-
-        if (path.endPoint) path.endPoint.x = FIELD_SIZE - path.endPoint.x;
-        for (const controlPoint of path.controlPoints ?? []) {
-          controlPoint.x = FIELD_SIZE - controlPoint.x;
-        }
-      }
-    };
-    mirrorPaths(mirrored.lines ?? []);
-
-    return mirrored;
   }
 
   onMount(() => {
@@ -457,7 +359,6 @@
       onRename={renameFile}
       onDelete={deleteFile}
       onDuplicate={duplicateFile}
-      onDuplicateAndMirror={duplicateAndMirrorFile}
       onOverwrite={saveCurrentToFile}
       onNew={createNewFile}
       onDownload={downloadCurrentToDisk}

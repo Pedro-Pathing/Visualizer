@@ -108,20 +108,20 @@ used for two `scaleLinear` calls.
 
 These are worth fixing on their own, whatever happens with this plan.
 
-- [ ] Robot animation doesn't follow through-point curves (problem 4 above).
-- [ ] `selectedLineIndex = lines.length - 1` assigns to a `$derived` (`App.svelte:1651`), so the
+- [x] Robot animation doesn't follow through-point curves (problem 4 above).
+- [x] `selectedLineIndex = lines.length - 1` assigns to a `$derived` (`App.svelte:1651`), so the
       selection doesn't update after a double-click.
-- [ ] `commitPenStroke` and `createPathBetweenSelectedPoints` use a top-level `findIndex`, which
+- [x] `commitPenStroke` and `createPathBetweenSelectedPoints` use a top-level `findIndex`, which
       returns -1 for paths nested in a group.
-- [ ] Loading a file doesn't reset or record history, so undo after a load can jump back into the
+- [x] Loading a file doesn't reset or record history, so undo after a load can jump back into the
       file that was open before.
-- [ ] Panel resizing and settings edits go on the undo stack.
-- [ ] Mirror-duplicate (`FileManager.svelte:787`) doesn't mirror `throughPoints` or obstacles.
+- [x] Panel resizing and settings edits go on the undo stack.
+- [x] Mirror-duplicate (`FileManager.svelte:787`) doesn't mirror `throughPoints` or obstacles.
       Its rule (`FIELD_SIZE - x`, `180 - deg`) already matches Pedro 3.0.2's `mirrorX(70.75)`
       (decision 3). Only the parts it skips are wrong.
-- [ ] `DEFAULT_SETTINGS.experimentalFeatures` doesn't include `obstacles`.
-- [ ] `perf.ts` is enabled by default.
-- [ ] The session snapshot leaves out `fieldPoints` and the multi-path list.
+- [x] `DEFAULT_SETTINGS.experimentalFeatures` doesn't include `obstacles`.
+- [x] `perf.ts` is enabled by default.
+- [x] The session snapshot leaves out `fieldPoints` and the multi-path list.
 
 ---
 
@@ -574,9 +574,10 @@ Changes in 7a to call out:
 - **Save** writes to the open file and only asks for a name when there isn't one yet.
 - **Through-curves** run from the palette. The tension input is gone because it never changed
   the curve.
-- **Duplicate mirrored** stays in the file manager and isn't in the File menu yet. Its mirroring
-  lives in `FileManager.svelte` rather than in a `model/mirror.ts` checked against Pedro's
-  `mirrorX` (decision 3).
+- **Duplicate mirrored** moved from the file manager to the File menu and works on the open
+  project. It uses `model/mirror.ts`, which covers through-points, piecewise headings, obstacles
+  and field points. `test/mirror.test.ts` checks it against exporting with `mirrorX`
+  (decision 3).
 
 Changes in 7b to call out:
 

@@ -62,6 +62,7 @@ export const DEFAULT_SETTINGS: Settings = {
   experimentalFeatures: {
     optimize: false,
     curveThrough: false,
+    obstacles: false,
   },
 };
 

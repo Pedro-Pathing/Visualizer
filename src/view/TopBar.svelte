@@ -29,6 +29,7 @@
       "file.save",
       "file.saveAs",
       "file.rename",
+      "file.mirror",
       "separator",
       "app.palette",
     ),

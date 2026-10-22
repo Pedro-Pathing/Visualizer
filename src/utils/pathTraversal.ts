@@ -340,21 +340,38 @@ export function movePath(
           : node,
       );
 
-  const insert = (nodes: Path[]): Path[] => {
+  return insertPaths(remove(paths), targetId, position, [dragged]);
+}
+
+/**
+ * Insert `added` directly before or after `targetId`, inside whichever group
+ * holds it. Returns the original array unchanged when the target is not found.
+ */
+export function insertPaths(
+  paths: Path[],
+  targetId: string,
+  position: "before" | "after",
+  added: Path[],
+): Path[] {
+  let inserted = false;
+
+  const walk = (nodes: Path[]): Path[] => {
     const index = nodes.findIndex((node) => node.id === targetId);
     if (index >= 0) {
+      inserted = true;
       const next = [...nodes];
-      next.splice(position === "before" ? index : index + 1, 0, dragged);
+      next.splice(position === "before" ? index : index + 1, 0, ...added);
       return next;
     }
     return nodes.map((node) =>
       node.kind === "compound"
-        ? { ...node, segments: insert(node.segments) }
+        ? { ...node, segments: walk(node.segments) }
         : node,
     );
   };
 
-  return insert(remove(paths));
+  const next = walk(paths);
+  return inserted ? next : paths;
 }
 
 /**
