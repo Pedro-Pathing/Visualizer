@@ -478,14 +478,9 @@ img[alt="Robot"] {
   background: var(--bridge-hover);
 }
 
-.file-row--primary,
-.file-row--secondary {
+.file-row--primary {
   border-left-color: var(--color-primary);
   background: var(--bridge-accent-tint);
-}
-
-.file-row--secondary {
-  border-left-style: dashed;
 }
 
 .file-row-name,

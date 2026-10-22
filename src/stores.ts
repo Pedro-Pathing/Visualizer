@@ -30,5 +30,3 @@ export const snapToGrid = writable(true);
 
 // Multiple paths visualization stores
 export const activePaths = writable<string[]>([]);
-export const dualPathMode = writable(false); // Deprecated - kept for backwards compatibility
-export const secondFilePath = writable<string | null>(null); // Deprecated - kept for backwards compatibility

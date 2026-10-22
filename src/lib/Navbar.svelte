@@ -1,22 +1,10 @@
 <script lang="ts">
   import { run } from "svelte/legacy";
 
-  import type {
-    Path,
-    Shape,
-    Settings,
-    SequenceItem,
-    StartPose,
-  } from "../types";
+  import type { Settings } from "../types";
   import { createDefaultProject, type ProjectDoc } from "../io";
   import { onMount, onDestroy } from "svelte";
-  import {
-    showGrid,
-    gridSize,
-    currentFilePath,
-    dualPathMode,
-    activePaths,
-  } from "../stores";
+  import { showGrid, gridSize, currentFilePath, activePaths } from "../stores";
   import { useProject } from "../state/project.svelte";
   import FileManager from "./FileManager.svelte";
   import SettingsDialog from "./components/SettingsDialog.svelte";
@@ -33,12 +21,7 @@
   interface Props {
     loadFile: (evt: any) => any;
     currentProject: () => ProjectDoc;
-    secondProject: () => ProjectDoc;
     applyProject: (doc: ProjectDoc) => void;
-    secondStartPoint?: StartPose | null;
-    secondLines?: Path[];
-    secondShapes?: Shape[];
-    secondSequence?: SequenceItem[];
     percent?: number;
     prefs: Settings;
     saveProject: () => any;
@@ -57,12 +40,7 @@
   let {
     loadFile,
     currentProject,
-    secondProject,
     applyProject,
-    secondStartPoint = $bindable(null),
-    secondLines = $bindable([]),
-    secondShapes = $bindable([]),
-    secondSequence = $bindable([]),
     percent = 0,
     prefs = $bindable(),
     saveProject,
@@ -194,7 +172,6 @@
 
   function resetPath() {
     applyProject(createDefaultProject(project.doc.robot));
-    dualPathMode.set(false);
   }
 
   function handleResetPathWithConfirmation() {
@@ -257,12 +234,7 @@
   <FileManager
     bind:isOpen={fileManagerOpen}
     {currentProject}
-    {secondProject}
     {applyProject}
-    bind:secondStartPoint
-    bind:secondLines
-    bind:secondShapes
-    bind:secondSequence
   />
 {/if}
 

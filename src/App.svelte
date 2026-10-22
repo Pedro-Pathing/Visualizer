@@ -6,10 +6,7 @@
     BasePoint,
     Settings,
     PathListItem,
-    SequenceItem,
     SequencePathItem,
-    Shape,
-    StartPose,
   } from "./types";
   import * as d3 from "d3";
   import {
@@ -17,8 +14,6 @@
     gridSize,
     currentFilePath,
     showGrid,
-    dualPathMode,
-    secondFilePath,
     activePaths,
   } from "./stores";
   import Two from "two.js";
@@ -28,7 +23,6 @@
   import Navbar from "./lib/Navbar.svelte";
   import MathTools from "./lib/MathTools.svelte";
   import SaveDialog from "./lib/components/SaveDialog.svelte";
-  import DualPathSaveDialog from "./lib/components/DualPathSaveDialog.svelte";
   import ProgressDialog from "./lib/components/ProgressDialog.svelte";
   import RobotSprite from "./lib/components/RobotSprite.svelte";
   import PanelDivider from "./lib/components/PanelDivider.svelte";
@@ -144,7 +138,6 @@
     DEFAULT_ROBOT_HEIGHT,
     DEFAULT_SETTINGS,
     FIELD_SIZE,
-    getDefaultStartPoint,
   } from "./config";
   import {
     loadSettings,
@@ -192,7 +185,6 @@
   let playing = $state(false);
   // Save dialog state
   let showSaveDialog = $state(false);
-  let showDualPathSaveDialog = $state(false);
   let isSaving = $state(false);
   // GIF export state
   let exportingGif = $state(false);
@@ -353,12 +345,6 @@
 
   let optimizingLineIds: Record<string, boolean> = {};
   let optimizingAll = $state(false);
-
-  // Second path data (for alliance coordination) - DEPRECATED, use additionalPaths
-  let secondStartPoint: StartPose | null = $state(null);
-  let secondLines: Path[] = $state([]);
-  let secondSequence: SequenceItem[] = $state([]);
-  let secondShapes: Shape[] = $state([]);
 
   // Multiple paths data (new system - supports up to 4 paths total)
   interface AdditionalPathData extends ProjectDoc {
@@ -571,17 +557,6 @@
     return { ...project.doc, activePaths: $activePaths };
   }
 
-  /** The dual-path second slot, saved with the primary's robot config. */
-  function secondProject(): ProjectDoc {
-    return {
-      ...currentProject(),
-      startPoint: secondStartPoint ?? getDefaultStartPoint(),
-      lines: secondLines,
-      shapes: secondShapes,
-      sequence: secondSequence,
-    };
-  }
-
   /** Open a document, starting a fresh undo history. */
   function applyProject(doc: ProjectDoc, options: { saved?: boolean } = {}) {
     project.load(doc, options);
@@ -607,17 +582,6 @@
 
   async function loadAdditionalPaths(paths: string[]) {
     const newAdditionalPaths: AdditionalPathData[] = [];
-
-    // Multi-path mode is isolated - turn off old dual path mode
-    if (paths.length > 0) {
-      dualPathMode.set(false);
-      secondStartPoint = null;
-      secondLines = [];
-      secondShapes = [];
-      secondSequence = [];
-      secondFilePath.set(null);
-    }
-
     const colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A"]; // Red, Teal, Blue, Salmon
 
     for (let i = 0; i < Math.min(paths.length, 4); i++) {
@@ -646,15 +610,6 @@
       project: currentProject(),
       settings,
       currentFilePath: $currentFilePath,
-      secondFilePath: $secondFilePath,
-      second: secondStartPoint
-        ? {
-            startPoint: secondStartPoint,
-            lines: secondLines,
-            sequence: secondSequence,
-            shapes: secondShapes,
-          }
-        : null,
     };
   }
 
@@ -666,20 +621,10 @@
     applyProject(snapshot.project, { saved: false });
 
     currentFilePath.set(snapshot.currentFilePath);
-    secondFilePath.set(snapshot.secondFilePath);
-
-    secondStartPoint = snapshot.second?.startPoint ?? null;
-    secondLines = snapshot.second?.lines ?? [];
-    secondSequence = snapshot.second?.sequence ?? [];
-    secondShapes = snapshot.second?.shapes ?? [];
-
     return true;
   }
 
-  let secondRobotXY: BasePoint = $state({ x: 0, y: 0 });
-  let secondRobotHeading: number = $state(0);
   const GHOST_COLOR = "#a78bfa"; // Light purple/lavender
-  const SECOND_PATH_COLOR = "#fca5a5"; // Light red/pink for the second robot
 
   let isLoaded = $state(false);
 
@@ -826,14 +771,7 @@
   onMount(() => {
     hotkeys("cmd+s, ctrl+s", function (event) {
       event.preventDefault();
-      if ($activePaths.length > 0) {
-        // Multiple paths mode - save all modified paths
-        showDualPathSaveDialog = true;
-      } else if ($dualPathMode && secondStartPoint && secondLines.length > 0) {
-        showDualPathSaveDialog = true;
-      } else {
-        showSaveDialog = true;
-      }
+      showSaveDialog = true;
     });
 
     return () => hotkeys.unbind("cmd+s, ctrl+s");
@@ -855,11 +793,9 @@
 
     // Check if we have paths to export
     const hasActivePaths = $activePaths.length > 0;
-    const hasDualPath =
-      $dualPathMode && secondStartPoint && secondLines.length > 0;
     const hasSinglePath = lines.length > 0;
 
-    if (!hasActivePaths && !hasDualPath && !hasSinglePath) {
+    if (!hasActivePaths && !hasSinglePath) {
       alert("No paths to export. Please create a path first.");
       return;
     }
@@ -891,15 +827,11 @@
 
       const totalDuration = computeGifDuration({
         hasActivePaths,
-        hasDualPath: Boolean(hasDualPath),
         additionalPaths,
         startPoint,
         lines,
         sequence,
         settings,
-        secondStartPoint,
-        secondLines,
-        secondSequence,
       });
 
       if (totalDuration <= 0) {
@@ -959,7 +891,6 @@
       const pathLineWidth = pathLayerLineWidth(toX);
 
       if ($activePaths.length === 0) {
-        // Main path is visible (single or dual-path mode).
         drawPathLayer(baseCtx, {
           startPoint,
           paths: lines,
@@ -968,18 +899,6 @@
           lineWidth: pathLineWidth,
           opacity: settings.pathOpacity ?? 1,
         });
-
-        if ($dualPathMode && secondStartPoint && secondLines.length > 0) {
-          drawPathLayer(baseCtx, {
-            startPoint: secondStartPoint,
-            paths: secondLines,
-            toX,
-            toY,
-            lineWidth: pathLineWidth,
-            color: SECOND_PATH_COLOR,
-            opacity: settings.pathOpacity ?? 1,
-          });
-        }
       } else {
         // Multi-path mode: draw only the additional paths.
         additionalPaths.forEach((pathData) => {
@@ -1013,9 +932,6 @@
           // Foreground robots.
           if ($activePaths.length === 0) {
             drawRobot(ctx, robotXY, robotHeading, 1);
-            if ($dualPathMode && secondStartPoint && secondLines.length > 0) {
-              drawRobot(ctx, secondRobotXY, secondRobotHeading, 0.8);
-            }
             return;
           }
 
@@ -1054,11 +970,7 @@
       gifExportStatus = "Saving file...";
 
       // Download the GIF
-      const fileName = resolveGifFileName(
-        $currentFilePath,
-        hasActivePaths,
-        Boolean(hasDualPath),
-      );
+      const fileName = resolveGifFileName($currentFilePath, hasActivePaths);
 
       downloadBlob(blob, `${fileName}.gif`);
 
@@ -1131,25 +1043,16 @@
     if (ghostPathElement) {
       two.add(ghostPathElement);
     }
-    if (secondGhostPathElement) {
-      two.add(secondGhostPathElement);
-    }
     if (additionalGhostPathElements.length > 0) {
       two.add(...additionalGhostPathElements);
     }
     if (onionLayerElements.length > 0) {
       two.add(...onionLayerElements);
     }
-    if (secondOnionLayerElements.length > 0) {
-      two.add(...secondOnionLayerElements);
-    }
     if (penGhostPath.length > 0) {
       two.add(...penGhostPath);
     }
     two.add(...path);
-    if ($dualPathMode && secondPath.length > 0) {
-      two.add(...secondPath);
-    }
     // Add all additional paths
     if ($activePaths.length > 0) {
       additionalPathElements.forEach((pathElements) => {
@@ -1174,7 +1077,7 @@
    * Coalesce the reactive "commit" of a drag into a single per-frame step.
    *
    * Dragging fires several mousemove events per animation frame. Reassigning
-   * reactive arrays (lines, secondLines, additionalPaths, shapes) inside the
+   * reactive arrays (lines, additionalPaths, shapes) inside the
    * handler triggers a full reactive cascade — path-time recompute, scene
    * rebuild, etc. — for *every* event. We mutate the model immediately (so the
    * data is always current) but only reassign the arrays once per frame, which
@@ -1374,11 +1277,7 @@
 
         ref.point.x = inchX;
         ref.point.y = inchY;
-        if (ref.container === "second") {
-          scheduleDragCommit(() => {
-            secondLines = [...secondLines];
-          });
-        } else if (ref.container === "additional") {
+        if (ref.container === "additional") {
           scheduleDragCommit(() => {
             additionalPaths = [...additionalPaths];
           });
@@ -1392,7 +1291,6 @@
         if (
           (hoveredRef?.container === "main" && !isLockedPathElem(hovered)) ||
           pointRegistry.segmentAt(elem?.id) !== null ||
-          hoveredRef?.container === "second" ||
           hoveredRef?.container === "additional" ||
           (settings?.experimentalFeatures?.obstacles &&
             hoveredRef?.container === "shapes")
@@ -1935,6 +1833,7 @@
       const { fileName } = event.detail;
       isSaving = true;
       try {
+        await saveAllAdditionalPaths();
         // Create a full file path with .pp extension if not present
         const fullFileName = fileName.endsWith(".pp")
           ? fileName
@@ -1962,44 +1861,8 @@
 
     window.addEventListener("save", handleSaveDialog);
 
-    // Handle dual path save dialog event
-    const handleDualPathSave = async (event: any) => {
-      const { target } = event.detail;
-      isSaving = true;
-      try {
-        await saveAllAdditionalPaths();
-        const saveFirst = target === "first" || target === "both";
-        const saveSecond = target === "second" || target === "both";
-        if (saveFirst && $currentFilePath) {
-          await browserFileStore.writeFile(
-            $currentFilePath,
-            serializeProject(currentProject()),
-          );
-        }
-        if (saveSecond && $secondFilePath) {
-          await browserFileStore.writeFile(
-            $secondFilePath,
-            serializeProject(secondProject()),
-          );
-        }
-        if (saveFirst) project.markSaved();
-        showDualPathSaveDialog = false;
-      } catch (error) {
-        console.error("Dual path save failed:", error);
-        alert(
-          "Failed to save: " +
-            (error instanceof Error ? error.message : String(error)),
-        );
-      } finally {
-        isSaving = false;
-      }
-    };
-
-    window.addEventListener("saveDualPath", handleDualPathSave);
-
     return () => {
       window.removeEventListener("save", handleSaveDialog);
-      window.removeEventListener("saveDualPath", handleDualPathSave);
     };
   });
   // Robot state
@@ -2101,17 +1964,6 @@
   let animationDuration = $derived(
     getAnimationDuration(timePrediction.totalTime / 1000),
   );
-  // Second path timeline (for dual path mode)
-  let secondTimePrediction = $derived(
-    $dualPathMode && secondStartPoint && secondLines.length > 0
-      ? calculateVisualizationPathTime(
-          secondStartPoint,
-          secondLines,
-          settings,
-          secondSequence,
-        )
-      : null,
-  );
   // Calculate max duration across all paths for playbar scaling
   let effectiveAnimationDuration = $derived(
     (() => {
@@ -2136,14 +1988,7 @@
           : animationDuration;
       }
 
-      // In normal/dual mode, check main path and second path
-      let maxTime = timePrediction.totalTime;
-
-      if ($dualPathMode && secondTimePrediction) {
-        maxTime = Math.max(maxTime, secondTimePrediction.totalTime);
-      }
-
-      return getAnimationDuration(maxTime / 1000);
+      return animationDuration;
     })(),
   );
   let pathPreviewItems = $derived.by(() => {
@@ -2232,17 +2077,6 @@
       ...(settings?.experimentalFeatures?.obstacles
         ? buildObstacleVertexMarkers(shapes, scales, registry)
         : []),
-      // Second path points (dual path mode) - not in multi-path mode
-      ...(!isMultiPathMode &&
-      $dualPathMode &&
-      secondStartPoint &&
-      secondLines.length > 0
-        ? buildPathPointMarkers(secondStartPoint, secondLines, scales, {
-            idPrefix: "second-point",
-            registry,
-            container: "second",
-          })
-        : []),
       // All control points for additional paths (full editing support)
       ...(isMultiPathMode
         ? additionalPaths.flatMap((pathData, pathIdx) =>
@@ -2271,25 +2105,6 @@
   let pointRegistry = $derived(scene.registry);
   let points = $derived(scene.pointElements);
   let path = $derived(scene.pathElements);
-  // Second path rendering (for dual path mode); not shown in multi-path mode
-  let secondPath = $derived(
-    isMultiPathMode ||
-      !$dualPathMode ||
-      !secondStartPoint ||
-      secondLines.length === 0
-      ? []
-      : buildPathElements(
-          {
-            startPoint: secondStartPoint,
-            lines: secondLines,
-            idPrefix: "second-line",
-          },
-          scales,
-          settings,
-          pointRegistry,
-          "second",
-        ),
-  );
   // Render all additional paths; only slight opacity variation between them
   let additionalPathElements = $derived(
     additionalPaths.map((pathData, pathIdx) =>
@@ -2377,25 +2192,6 @@
         )
       : null,
   );
-  // Second ghost path for dual path mode
-  let secondGhostPathElement = $derived(
-    !isMultiPathMode &&
-      $dualPathMode &&
-      settings.showGhostPaths &&
-      secondLines.length > 0 &&
-      secondStartPoint
-      ? buildGhostPath(
-          generateGhostPathPoints(
-            secondStartPoint,
-            secondLines,
-            settings.rWidth,
-            50,
-          ),
-          { id: "ghost-path-2", color: SECOND_PATH_COLOR },
-          scales,
-        )
-      : null,
-  );
   // Ghost paths for additional paths in multi-path mode
   let additionalGhostPathElements = $derived(
     isMultiPathMode && settings.showGhostPaths
@@ -2439,33 +2235,6 @@
               id: `onion-layer-${idx}`,
               color: settings.onionColor || "#dc2626",
             },
-            scales,
-          ),
-        )
-      : [],
-  );
-  // Second onion layers for dual path mode
-  let secondOnionLayerElements = $derived(
-    !isMultiPathMode &&
-      $dualPathMode &&
-      settings.showOnionLayers &&
-      secondLines.length > 0 &&
-      secondStartPoint
-      ? selectVisibleOnionLayers(
-          generateOnionLayers(
-            secondStartPoint,
-            secondLines,
-            settings.rWidth,
-            settings.rHeight,
-            settings.onionLayerSpacing || 6,
-          ),
-          secondTimePrediction,
-          percent,
-          settings.onionNextPointOnly,
-        ).map((layer, idx) =>
-          buildOnionLayer(
-            layer.corners,
-            { id: `second-onion-layer-${idx}`, color: SECOND_PATH_COLOR },
             scales,
           ),
         )
@@ -2520,47 +2289,6 @@
       robotXY = { x: x(startPoint.x), y: y(startPoint.y) };
       robotT = null;
       robotHeading = -startPoint.headingDeg;
-    }
-  });
-  // Second robot state calculation (for dual path mode)
-  $effect.pre(() => {
-    // Don't show second robot in multi-path mode
-    if (
-      $activePaths.length === 0 &&
-      $dualPathMode &&
-      timePrediction &&
-      secondTimePrediction &&
-      secondTimePrediction.timeline &&
-      secondLines.length > 0 &&
-      secondStartPoint
-    ) {
-      // Calculate actual percent for this path based on max duration
-      const maxDuration = effectiveAnimationDuration;
-      const thisDuration = getAnimationDuration(
-        secondTimePrediction.totalTime / 1000,
-      );
-      const completionPercent = (thisDuration / maxDuration) * 100;
-
-      // If this path should be complete, cap at 100% (robot waits at end)
-      const actualPercent = Math.min(percent, completionPercent);
-      const normalizedPercent =
-        completionPercent > 0 ? (actualPercent / completionPercent) * 100 : 0;
-
-      const state = calculateRobotState(
-        normalizedPercent,
-        secondTimePrediction.timeline,
-        secondLines,
-        secondStartPoint,
-        settings,
-        x,
-        y,
-      );
-      secondRobotXY = { x: state.x, y: state.y };
-      secondRobotHeading = state.heading;
-    } else {
-      // Fallback or not in dual mode
-      secondRobotXY = { x: 0, y: 0 };
-      secondRobotHeading = 0;
     }
   });
   run(() => {
@@ -2639,16 +2367,12 @@
       two,
       shapeElements,
       ghostPathElement,
-      secondGhostPathElement,
       additionalGhostPathElements,
       onionLayerElements,
-      secondOnionLayerElements,
       penGhostPath,
       path,
-      secondPath,
       additionalPathElements,
       points,
-      $dualPathMode,
       $activePaths,
     ];
     void sceneDeps;
@@ -2674,12 +2398,7 @@
 {:else}
   <Navbar
     {currentProject}
-    {secondProject}
     {applyProject}
-    bind:secondStartPoint
-    bind:secondLines
-    bind:secondShapes
-    bind:secondSequence
     bind:prefs
     {percent}
     {saveProject}
@@ -2702,7 +2421,6 @@
     fileName={pathStem($currentFilePath) || "my_path"}
   />
 
-  <DualPathSaveDialog bind:isOpen={showDualPathSaveDialog} />
 
   <ProgressDialog
     isOpen={exportingGif}
@@ -2819,22 +2537,6 @@
                 arrowId="arrowhead-main"
                 showTValue={settings.showCurrentTValue}
                 tValue={robotT}
-                onImageSettled={() => (robotImageLoaded = true)}
-              />
-            {/if}
-            <!-- Second robot: only show in dual path mode (not multi-path mode) -->
-            {#if !isMultiPathMode && $dualPathMode}
-              <RobotSprite
-                xy={secondRobotXY}
-                heading={secondRobotHeading}
-                widthPx={x(robotWidth)}
-                heightPx={x(robotHeight)}
-                {settings}
-                alt="Robot 2"
-                zIndex={19}
-                arrowZIndex={19}
-                opacity={0.8}
-                arrowId="arrowhead-second"
                 onImageSettled={() => (robotImageLoaded = true)}
               />
             {/if}

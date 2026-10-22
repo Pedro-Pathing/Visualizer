@@ -113,7 +113,6 @@ export function createImageLoader() {
 
 export interface GifDurationInputs {
   hasActivePaths: boolean;
-  hasDualPath: boolean;
   additionalPaths: {
     startPoint: StartPose | null;
     lines: Path[];
@@ -124,9 +123,6 @@ export interface GifDurationInputs {
   lines: Path[];
   sequence: SequenceItem[];
   settings: Settings;
-  secondStartPoint: StartPose | null;
-  secondLines: Path[];
-  secondSequence: SequenceItem[];
 }
 
 /** Total animation seconds to capture, taking the longest path in multi modes. */
@@ -142,24 +138,6 @@ export function computeGifDuration(input: GifDurationInputs): number {
       );
       return Math.max(longest, pathTime?.totalTime || 0);
     }, 0);
-  }
-
-  if (input.hasDualPath) {
-    const path1Time = calculatePathTime(
-      input.startPoint,
-      input.lines,
-      input.settings,
-      input.sequence,
-    );
-    const path2Time = input.secondStartPoint
-      ? calculatePathTime(
-          input.secondStartPoint,
-          input.secondLines,
-          input.settings,
-          input.secondSequence,
-        )
-      : { totalTime: 0 };
-    return Math.max(path1Time?.totalTime || 0, path2Time?.totalTime || 0);
   }
 
   const pathTime = calculatePathTime(
@@ -201,11 +179,9 @@ export function createRobotDrawer(
 export function resolveGifFileName(
   currentFilePath: string | null,
   hasActivePaths: boolean,
-  hasDualPath: boolean,
 ): string {
   if (currentFilePath) return pathStem(currentFilePath);
   if (hasActivePaths) return "multiple_paths";
-  if (hasDualPath) return "dual_path";
   return "path_animation";
 }
 

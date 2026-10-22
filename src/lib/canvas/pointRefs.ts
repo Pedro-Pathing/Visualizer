@@ -2,7 +2,7 @@ import type { BasePoint } from "../../types";
 import { FIELD_SIZE } from "../../config/defaults";
 
 /** Which state container a dragged point lives in, so callers know what to reassign. */
-export type PointContainer = "shapes" | "second" | "additional" | "main";
+export type PointContainer = "shapes" | "additional" | "main";
 
 export interface PointRef {
   point: BasePoint;

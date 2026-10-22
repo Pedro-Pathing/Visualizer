@@ -3,16 +3,9 @@
 
   import { cubicInOut } from "svelte/easing";
   import { fade, fly } from "svelte/transition";
-  import type {
-    FileInfo,
-    Heading,
-    Path,
-    Shape,
-    SequenceItem,
-    StartPose,
-  } from "../types";
+  import type { FileInfo, Heading, Path } from "../types";
   import * as browserFileStore from "../utils/browserFileStore";
-  import { currentFilePath, dualPathMode, secondFilePath } from "../stores";
+  import { currentFilePath } from "../stores";
   import { useProject } from "../state/project.svelte";
   import {
     createDefaultProject,
@@ -36,28 +29,14 @@
   interface Props {
     isOpen?: boolean;
     currentProject: () => ProjectDoc;
-    secondProject: () => ProjectDoc;
     applyProject: (doc: ProjectDoc) => void;
-    secondStartPoint?: StartPose | null;
-    secondLines?: Path[];
-    secondShapes?: Shape[];
-    secondSequence?: SequenceItem[];
   }
 
-  let {
-    isOpen = $bindable(false),
-    currentProject,
-    secondProject,
-    applyProject,
-    secondStartPoint = $bindable(null),
-    secondLines = $bindable([]),
-    secondShapes = $bindable([]),
-    secondSequence = $bindable([]),
-  }: Props = $props();
+  let { isOpen = $bindable(false), currentProject, applyProject }: Props =
+    $props();
 
   const project = useProject();
   let files: FileInfo[] = $state([]);
-  let selectedFile2: FileInfo | null = $state(null);
   let loading = $state(false);
   let newFileName = $state("");
   let creatingNewFile = $state(false);
@@ -202,12 +181,9 @@
       // state, so switching to the renamed path cannot discard unsaved edits.
       const renamingPrimary =
         (selectedFile?.path ?? $currentFilePath) === renamingFile.path;
-      const renamingSecondary = selectedFile2?.path === renamingFile.path;
       let currentContent: string | null = null;
-      if (renamingPrimary || renamingSecondary) {
-        currentContent = serializeProject(
-          renamingPrimary ? currentProject() : secondProject(),
-        );
+      if (renamingPrimary) {
+        currentContent = serializeProject(currentProject());
         await browserFileStore.writeFile(renamingFile.path, currentContent);
       }
 
@@ -240,15 +216,6 @@
           };
           currentFilePath.set(newFilePath);
           project.markSaved();
-        }
-
-        if (selectedFile2 && selectedFile2.path === renamingFile.path) {
-          selectedFile2 = {
-            ...selectedFile2,
-            name: newFileName,
-            path: newFilePath,
-          };
-          secondFilePath.set(newFilePath);
         }
 
         showToast(`Renamed to: ${newFileName}`, "success");
@@ -297,34 +264,6 @@
     selectedFile = file;
 
     showToast(`Loaded: ${file.name}`, "success");
-  }
-
-  /** In dual-path mode a file that is not already open loads into the second slot. */
-  function activateFile(file: FileInfo) {
-    if (
-      $dualPathMode &&
-      selectedFile2?.path !== file.path &&
-      selectedFile?.path !== file.path
-    ) {
-      loadSecondFile(file);
-    } else {
-      loadFile(file);
-    }
-  }
-
-  async function loadSecondFile(file: FileInfo) {
-    const doc = await readPathFile(file);
-    if (!doc) return;
-
-    secondStartPoint = doc.startPoint;
-    secondLines = doc.lines;
-    secondShapes = doc.shapes;
-    secondSequence = doc.sequence;
-
-    secondFilePath.set(file.path);
-    selectedFile2 = file;
-
-    showToast(`Loaded second path: ${file.name}`, "success");
   }
 
   async function saveCurrentToFile() {
@@ -949,12 +888,11 @@
             <FileListItem
               {file}
               isPrimary={selectedFile?.path === file.path}
-              isSecondary={selectedFile2?.path === file.path}
               renaming={renamingFile?.path === file.path}
               bind:renameValue={renameInputValue}
               {formatFileSize}
               {formatDate}
-              onActivate={activateFile}
+              onActivate={loadFile}
               onStartRename={startRename}
               onConfirmRename={renameFile}
               onCancelRename={cancelRename}

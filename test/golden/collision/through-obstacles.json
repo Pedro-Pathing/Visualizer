@@ -1,0 +1,30 @@
+[
+  {
+    "lineId": "line-through-block",
+    "obstacle": {
+      "kind": "shape",
+      "shapeId": "shape-block"
+    },
+    "start": 1.442,
+    "end": 2.142,
+    "firstContact": {
+      "x": 51.002,
+      "y": 72,
+      "heading": 0
+    }
+  },
+  {
+    "lineId": "line-back-out",
+    "obstacle": {
+      "kind": "shape",
+      "shapeId": "shape-post"
+    },
+    "start": 8.443,
+    "end": 8.942,
+    "firstContact": {
+      "x": 103.154,
+      "y": 52.156,
+      "heading": 39.121
+    }
+  }
+]

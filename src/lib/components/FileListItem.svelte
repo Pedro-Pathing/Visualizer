@@ -8,7 +8,6 @@
   interface Props {
     file: FileInfo;
     isPrimary?: boolean;
-    isSecondary?: boolean;
     renaming?: boolean;
     renameValue?: string;
     formatFileSize: (bytes: number) => string;
@@ -23,7 +22,6 @@
   let {
     file,
     isPrimary = false,
-    isSecondary = false,
     renaming = false,
     renameValue = $bindable(""),
     formatFileSize,
@@ -53,7 +51,6 @@
   tabindex="0"
   aria-label={`Open ${file.name}`}
   class:file-row--primary={isPrimary}
-  class:file-row--secondary={isSecondary}
 >
   {#if renaming}
     <!-- Rename Input -->
