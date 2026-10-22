@@ -1,0 +1,39 @@
+{
+  "startPoint": {
+    "x": 56,
+    "y": 8,
+    "locked": false,
+    "headingDeg": 90
+  },
+  "lines": [
+    {
+      "id": "line-default-1",
+      "color": "#ffc516",
+      "name": "Path 1",
+      "locked": false,
+      "waitBeforeMs": 0,
+      "waitAfterMs": 0,
+      "waitBeforeName": "",
+      "waitAfterName": "",
+      "kind": "atomic",
+      "endPoint": {
+        "x": 56,
+        "y": 36
+      },
+      "controlPoints": [],
+      "heading": {
+        "type": "linear",
+        "startDeg": 90,
+        "endDeg": 180
+      }
+    }
+  ],
+  "shapes": [],
+  "sequence": [
+    {
+      "kind": "path",
+      "lineId": "line-default-1"
+    }
+  ],
+  "fieldPoints": []
+}

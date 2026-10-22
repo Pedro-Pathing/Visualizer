@@ -3,21 +3,19 @@
  *
  * These helpers let us see *where* the app is spending time without a profiler.
  * Each sampler aggregates call count + timing and logs a concise summary every
- * `reportIntervalMs`, so it won't spam the console. Enable/disable by setting
- * `localStorage.perfMonitor = "0"` to turn off, or "1" to force on (defaults to on).
+ * `reportIntervalMs`, so it won't spam the console. Off unless
+ * `localStorage.perfMonitor` is "1".
  */
 
 let enabled: boolean | null = null;
 export function perfEnabled(): boolean {
   if (enabled !== null) return enabled;
   try {
-    const stored =
-      typeof localStorage !== "undefined"
-        ? localStorage.getItem("perfMonitor")
-        : null;
-    enabled = stored === null ? true : stored === "1";
+    enabled =
+      typeof localStorage !== "undefined" &&
+      localStorage.getItem("perfMonitor") === "1";
   } catch {
-    enabled = true;
+    enabled = false;
   }
   return enabled;
 }

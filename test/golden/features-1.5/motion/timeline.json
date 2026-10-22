@@ -1,0 +1,86 @@
+{
+  "totalTime": 16.240474436008647,
+  "segmentTimes": [
+    1.8973665961010275,
+    2.2790935554840095,
+    2.2853312615692376,
+    3.2554142176394096,
+    3.978245577311501
+  ],
+  "totalDistance": 287.80727320452763,
+  "timeline": [
+    {
+      "type": "travel",
+      "duration": 1.8973665961010275,
+      "startTime": 0,
+      "endTime": 1.8973665961010275,
+      "lineId": "line-straight"
+    },
+    {
+      "type": "wait",
+      "name": "Path visualization wait",
+      "duration": 0.75,
+      "startTime": 1.8973665961010275,
+      "endTime": 2.6473665961010275,
+      "startHeading": 0,
+      "targetHeading": 0,
+      "atPoint": {
+        "x": 36,
+        "y": 60
+      }
+    },
+    {
+      "type": "wait",
+      "name": "Spin up",
+      "duration": 1,
+      "startTime": 2.6473665961010275,
+      "endTime": 3.6473665961010275,
+      "startHeading": 0,
+      "targetHeading": 0,
+      "atPoint": {
+        "x": 36,
+        "y": 60
+      }
+    },
+    {
+      "type": "travel",
+      "duration": 2.2790935554840095,
+      "startTime": 3.6473665961010275,
+      "endTime": 5.926460151585037,
+      "lineId": "line-quadratic"
+    },
+    {
+      "type": "travel",
+      "duration": 2.2853312615692376,
+      "startTime": 5.926460151585037,
+      "endTime": 8.211791413154273,
+      "lineId": "line-cubic"
+    },
+    {
+      "type": "travel",
+      "duration": 3.2554142176394096,
+      "startTime": 8.211791413154273,
+      "endTime": 11.467205630793682,
+      "lineId": "line-high-order"
+    },
+    {
+      "type": "wait",
+      "duration": 0.7950232279034621,
+      "startTime": 11.467205630793682,
+      "endTime": 12.262228858697144,
+      "startHeading": 67.85957550945037,
+      "targetHeading": -149.03624346792648,
+      "atPoint": {
+        "x": 120,
+        "y": 72
+      }
+    },
+    {
+      "type": "travel",
+      "duration": 3.978245577311501,
+      "startTime": 12.262228858697144,
+      "endTime": 16.240474436008647,
+      "lineId": "line-through"
+    }
+  ]
+}
