@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { fieldClass } from "./styles";
+
   interface Props {
     id: string;
     label: string;
@@ -23,7 +25,7 @@
     step = undefined,
     suffix = "",
     disabled = false,
-    inputClass = "console-input px-3 py-2",
+    inputClass = "",
     onInput,
   }: Props = $props();
 
@@ -72,15 +74,10 @@
 </script>
 
 <div>
-  <label
-    for={id}
-    class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1"
-  >
+  <label for={id} class="mb-1 block text-sm font-medium text-heading">
     {label}
     {#if description}
-      <div class="text-xs text-neutral-500 dark:text-neutral-400">
-        {description}
-      </div>
+      <div class="text-xs font-normal text-body">{description}</div>
     {/if}
   </label>
   <div
@@ -100,12 +97,10 @@
       onfocus={() => (focused = true)}
       onblur={handleBlur}
       onkeydown={handleKeydown}
-      class="{inputClass} focus:outline-none focus:ring-2 focus:ring-blue-500"
+      class={[fieldClass, inputClass]}
     />
     {#if suffix}
-      <span class="text-sm text-neutral-500 dark:text-neutral-400"
-        >{suffix}</span
-      >
+      <span class="text-sm text-body">{suffix}</span>
     {/if}
   </div>
 </div>

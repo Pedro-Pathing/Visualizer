@@ -450,10 +450,13 @@ Take the tokens and treatment, not the proportions:
 - **Robot heading arrow and playhead:** pink, to match.
 
 **Implementation.**
-1. Put the tokens in `app.css` and build a handful of Svelte primitives on them: Button,
-   IconButton, Input, NumberInput, Toggle, Panel, Menu, Kbd.
-2. Delete the `console-*` classes and the hard-coded hex values as each component moves over.
-   That covers most of the 1,061-line `app.css`.
+1. **Phase 2a:** put the tokens in `app.css` and build the primitives on them: `Button`,
+   `IconButton`, `Toggle`, plus the shared class strings in `ui/styles.ts` for inputs, surfaces
+   and sections. A bridge section redraws the 2.0 class names (`console-*`, `panel-box`, …) on
+   the tokens, so the current UI picks up the palette without its markup changing.
+2. **Phase 7:** each rebuilt component uses the primitives and drops its bridge classes and
+   hard-coded hex values. The light theme is switched on once nothing depends on the bridge;
+   2.0's dark-only markup can't be themed from a stylesheet.
 3. Long term, if several Pedro web apps keep sharing these tokens, they could live in one shared
    CSS file. For now the tokens are copied, and 2.5 moves to the shared component library once
    it's ready (decision 10).
@@ -505,16 +508,17 @@ PR, so:
 | 0. Safety net | **→ v3.** The fixtures and golden codegen tests become v3's conformance suite. | do |
 | 1. I/O pipeline | **→ v3.** We own the format for now. v3 migrates from it later. | do |
 | 2. Curve and sim | **→ v3.** Pure math. | do |
-| 7a. Tokens and primitives | **Tokens → v3.** The Svelte primitives are 2.5 only and get replaced by the shared component library. | do (biggest visible win per hour) |
+| 2a. Tokens and primitives | **Tokens → v3.** The Svelte primitives are 2.5 only and get replaced by the shared component library. | do (biggest visible win per hour) |
 | 3. ProjectStore | **Commands → v3** (pure functions). The rune store is 2.5 only. | do (what makes 2.5 stable) |
 | 5. View layer | 2.5 only | do: Two.js and d3 are dropped (decision 2) |
-| 7b. Decluttered layout | 2.5 only, but it previews v3's PathPlanner/Choreo-style layout. | do |
+| 7. Decluttered layout | 2.5 only, but it previews v3's PathPlanner/Choreo-style layout. | do |
 | 8. Collision checks | **→ v3.** Pure geometry over the sim. | do, behind the obstacles flag |
 | 4. Workspace | 2.5 only | **cut down:** delete dual mode, keep multi-path as overlays, no redesign |
-| 6. UI cleanup | 2.5 only | **folded** into 7a and 7b |
+| 6. UI cleanup | 2.5 only | **folded** into 2a and 7 |
 
-**Order:** 0, then 1, 2 and 7a in parallel, then 3, then 5 and 8 in parallel, then 7b, then
-4-lite.
+**Order:** 0, 1, 2, 2a, then 3, then 5 and 8 in parallel, then 7, then 4-lite. Phase 2a comes
+right after the core work because nothing blocks it, and every component rebuilt later can then
+be written against the new primitives once.
 
 **Portable core as a package.** `model/`, `sim/`, `io/` and `codegen/` are kept free of app
 imports from the start, so they can be moved into a workspace package (for example
@@ -529,20 +533,18 @@ from phase 0. Whether to actually publish it is up to the maintainers.
 | **0. Safety net** | Vitest. Golden tests for codegen (Java/Kotlin × modes × mirror) over fixture projects. Load round-trip tests. CI runs `check`, `lint`, `test` and `build` before the Vercel deploy. Turn perf logging off. | CI is green and gates deploys. | S |
 | **1. I/O pipeline** | `io/` with `parseProject`, `serializeProject` and migrations. Route all four loaders and all savers through it. Format `1.6.0` adds robot and motion config to the document (decision 1). The `FileStore` interface waits until a second backend (IndexedDB) needs it; until then `browserFileStore` is the only store. | One reader and one writer. Fixtures pass. | M |
 | **2. Curve and sim** | `model/curve.ts`, `model/sweep.ts`, `sim/`. Point the renderer, animation, GIF, optimizer and codegen at them. Delete the duplicated math in `animation.ts`. | The robot follows the drawn curve, with property tests comparing render samples to sim samples. **This changes visible behavior on purpose**, so call it out in release notes. | M |
+| **2a. Tokens and primitives** | The §2.9 tokens (both themes defined), Instrument Sans, Lucide, the Svelte primitives, the field palette and pink selection. The 2.0 components stay as they are: a bridge section in `app.css` redraws their class names on the tokens. Phase 7 rebuilds most of them anyway. | The app renders in the Pedro dark palette with no 2.0 component markup changed. | S |
 | **3. ProjectStore** | `state/project.svelte.ts`, commands, structural history, transactions. Move document state out of App. Replace `bind:` chains with store reads and commands. | `recordChange` and `$bindable` document props are gone. App loses ~800 lines. | L |
 | **4. Workspace** | Overlays replace dual and multi-path. Delete `second*`, `dualPathMode`, `secondFilePath`. | One code path for N robots. | M |
 | **5. View layer** | Viewport, SVG scene components, tool state machine, shortcut table. Remove Two.js, d3 and hotkeys-js. | App is a layout shell under 200 lines. | L |
 | **6. UI cleanup** | Toast/confirm service. Split FileManager into a list UI plus `FileStore`. Remove `svelte/legacy`. Use the shared icons. | No `alert`/`confirm`, no `run()`. | M |
-| **7a. Tokens and primitives** | The §2.9 tokens, light and dark themes with a toggle, Instrument Sans, Lucide, Shiki, and the Svelte primitives. Restyle the existing components without changing the layout. | No `console-*` classes or raw hex outside the field overlays. Both themes look right. | M |
-| **7b. Decluttered layout** | The §2.8 layout: File menu, view toggles on the field, tools-only toolbar with context menus, playback bar, selection-based inspector, layers panel, ⌘K palette, Settings split, opt-in auto-collapse. | No more than 12 always-visible controls. Every action has one home. | L |
+| **7. Decluttered layout** | The §2.8 layout: File menu, view toggles on the field, tools-only toolbar with context menus, playback bar, selection-based inspector, layers panel, ⌘K palette, Settings split, opt-in auto-collapse. Restyle the surviving dialogs (Settings, Export, file manager, save/name dialogs) on the primitives. Then switch on the light theme and its toggle, Shiki for code export (removing `svelte-highlight`), and the duck logo. | No more than 12 always-visible controls. Every action has one home. The `app.css` bridge and the old `icons/` components are gone. Both themes look right. | L |
 | **8. Collision checks** | §2.10: `model/collision.ts`, sampled over the sim timeline. Results show on the field, the playback bar and the layers panel. | Golden tests on fixture projects with known hits and misses. Recomputing doesn't drop frames while dragging. | M |
 
 Phases 1 and 2 don't depend on each other and can run in parallel. Phase 3 comes before 4 and 5.
-Phase 8 needs phase 2 (sim) and is easier to show after 5. Phase 7a has no dependencies and can
-start at any time. Doing it early means every component rebuilt in later phases is written
-against the primitives once and never restyled. Phase 7b needs phase 3 (the commands drive the
-palette and context menus) and phase 5 (tools). Some of 7b is just markup and can ship early: the
-playback bar, the File menu, and removing the duplicate controls.
+Phase 8 needs phase 2 (sim) and is easier to show after 5. Phase 7 needs phase 3 (the commands
+drive the palette and context menus) and phase 5 (tools). Some of 7 is just markup and can ship
+early: the playback bar, the File menu, and removing the duplicate controls.
 The open bugs from §1 can be fixed whenever convenient. The phase that touches each area deletes
 the buggy code anyway, so fix them early only where users are hitting them now.
 

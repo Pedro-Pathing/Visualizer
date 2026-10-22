@@ -10,17 +10,17 @@
   let {
     label,
     roomy = false,
-    valueClass = "font-medium text-gray-100",
+    valueClass = "font-medium text-heading tabular-nums",
     children,
   }: Props = $props();
 </script>
 
 <div
-  class="border border-[#333333] bg-[#1f1f1f] px-2"
-  class:py-1.5={!roomy}
-  class:py-2={roomy}
-  class:leading-tight={roomy}
+  class={[
+    "rounded-lg border border-border bg-base/60 px-2.5",
+    roomy ? "py-2 leading-tight" : "py-1.5",
+  ]}
 >
-  <div class="text-gray-500">{label}</div>
+  <div class="text-body">{label}</div>
   <div class={valueClass}>{@render children?.()}</div>
 </div>

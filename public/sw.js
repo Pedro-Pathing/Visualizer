@@ -1,7 +1,7 @@
 // IMPORTANT: bump this whenever you ship a new build. The service worker uses
 // cache-first for the JS/CSS bundle, so a stale cache (same VERSION) will keep
 // serving the previous build forever. Bumping forces old caches to be purged.
-const VERSION = "v5";
+const VERSION = "v6";
 const CACHE_NAME = `pedro-visualizer-${VERSION}`;
 
 const APP_STATIC_RESOURCES = [
@@ -15,10 +15,6 @@ const APP_STATIC_RESOURCES = [
   "/robot.png",
   "/assets/index.js",
   "/assets/index.css",
-  "/fonts/Poppins-Regular.ttf",
-  "/fonts/Poppins-SemiBold.ttf",
-  "/fonts/Poppins-Light.ttf",
-  "/fonts/Poppins-ExtraLight.ttf",
 ];
 
 // On install, cache the static resources

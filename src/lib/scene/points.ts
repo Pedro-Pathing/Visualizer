@@ -10,8 +10,9 @@ import { atomicSegments, findSegmentById } from "../../utils/pathTraversal";
 import type { SceneScales } from "./types";
 
 const LABEL_FAMILY = "ui-sans-serif, system-ui, sans-serif";
-const SELECTED_LINE_STROKE = "#facc15";
-const SELECTED_POINT_STROKE = "#f59e0b";
+/** The brand pink, so selection stands apart from every path color. */
+const SELECTED_LINE_STROKE = "#fe55a2";
+const SELECTED_POINT_STROKE = "#ffffff";
 
 export interface PointSelection {
   lineId: string | null;

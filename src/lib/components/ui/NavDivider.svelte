@@ -1,4 +1,1 @@
-<div
-  class="h-6 border-l border-neutral-300 dark:border-neutral-700 mx-4"
-  aria-hidden="true"
-></div>
+<div class="mx-2 h-5 border-l border-border" aria-hidden="true"></div>
