@@ -1,35 +1,36 @@
 <script lang="ts">
-  import type { Settings } from "../../../types";
+  import type { RobotConfig } from "../../../types";
   import { DEFAULT_SETTINGS } from "../../../config/defaults";
   import NumberField from "../ui/NumberField.svelte";
-  import {
-    clampNumberInput,
-    type NumericSettingKey,
-  } from "../../settings/numericSetting";
+  import { clampNumberInput } from "../../settings/numericSetting";
   import { showToast } from "../../toast";
+  import { updateRobot } from "../../../model/commands";
+  import { useProject } from "../../../state/project.svelte";
 
-  interface Props {
-    settings: Settings;
+  const project = useProject();
+  let settings = $derived(project.doc.robot);
+
+  let angularVelocityDisplay = $derived(settings.aVelocity / Math.PI);
+
+  function setRobot(patch: Partial<RobotConfig>, field: string) {
+    project.apply(updateRobot(patch), { coalesce: `robot.${field}` });
   }
-
-  let { settings = $bindable() }: Props = $props();
-
-  let angularVelocityDisplay = $derived(
-    settings ? settings.aVelocity / Math.PI : 1,
-  );
 
   function setNumber(
     value: string,
-    property: NumericSettingKey,
+    property: keyof RobotConfig,
     min?: number,
     max?: number,
   ) {
-    settings[property] = clampNumberInput(value, min, max);
+    setRobot({ [property]: clampNumberInput(value, min, max) }, property);
   }
 
   function setAngularVelocity(value: string) {
     const parsed = parseFloat(value);
-    settings.aVelocity = (Number.isNaN(parsed) ? 0 : parsed) * Math.PI;
+    setRobot(
+      { aVelocity: (Number.isNaN(parsed) ? 0 : parsed) * Math.PI },
+      "aVelocity",
+    );
   }
 
   function resetMotionParameters() {
@@ -41,17 +42,17 @@
       return;
     }
 
-    // Reassign so bind:settings propagates to the parent.
-    settings = {
-      ...settings,
-      xVelocity: DEFAULT_SETTINGS.xVelocity,
-      yVelocity: DEFAULT_SETTINGS.yVelocity,
-      aVelocity: DEFAULT_SETTINGS.aVelocity,
-      kFriction: DEFAULT_SETTINGS.kFriction,
-      maxVelocity: DEFAULT_SETTINGS.maxVelocity,
-      maxAcceleration: DEFAULT_SETTINGS.maxAcceleration,
-      maxDeceleration: DEFAULT_SETTINGS.maxDeceleration,
-    };
+    project.apply(
+      updateRobot({
+        xVelocity: DEFAULT_SETTINGS.xVelocity,
+        yVelocity: DEFAULT_SETTINGS.yVelocity,
+        aVelocity: DEFAULT_SETTINGS.aVelocity,
+        kFriction: DEFAULT_SETTINGS.kFriction,
+        maxVelocity: DEFAULT_SETTINGS.maxVelocity,
+        maxAcceleration: DEFAULT_SETTINGS.maxAcceleration,
+        maxDeceleration: DEFAULT_SETTINGS.maxDeceleration,
+      }),
+    );
     showToast("Motion parameters reset to defaults", "success");
   }
 </script>

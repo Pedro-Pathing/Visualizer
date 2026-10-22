@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "@fontsource-variable/instrument-sans";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

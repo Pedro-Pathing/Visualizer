@@ -1,4 +1,5 @@
 import type { Shape } from "../types";
+import { makeShapeId } from "./ids";
 
 /**
  * Shape creation factory functions
@@ -7,9 +8,9 @@ import type { Shape } from "../types";
 /**
  * Create a triangle shape at default position
  */
-export function createTriangle(existingShapesCount: number): Shape {
+export function createTriangle(): Shape {
   return {
-    id: `triangle-${existingShapesCount + 1}`,
+    id: makeShapeId(),
     name: "",
     vertices: [
       { x: 60, y: 60 },
@@ -26,7 +27,7 @@ export function createTriangle(existingShapesCount: number): Shape {
  */
 export function createRectangle(existingShapesCount: number): Shape {
   return {
-    id: `rectangle-${existingShapesCount + 1}`,
+    id: makeShapeId(),
     name: `Obstacle ${existingShapesCount + 1}`,
     vertices: [
       { x: 30, y: 30 },
@@ -57,7 +58,7 @@ export function createNGon(sides: number, existingShapesCount: number): Shape {
   }
 
   return {
-    id: `${sides}-gon-${existingShapesCount + 1}`,
+    id: makeShapeId(),
     name: `Obstacle ${existingShapesCount + 1}`,
     vertices,
     color: "#dc2626",

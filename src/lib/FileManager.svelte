@@ -12,12 +12,8 @@
     StartPose,
   } from "../types";
   import * as browserFileStore from "../utils/browserFileStore";
-  import {
-    currentFilePath,
-    isUnsaved,
-    dualPathMode,
-    secondFilePath,
-  } from "../stores";
+  import { currentFilePath, dualPathMode, secondFilePath } from "../stores";
+  import { useProject } from "../state/project.svelte";
   import {
     createDefaultProject,
     parseProject,
@@ -59,6 +55,7 @@
     secondSequence = $bindable([]),
   }: Props = $props();
 
+  const project = useProject();
   let files: FileInfo[] = $state([]);
   let selectedFile2: FileInfo | null = $state(null);
   let loading = $state(false);
@@ -108,7 +105,7 @@
       $currentFilePath,
       serializeProject(currentProject()),
     );
-    isUnsaved.set(false);
+    project.markSaved();
   }
 
   function handleExternalFileRename(event: Event) {
@@ -229,7 +226,7 @@
             path: newFilePath,
           };
           currentFilePath.set(newFilePath);
-          isUnsaved.set(false);
+          project.markSaved();
         }
 
         if (renamingPrimary && currentContent) {
@@ -242,7 +239,7 @@
             path: newFilePath,
           };
           currentFilePath.set(newFilePath);
-          isUnsaved.set(false);
+          project.markSaved();
         }
 
         if (selectedFile2 && selectedFile2.path === renamingFile.path) {
@@ -297,7 +294,6 @@
 
     applyProject(doc);
     currentFilePath.set(file.path);
-    isUnsaved.set(false);
     selectedFile = file;
 
     showToast(`Loaded: ${file.name}`, "success");
@@ -344,7 +340,7 @@
       );
       await refreshDirectory();
 
-      isUnsaved.set(false);
+      project.markSaved();
       showToast(`Saved: ${selectedFile.name}`, "success");
     } catch (error) {
       errorMessage = `Failed to save file: ${getErrorMessage(error)}`;
@@ -429,7 +425,6 @@
       selectedFile = files.find((f) => f.name === fileName) || null;
       if (selectedFile) {
         currentFilePath.set(selectedFile.path);
-        isUnsaved.set(false);
         showToast(`Created: ${fileName}`, "success");
       }
     } catch (error) {

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
   import PiecewiseHeadingEditor from "./PiecewiseHeadingEditor.svelte";
   import { createDefaultPiecewiseHeadingInterpolation } from "../../utils/headingInterpolation";
   import type {
@@ -11,15 +10,16 @@
   interface Props {
     heading: Heading;
     locked?: boolean;
+    onChange: (heading: Heading) => void;
   }
 
-  let { heading = $bindable(), locked = false }: Props = $props();
-  const dispatch = createEventDispatcher();
+  let { heading, locked = false, onChange }: Props = $props();
 
   /**
-   * A mutable editing view of a Heading.
+   * Every field any heading type uses. Switching type keeps the others, so
+   * switching back restores what was entered.
    */
-  type HeadingDraft = {
+  type HeadingFields = {
     type: HeadingType;
     startDeg?: number;
     endDeg?: number;
@@ -28,34 +28,27 @@
     piecewiseHeading?: PiecewiseHeadingInterpolation;
   };
 
-  function changeHeadingType(next: HeadingType) {
-    const draft: HeadingDraft = heading;
-    draft.type = next;
-
-    // Initialize missing properties based on the selected heading type
-    if (next === "constant" && draft.degrees === undefined) {
-      draft.degrees = 0;
-    } else if (next === "linear") {
-      if (draft.startDeg === undefined) draft.startDeg = 0;
-      if (draft.endDeg === undefined) draft.endDeg = 0;
-    } else if (next === "tangential") {
-      if (draft.reverse === undefined) draft.reverse = false;
-    } else if (next === "piecewise") {
-      if (!draft.piecewiseHeading) {
-        draft.piecewiseHeading = createDefaultPiecewiseHeadingInterpolation();
-      }
-    }
-    dispatch("change");
+  function update(patch: Partial<HeadingFields>) {
+    onChange({ ...(heading as HeadingFields), ...patch } as Heading);
   }
 
-  function setPiecewiseHeading(
-    next: PiecewiseHeadingInterpolation,
-    commit: boolean,
-  ) {
-    const draft: HeadingDraft = heading;
-    draft.piecewiseHeading = next;
-    dispatch("change");
-    if (commit) dispatch("commit");
+  function changeHeadingType(type: HeadingType) {
+    const current = heading as HeadingFields;
+    update({
+      type,
+      degrees: current.degrees ?? 0,
+      startDeg: current.startDeg ?? 0,
+      endDeg: current.endDeg ?? 0,
+      reverse: current.reverse ?? false,
+      piecewiseHeading:
+        current.piecewiseHeading ??
+        createDefaultPiecewiseHeadingInterpolation(),
+    });
+  }
+
+  function degreesFrom(input: HTMLInputElement): number {
+    const value = parseFloat(input.value);
+    return Number.isNaN(value) ? 0 : value;
   }
 </script>
 
@@ -86,9 +79,8 @@ With piecewise heading, the line is split into stretches that each use their own
       type="number"
       min="-180"
       max="180"
-      bind:value={heading.startDeg}
-      oninput={() => dispatch("change")}
-      onblur={() => dispatch("commit")}
+      value={heading.startDeg}
+      oninput={(e) => update({ startDeg: degreesFrom(e.currentTarget) })}
       title="The heading the robot starts this line at (in degrees)"
       disabled={locked}
     />
@@ -100,9 +92,8 @@ With piecewise heading, the line is split into stretches that each use their own
       type="number"
       min="-180"
       max="180"
-      bind:value={heading.endDeg}
-      oninput={() => dispatch("change")}
-      onblur={() => dispatch("commit")}
+      value={heading.endDeg}
+      oninput={(e) => update({ endDeg: degreesFrom(e.currentTarget) })}
       title="The heading the robot ends this line at (in degrees)"
       disabled={locked}
     />
@@ -117,28 +108,11 @@ With piecewise heading, the line is split into stretches that each use their own
       min="-180"
       max="180"
       value={heading.degrees || 0}
-      oninput={(e) => {
-        const value = parseFloat(e.currentTarget.value);
-        const draft: HeadingDraft = heading;
-        if (!isNaN(value)) {
-          draft.degrees = value;
-        } else {
-          // If empty or invalid, set to 0
-          draft.degrees = 0;
-          e.currentTarget.value = "0";
-        }
-        dispatch("change");
-      }}
+      oninput={(e) => update({ degrees: degreesFrom(e.currentTarget) })}
       onblur={(e) => {
-        if (
-          e.currentTarget.value === "" ||
-          isNaN(parseFloat(e.currentTarget.value))
-        ) {
-          const draft: HeadingDraft = heading;
-          draft.degrees = 0;
+        if (Number.isNaN(parseFloat(e.currentTarget.value))) {
           e.currentTarget.value = "0";
         }
-        dispatch("commit");
       }}
       title="The constant heading the robot maintains throughout this line (in degrees)"
       disabled={locked}
@@ -148,9 +122,8 @@ With piecewise heading, the line is split into stretches that each use their own
   <p class="text-sm font-extralight">Reverse:</p>
   <input
     type="checkbox"
-    bind:checked={heading.reverse}
-    onchange={() => dispatch("change")}
-    onblur={() => dispatch("commit")}
+    checked={heading.reverse}
+    onchange={(e) => update({ reverse: e.currentTarget.checked })}
     title="Reverse the direction the robot faces along the tangential path"
     disabled={locked}
   />
@@ -160,7 +133,7 @@ With piecewise heading, the line is split into stretches that each use their own
     <PiecewiseHeadingEditor
       config={heading.piecewiseHeading}
       {locked}
-      onConfigChange={setPiecewiseHeading}
+      onConfigChange={(piecewiseHeading) => update({ piecewiseHeading })}
     />
   </div>
 {/if}

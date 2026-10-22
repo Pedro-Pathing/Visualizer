@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { AtomicPath, BasePoint } from "../../types";
+  import type { AtomicPath, BasePoint, Heading } from "../../types";
   import { snapToGrid, showGrid, gridSize } from "../../stores";
   import { FIELD_SIZE } from "../../config";
   import HeadingControls from "./HeadingControls.svelte";
@@ -9,24 +9,27 @@
     selectedPoint: BasePoint;
     selectedPointIndex: number;
     selectedPointLabel: string;
-    onCommit: () => void;
-    onLinesChanged: () => void;
-    onRecordChange: () => void;
+    onPointChange: (patch: Partial<BasePoint>) => void;
+    onHeadingChange: (heading: Heading) => void;
     onDeleteControlPoint: () => void;
     onToggleLock: () => void;
   }
 
   let {
     selectedLine,
-    selectedPoint = $bindable(),
+    selectedPoint,
     selectedPointIndex = $bindable(),
     selectedPointLabel,
-    onCommit,
-    onLinesChanged,
-    onRecordChange,
+    onPointChange,
+    onHeadingChange,
     onDeleteControlPoint,
     onToggleLock,
   }: Props = $props();
+
+  function coordinate(input: HTMLInputElement): number | null {
+    const value = parseFloat(input.value);
+    return Number.isNaN(value) ? null : value;
+  }
 
   // Read the lock off the line so it tracks edits made through `lines`.
   let livePoint = $derived(
@@ -76,26 +79,32 @@
     <label class="flex flex-col gap-1">
       <span class="text-gray-500">X</span>
       <input
-        bind:value={selectedPoint.x}
+        value={selectedPoint.x}
         type="number"
         min="0"
         max={FIELD_SIZE}
         step={coordinateStep}
         class={FIELD_CLASS}
-        onchange={onCommit}
+        oninput={(e) => {
+          const x = coordinate(e.currentTarget);
+          if (x !== null) onPointChange({ x });
+        }}
         {disabled}
       />
     </label>
     <label class="flex flex-col gap-1">
       <span class="text-gray-500">Y</span>
       <input
-        bind:value={selectedPoint.y}
+        value={selectedPoint.y}
         type="number"
         min="0"
         max={FIELD_SIZE}
         step={coordinateStep}
         class={FIELD_CLASS}
-        onchange={onCommit}
+        oninput={(e) => {
+          const y = coordinate(e.currentTarget);
+          if (y !== null) onPointChange({ y });
+        }}
         {disabled}
       />
     </label>
@@ -109,11 +118,7 @@
       <HeadingControls
         heading={selectedLine.heading}
         locked={disabled}
-        on:change={onLinesChanged}
-        on:commit={() => {
-          onLinesChanged();
-          onRecordChange();
-        }}
+        onChange={onHeadingChange}
       />
     </div>
   {/if}

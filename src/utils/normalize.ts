@@ -10,13 +10,14 @@ import type {
   PiecewiseHeadingInterpolation,
   Point,
   SequenceItem,
+  Shape,
   StartPose,
 } from "../types";
 import { getRandomColor } from "./color";
 import { headingAngleAt } from "./headingInterpolation";
 import { atomicSegments } from "./pathTraversal";
 
-import { makePathId } from "./ids";
+import { makePathId, makeShapeId } from "./ids";
 
 export { makePathId };
 
@@ -203,6 +204,22 @@ export function normalizePaths(input: StoredPath[] = []): Path[] {
       heading: normalizeHeading(path),
     };
   });
+}
+
+/** Obstacles with a vertex list, each with an id no other obstacle shares. */
+export function normalizeShapes(input: unknown): Shape[] {
+  if (!Array.isArray(input)) return [];
+  const seen = new Set<string>();
+  return input
+    .filter((shape): shape is Shape => Array.isArray(shape?.vertices))
+    .map((shape) => {
+      const id =
+        typeof shape.id === "string" && !seen.has(shape.id)
+          ? shape.id
+          : makeShapeId();
+      seen.add(id);
+      return id === shape.id ? shape : { ...shape, id };
+    });
 }
 
 function toFieldPoint(value: unknown): FieldPoint | null {

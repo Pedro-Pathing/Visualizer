@@ -17,11 +17,7 @@
   interface Props {
     config: PiecewiseHeadingInterpolation;
     locked?: boolean;
-    /** `commit` marks an edit that should get its own undo entry. */
-    onConfigChange: (
-      next: PiecewiseHeadingInterpolation,
-      commit: boolean,
-    ) => void;
+    onConfigChange: (next: PiecewiseHeadingInterpolation) => void;
   }
 
   let { config, locked = false, onConfigChange }: Props = $props();
@@ -51,7 +47,7 @@
       !Array.isArray(config.segments) ||
       config.segments.length === 0
     ) {
-      onConfigChange(createDefaultPiecewiseHeadingInterpolation(), false);
+      onConfigChange(createDefaultPiecewiseHeadingInterpolation());
     }
   });
 
@@ -62,8 +58,8 @@
     validatePiecewiseHeadingInterpolation(config) || "",
   );
 
-  function commitConfig(next: PiecewiseHeadingInterpolation, commit = false) {
-    onConfigChange(normalizePiecewiseHeadingInterpolation(next), commit);
+  function commitConfig(next: PiecewiseHeadingInterpolation) {
+    onConfigChange(normalizePiecewiseHeadingInterpolation(next));
   }
 
   /** Null when the angle depends on path geometry the editor does not have. */
@@ -119,7 +115,7 @@
     const left = segmentTemplate(target, target.startProgress, progress);
     const right = segmentTemplate(target, progress, target.endProgress);
     normalized.segments.splice(index, 1, left, right);
-    commitConfig(normalized, true);
+    commitConfig(normalized);
     return true;
   }
 
@@ -139,7 +135,7 @@
     if (normalized.segments.length <= 1) return;
 
     normalized.segments.splice(index, 1);
-    commitConfig(normalized, true);
+    commitConfig(normalized);
   }
 
   function getProgressFromPointer(
@@ -184,7 +180,7 @@
       activeBoundaryIndex = null;
       window.removeEventListener("pointermove", moveHandler);
       window.removeEventListener("pointerup", upHandler);
-      if (moved) commitConfig(config, true);
+      if (moved) commitConfig(config);
     };
 
     window.addEventListener("pointermove", moveHandler);
@@ -228,7 +224,7 @@
     };
 
     // These fields fire on `change`, not `input`, so each call is a finished edit.
-    commitConfig(normalized, true);
+    commitConfig(normalized);
   }
 
   function updateSegmentStart(index: number, value: number) {
@@ -236,7 +232,7 @@
     const normalized = normalizePiecewiseHeadingInterpolation(config);
     if (index === 0) {
       normalized.segments[0].startProgress = 0;
-      commitConfig(normalized, true);
+      commitConfig(normalized);
       return;
     }
     const previous = normalized.segments[index - 1];
@@ -248,7 +244,7 @@
     );
     previous.endProgress = boundary;
     current.startProgress = boundary;
-    commitConfig(normalized, true);
+    commitConfig(normalized);
   }
 
   function updateSegmentEnd(index: number, value: number) {
@@ -258,7 +254,7 @@
     if (!current) return;
     if (index === normalized.segments.length - 1) {
       current.endProgress = 1;
-      commitConfig(normalized, true);
+      commitConfig(normalized);
       return;
     }
     const next = normalized.segments[index + 1];
@@ -268,7 +264,7 @@
     );
     current.endProgress = boundary;
     next.startProgress = boundary;
-    commitConfig(normalized, true);
+    commitConfig(normalized);
   }
 
   function setInterpolationType(

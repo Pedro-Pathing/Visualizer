@@ -6,6 +6,9 @@
   import MotionSettingsSection from "./settings/MotionSettingsSection.svelte";
   import RobotSettingsSection from "./settings/RobotSettingsSection.svelte";
   import { showToast } from "../toast";
+  import { robotConfigOf } from "../../io";
+  import { updateRobot } from "../../model/commands";
+  import { useProject } from "../../state/project.svelte";
   import { resetSettings } from "../../utils/settingsPersistence";
   import {
     AVAILABLE_FIELD_MAPS,
@@ -15,10 +18,13 @@
 
   interface Props {
     isOpen?: boolean;
-    settings: Settings;
+    /** Robot and motion settings belong to the project and are edited there. */
+    prefs: Settings;
   }
 
-  let { isOpen = $bindable(false), settings = $bindable() }: Props = $props();
+  let { isOpen = $bindable(false), prefs: settings = $bindable() }: Props =
+    $props();
+  const project = useProject();
 
   // Track which sections are collapsed
   let collapsedSections = $state({
@@ -27,17 +33,6 @@
     advanced: true,
     interface: true,
   });
-
-  // Get version from package. json
-  // Display value for angular velocity (user inputs this, gets multiplied by PI)
-  let angularVelocityDisplay = $derived(
-    settings ? settings.aVelocity / Math.PI : 1,
-  );
-
-  function handleAngularVelocityInput(value: string) {
-    const parsed = parseFloat(value);
-    settings.aVelocity = (Number.isNaN(parsed) ? 0 : parsed) * Math.PI;
-  }
 
   async function handleReset() {
     if (
@@ -48,6 +43,7 @@
       const defaultSettings = await resetSettings();
       // Reassign (rather than mutate) so the `bind:settings` prop propagates.
       settings = { ...settings, ...defaultSettings };
+      project.apply(updateRobot(robotConfigOf(defaultSettings)));
     }
   }
 
@@ -187,7 +183,7 @@
       collapsed={collapsedSections.motion}
       onToggle={() => (collapsedSections.motion = !collapsedSections.motion)}
     >
-      <MotionSettingsSection bind:settings />
+      <MotionSettingsSection />
     </CollapsibleSection>
 
     <!-- Field Settings Section -->

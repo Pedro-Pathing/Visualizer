@@ -8,8 +8,6 @@
     segmentCount: number;
     onNameInput: (name: string) => void;
     onHeadingOverrideChange: (heading: Heading | undefined) => void;
-    onLinesChanged: () => void;
-    onRecordChange: () => void;
     onUngroup: () => void;
   }
 
@@ -18,8 +16,6 @@
     segmentCount,
     onNameInput,
     onHeadingOverrideChange,
-    onLinesChanged,
-    onRecordChange,
     onUngroup,
   }: Props = $props();
 
@@ -60,7 +56,6 @@
         type="text"
         class="w-full bg-transparent font-medium text-gray-100 border-none outline-none focus:ring-1 focus:ring-green-500 rounded px-0 py-0.5"
         oninput={(e) => onNameInput(e.currentTarget.value)}
-        onchange={onRecordChange}
       />
     </div>
     <StatCell label="Direct children">
@@ -95,11 +90,7 @@
       <div class="flex items-center gap-2 flex-wrap text-[11px] text-gray-300">
         <HeadingControls
           heading={selectedGroup.heading}
-          on:change={onLinesChanged}
-          on:commit={() => {
-            onLinesChanged();
-            onRecordChange();
-          }}
+          onChange={onHeadingOverrideChange}
         />
       </div>
     {/if}

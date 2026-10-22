@@ -26,7 +26,6 @@ function createGridSizeStore() {
 
 export const gridSize = createGridSizeStore();
 export const currentFilePath = writable<string | null>(null);
-export const isUnsaved = writable(false);
 export const snapToGrid = writable(true);
 
 // Multiple paths visualization stores

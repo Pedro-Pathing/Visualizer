@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { AtomicPath, BasePoint, Settings } from "../../types";
+  import type { AtomicPath, BasePoint, Heading, Settings } from "../../types";
   import StatCell from "./ui/StatCell.svelte";
   import SelectedPointEditor from "./SelectedPointEditor.svelte";
 
@@ -13,13 +13,12 @@
     settings: Settings;
     curveTension: number;
     onNameInput: (name: string) => void;
-    onLinesChanged: () => void;
-    onRecordChange: () => void;
     onCurveFromSelected: (tension: number) => void;
     onDeleteSelectedLine: () => void;
     onDeleteControlPoint: () => void;
     onToggleLock: () => void;
-    onCommitPointChange: () => void;
+    onPointChange: (patch: Partial<BasePoint>) => void;
+    onHeadingChange: (heading: Heading) => void;
     onVisualizationWaitChange: (durationMs: number) => void;
   }
 
@@ -33,13 +32,12 @@
     settings,
     curveTension = $bindable(),
     onNameInput,
-    onLinesChanged,
-    onRecordChange,
     onCurveFromSelected,
     onDeleteSelectedLine,
     onDeleteControlPoint,
     onToggleLock,
-    onCommitPointChange,
+    onPointChange,
+    onHeadingChange,
     onVisualizationWaitChange,
   }: Props = $props();
 
@@ -115,7 +113,6 @@
           class="w-full rounded border border-[#59636d] bg-[#111111] px-2 py-1.5 font-medium text-gray-100 shadow-inner placeholder:text-gray-600 focus:border-green-500 focus:ring-1 focus:ring-green-500"
           disabled={selectedLine.locked}
           oninput={(e) => onNameInput(e.currentTarget.value)}
-          onchange={onRecordChange}
         />
       </div>
       <StatCell label="Endpoint">
@@ -147,7 +144,6 @@
             onVisualizationWaitChange(
               Math.max(0, Number(event.currentTarget.value) || 0),
             )}
-          onchange={onRecordChange}
         />
       </div>
     </div>
@@ -158,9 +154,8 @@
         {selectedPoint}
         bind:selectedPointIndex
         {selectedPointLabel}
-        onCommit={onCommitPointChange}
-        {onLinesChanged}
-        {onRecordChange}
+        {onPointChange}
+        {onHeadingChange}
         {onDeleteControlPoint}
         {onToggleLock}
       />

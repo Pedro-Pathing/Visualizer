@@ -15,6 +15,7 @@ import {
   deriveSequence,
   normalizeFieldPoints,
   normalizePaths,
+  normalizeShapes,
   normalizeStartPose,
   type StoredPath,
   type StoredStartPose,
@@ -82,7 +83,7 @@ export function projectFromJson(
   const doc: ProjectDoc = {
     startPoint: normalizeStartPose(project.startPoint as StoredStartPose),
     lines,
-    shapes: Array.isArray(project.shapes) ? (project.shapes as Shape[]) : [],
+    shapes: normalizeShapes(project.shapes),
     sequence: deriveSequence(project, lines),
     fieldPoints: normalizeFieldPoints(project),
     robot: normalizeRobotConfig(project.robot, robotFallback),

@@ -16,7 +16,6 @@
     snapToGrid,
     gridSize,
     currentFilePath,
-    isUnsaved,
     showGrid,
     dualPathMode,
     secondFilePath,
@@ -47,6 +46,7 @@
   import { downloadBlob } from "./utils/download";
   import {
     PROJECT_VERSION,
+    createDefaultProject,
     parseProject,
     robotConfigOf,
     serializeProject,
@@ -113,7 +113,7 @@
     buildOnionLayer,
     selectVisibleOnionLayers,
   } from "./lib/scene/polygons";
-  import { renderFieldPoints, type FieldPoint } from "./utils/fieldPoints";
+  import { renderFieldPoints } from "./utils/fieldPoints";
   import {
     generateGhostPathPoints,
     generateOnionLayers,
@@ -129,7 +129,6 @@
     updateRobotImageDisplay,
     atomicSegments,
     findSegmentById,
-    replaceSegment,
     findPathById,
     groupPaths,
     groupingProblem,
@@ -146,8 +145,6 @@
     DEFAULT_SETTINGS,
     FIELD_SIZE,
     getDefaultStartPoint,
-    getDefaultPaths,
-    getDefaultShapes,
   } from "./config";
   import {
     loadSettings,
@@ -162,9 +159,16 @@
   import * as browserFileStore from "./utils/browserFileStore";
   import { onDestroy, onMount, tick } from "svelte";
   import { debounce } from "lodash";
-  import { createHistory, type AppState } from "./utils/history";
-  // Browser-only build: file operations use the browser file store and
-  // localStorage. Electron-specific APIs have been removed.
+  import { ProjectStore, provideProject } from "./state/project.svelte";
+  import {
+    addSegment,
+    removePath,
+    setLines,
+    updatePoint,
+    updateSegment,
+    type PointAddress,
+  } from "./model/commands";
+  import type { PointRef } from "./lib/canvas/pointRefs";
 
   // Canvas state
   let two = $state<Two>()!;
@@ -195,12 +199,19 @@
   let gifExportProgress = $state(0);
   let gifExportStatus = $state("Preparing...");
   let cancelGifExport = $state(false);
-  // Path data
-  let settings: Settings = $state({ ...DEFAULT_SETTINGS });
-  let startPoint: StartPose = $state(getDefaultStartPoint());
-  const initialLines = normalizePaths(getDefaultPaths());
-  let lines: Path[] = $state(initialLines);
-  let fieldPoints: FieldPoint[] = $state([]);
+  const project = new ProjectStore(
+    createDefaultProject(robotConfigOf(DEFAULT_SETTINGS)),
+  );
+  provideProject(project);
+
+  /** The user's preferences. The robot settings in them are only a fallback. */
+  let prefs: Settings = $state({ ...DEFAULT_SETTINGS });
+  let settings: Settings = $derived({ ...prefs, ...project.doc.robot });
+  let startPoint = $derived(project.doc.startPoint);
+  let lines = $derived(project.doc.lines);
+  let shapes = $derived(project.doc.shapes);
+  let sequence = $derived(project.doc.sequence);
+  let fieldPoints = $derived(project.doc.fieldPoints);
 
   function detectMobileDevice() {
     if (typeof window === "undefined" || typeof navigator === "undefined") {
@@ -222,14 +233,8 @@
     return mobileHint || uaMobile;
   }
 
-  let sequence: SequenceItem[] = $state(
-    atomicSegments(initialLines).map((ln) => ({
-      kind: "path",
-      lineId: ln.id,
-    })),
-  );
   let selectedPathIds: string[] = $state(
-    initialLines[0] ? [initialLines[0].id] : [],
+    project.doc.lines[0] ? [project.doc.lines[0].id] : [],
   );
   let primarySelectedId = $derived(
     selectedPathIds[selectedPathIds.length - 1] ?? null,
@@ -288,7 +293,7 @@
     if (groupingBlockedReason) return;
     const next = groupPaths(lines, selectedPathIds);
     if (next === lines) return;
-    lines = next;
+    project.apply(setLines(next));
     // Select the group that was just created.
     const created = next.find(
       (path) =>
@@ -297,16 +302,14 @@
         path.segments.some((child) => selectedPathIds.includes(child.id)),
     );
     selectedPathIds = created ? [created.id] : selectedPathIds;
-    recordChange();
   }
 
   function ungroupSelectedPath() {
     const target = selectedPath;
     if (!target || target.kind !== "compound") return;
     const childIds = target.segments.map((child) => child.id);
-    lines = ungroupPath(lines, target.id);
+    project.apply(setLines(ungroupPath(lines, target.id)));
     selectedPathIds = childIds;
-    recordChange();
   }
   let penToolEnabled = $state(false);
   let coordinateToolEnabled = $state(false);
@@ -348,7 +351,6 @@
     };
   });
 
-  let shapes: Shape[] = $state(getDefaultShapes());
   let optimizingLineIds: Record<string, boolean> = {};
   let optimizingAll = $state(false);
 
@@ -370,9 +372,6 @@
   const formatPathPoint = (value: number) =>
     Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1);
 
-  const history = createHistory();
-  const { canUndoStore, canRedoStore } = history;
-
   function commitPenStroke() {
     const selectedLine = findSegmentById(lines, selectedLineId);
     const startAnchor = selectedLine?.endPoint || undefined;
@@ -390,44 +389,51 @@
     if (newLines.length === 0) return;
 
     if (selectedLine?.id) {
-      const insertAt = lines.findIndex((line) => line.id === selectedLine.id);
-      const nextLines = [...lines];
-      nextLines.splice(
-        insertAt >= 0 ? insertAt + 1 : nextLines.length,
-        0,
-        ...newLines,
-      );
-      lines = normalizePaths(nextLines);
+      project.apply((doc) => {
+        const insertAt = doc.lines.findIndex(
+          (line) => line.id === selectedLine.id,
+        );
+        const nextLines = [...doc.lines];
+        nextLines.splice(
+          insertAt >= 0 ? insertAt + 1 : nextLines.length,
+          0,
+          ...newLines,
+        );
 
-      const nextSequence = [...sequence];
-      const seqIndex = sequence.findIndex(
-        (item) => item.kind === "path" && item.lineId === selectedLine.id,
-      );
-      nextSequence.splice(
-        seqIndex >= 0 ? seqIndex + 1 : nextSequence.length,
-        0,
-        ...newLines.map((line) => ({
+        const nextSequence = [...doc.sequence];
+        const seqIndex = doc.sequence.findIndex(
+          (item) => item.kind === "path" && item.lineId === selectedLine.id,
+        );
+        nextSequence.splice(
+          seqIndex >= 0 ? seqIndex + 1 : nextSequence.length,
+          0,
+          ...newLines.map((line) => ({
+            kind: "path" as const,
+            lineId: line.id,
+          })),
+        );
+        return {
+          ...doc,
+          lines: normalizePaths(nextLines),
+          sequence: nextSequence,
+        };
+      });
+      selectedPathIds = [newLines[newLines.length - 1].id];
+    } else {
+      const fittedLines = normalizePaths(newLines);
+      project.apply((doc) => ({
+        ...doc,
+        startPoint: fitted.startPoint,
+        lines: fittedLines,
+        sequence: atomicSegments(fittedLines).map((line) => ({
           kind: "path" as const,
           lineId: line.id,
         })),
-      );
-      sequence = nextSequence;
-
-      selectedPathIds = [newLines[newLines.length - 1].id];
-      selectedPointIndex = 0;
-    } else {
-      startPoint = fitted.startPoint;
-      lines = normalizePaths(newLines);
-      sequence = atomicSegments(lines).map((line) => ({
-        kind: "path",
-        lineId: line.id,
       }));
-      selectedPathIds = lines[0] ? [lines[0].id] : [];
-      selectedPointIndex = 0;
+      selectedPathIds = fittedLines[0] ? [fittedLines[0].id] : [];
     }
 
     selectedPointIndex = 0;
-    recordChange();
     two?.update();
   }
 
@@ -500,7 +506,7 @@
         otherWidth,
         settings,
       );
-      settings.leftPanelWidth = leftPanelWidth;
+      prefs.leftPanelWidth = leftPanelWidth;
     } else {
       const leftPanelMinWidth = getLeftPanelMinWidth(settings);
       const otherWidth = leftPanelHidden
@@ -516,7 +522,7 @@
         otherWidth,
         settings,
       );
-      settings.rightPanelWidth = rightPanelWidth;
+      prefs.rightPanelWidth = rightPanelWidth;
     }
   }
 
@@ -528,10 +534,12 @@
   ) {
     const next = movePath(lines, draggedId, targetId, position);
     if (next === lines) return;
-    lines = next;
     // Playback follows the sequence, so it has to track the new order.
-    sequence = reorderSequenceToMatch(lines, sequence);
-    recordChange();
+    project.apply((doc) => ({
+      ...doc,
+      lines: next,
+      sequence: reorderSequenceToMatch(next, doc.sequence),
+    }));
   }
 
   function toggleLeftPanelVisibility() {
@@ -560,15 +568,7 @@
   }
 
   function currentProject(): ProjectDoc {
-    return {
-      startPoint,
-      lines,
-      shapes,
-      sequence,
-      fieldPoints,
-      robot: robotConfigOf(settings),
-      activePaths: $activePaths,
-    };
+    return { ...project.doc, activePaths: $activePaths };
   }
 
   /** The dual-path second slot, saved with the primary's robot config. */
@@ -582,21 +582,15 @@
     };
   }
 
-  /** Replace the open document, starting a fresh undo history. */
-  function applyProject(doc: ProjectDoc) {
-    startPoint = doc.startPoint;
-    lines = doc.lines;
-    shapes = doc.shapes;
-    sequence = doc.sequence;
-    fieldPoints = doc.fieldPoints;
-    settings = { ...settings, ...doc.robot };
+  /** Open a document, starting a fresh undo history. */
+  function applyProject(doc: ProjectDoc, options: { saved?: boolean } = {}) {
+    project.load(doc, options);
     activePaths.set(doc.activePaths);
-    history.reset(getAppState());
   }
 
   /** Report a failed load, or the warnings from a successful one. */
   function readProject(text: string): ProjectDoc | null {
-    const result = parseProject(text, robotConfigOf(settings));
+    const result = parseProject(text, project.doc.robot);
     if (!result.ok) {
       showToast(result.error, "error");
       return null;
@@ -605,50 +599,6 @@
     return result.doc;
   }
 
-  function getAppState(): AppState {
-    return {
-      startPoint,
-      lines,
-      shapes,
-      sequence,
-      settings,
-      fieldPoints,
-    };
-  }
-
-  function recordChange() {
-    history.record(getAppState());
-  }
-
-  function undoAction() {
-    const prev = history.undo();
-    if (prev) {
-      startPoint = prev.startPoint;
-      lines = prev.lines;
-      shapes = prev.shapes;
-      sequence = prev.sequence;
-      settings = prev.settings;
-      fieldPoints = prev.fieldPoints;
-      isUnsaved.set(true);
-      two?.update();
-    }
-
-    // undoAction completes; no file-picker behavior here
-  }
-
-  function redoAction() {
-    const next = history.redo();
-    if (next) {
-      startPoint = next.startPoint;
-      lines = next.lines;
-      shapes = next.shapes;
-      sequence = next.sequence;
-      settings = next.settings;
-      fieldPoints = next.fieldPoints;
-      isUnsaved.set(true);
-      two?.update();
-    }
-  }
 
   // Animation controller
   let loopAnimation = $state(true);
@@ -712,8 +662,8 @@
     const snapshot = loadSessionSnapshot();
     if (!snapshot) return false;
 
-    settings = snapshot.settings;
-    applyProject(snapshot.project);
+    prefs = snapshot.settings;
+    applyProject(snapshot.project, { saved: false });
 
     currentFilePath.set(snapshot.currentFilePath);
     secondFilePath.set(snapshot.secondFilePath);
@@ -722,8 +672,6 @@
     secondLines = snapshot.second?.lines ?? [];
     secondSequence = snapshot.second?.sequence ?? [];
     secondShapes = snapshot.second?.shapes ?? [];
-
-    isUnsaved.set(true);
 
     return true;
   }
@@ -741,19 +689,19 @@
 
     setTimeout(() => {
       isLoaded = true;
-      recordChange();
     }, 500);
   });
   onMount(async () => {
     if (isMobileBlocked) return;
 
-    // Load saved settings
     const savedSettings = await loadSettings();
-    settings = normalizeLegacyFieldMap({ ...savedSettings });
+    prefs = normalizeLegacyFieldMap({ ...savedSettings });
 
-    const restored = restoreSessionSnapshot();
-    if (restored) {
+    if (restoreSessionSnapshot()) {
       console.info("Recovered previous unsaved session.");
+    } else {
+      // A fresh document starts from the robot the user last configured.
+      project.load({ ...project.doc, robot: robotConfigOf(prefs) });
     }
 
     // robotWidth/robotHeight derive from settings, so loading settings is enough.
@@ -808,8 +756,8 @@
       otherForRight,
       settings,
     );
-    settings.leftPanelWidth = leftPanelWidth;
-    settings.rightPanelWidth = rightPanelWidth;
+    prefs.leftPanelWidth = leftPanelWidth;
+    prefs.rightPanelWidth = rightPanelWidth;
   }
 
   const debouncedSaveSession = debounce(saveSessionSnapshot, 750);
@@ -1248,16 +1196,29 @@
       return;
     }
     dragCommitScheduled = true;
-    requestAnimationFrame(() => {
-      dragCommitScheduled = false;
-      const fn = pendingDragCommit;
-      pendingDragCommit = null;
-      if (fn) {
-        const t0 = performance.now();
-        fn();
-        dragCommitPerf.sample(t0);
-      }
-    });
+    requestAnimationFrame(flushDragCommit);
+  }
+
+  function flushDragCommit() {
+    dragCommitScheduled = false;
+    const fn = pendingDragCommit;
+    pendingDragCommit = null;
+    if (fn) {
+      const t0 = performance.now();
+      fn();
+      dragCommitPerf.sample(t0);
+    }
+  }
+
+  /** Where a point drawn from the open document lives in it. */
+  function documentAddress(ref: PointRef): PointAddress | null {
+    if (ref.container === "shapes") {
+      return { kind: "vertex", shapeId: ref.scope, index: ref.pointIndex };
+    }
+    if (ref.container !== "main") return null;
+    return ref.lineId === null
+      ? { kind: "start" }
+      : { kind: "path", lineId: ref.lineId, index: ref.pointIndex };
   }
 
   async function saveFileAs() {
@@ -1273,7 +1234,7 @@
             )
           : await overwritePickedFile(content);
         currentFilePath.set(name);
-        isUnsaved.set(false);
+        project.markSaved();
         showToast(`Saved to ${name}`, "success");
       } catch (error) {
         if (isPickerCancel(error)) return;
@@ -1402,17 +1363,18 @@
         const ref = pointRegistry.resolve(currentElem);
         if (!ref || ref.locked) return;
 
+        // Coalesced to once per frame: the scene recompute is the heavy part.
+        const address = documentAddress(ref);
+        if (address) {
+          scheduleDragCommit(() =>
+            project.preview(updatePoint(address, { x: inchX, y: inchY })),
+          );
+          return;
+        }
+
         ref.point.x = inchX;
         ref.point.y = inchY;
-
-        // Coalesce the reactive commit to once per frame so points live-track
-        // the mouse while the (heavy) scene recompute happens once per frame
-        // instead of on every mousemove.
-        if (ref.container === "shapes") {
-          scheduleDragCommit(() => {
-            shapes = [...shapes];
-          });
-        } else if (ref.container === "second") {
+        if (ref.container === "second") {
           scheduleDragCommit(() => {
             secondLines = [...secondLines];
           });
@@ -1423,10 +1385,6 @@
           // Debounce the auto-save so it fires after the drag settles instead of
           // writing the file on every mousemove.
           debouncedSaveAdditionalPath(Number(ref.scope));
-        } else {
-          scheduleDragCommit(() => {
-            lines = [...lines];
-          });
         }
       } else {
         const hovered = preferredPointElemId || elem?.id || null;
@@ -1538,7 +1496,8 @@
       }
     });
 
-    two.renderer.domElement.addEventListener("mouseup", () => {
+    // On the window, so a drag released outside the field still ends.
+    const handleMouseUp = () => {
       if (penToolEnabled) {
         if (penIsDrawing) {
           commitPenStroke();
@@ -1551,8 +1510,10 @@
 
       isDown = false;
       dragOffset = { x: 0, y: 0 };
-      recordChange();
-    });
+      flushDragCommit();
+      project.commit();
+    };
+    window.addEventListener("mouseup", handleMouseUp);
 
     // Double-click on the field to create a new path at that position
     two.renderer.domElement.addEventListener("dblclick", (evt: MouseEvent) => {
@@ -1585,13 +1546,13 @@
 
       // Create a new line with endPoint at the clicked position
       const newLine = createSegment(inchX, inchY);
-
-      lines = [...lines, newLine];
-      sequence = [...sequence, { kind: "path", lineId: newLine.id }];
-      selectedLineIndex = lines.length - 1;
-      recordChange();
+      project.apply(addSegment(newLine));
+      selectedPathIds = [newLine.id];
+      selectedPointIndex = 0;
       two.update();
     });
+
+    return () => window.removeEventListener("mouseup", handleMouseUp);
   });
   onMount(() => {
     const handleSpaceKey = (evt: KeyboardEvent) => {
@@ -1644,7 +1605,7 @@
       const name = $currentFilePath ?? `path_${Date.now()}.pp`;
       await browserFileStore.writeFile(name, serializeProject(currentProject()));
       currentFilePath.set(name);
-      isUnsaved.set(false);
+      project.markSaved();
       showToast(`Saved ${name}`, "success");
     } catch (err) {
       console.error("Failed to save project to storage:", err);
@@ -1688,7 +1649,7 @@
       );
       await browserFileStore.deleteFile(currentPath);
       currentFilePath.set(newFileName);
-      isUnsaved.set(false);
+      project.markSaved();
       window.dispatchEvent(
         new CustomEvent("fileRenamed", {
           detail: { oldPath: currentPath, newPath: newFileName },
@@ -1722,7 +1683,6 @@
     const doc = readProject(text);
     if (!doc) return;
     applyProject(doc);
-    isUnsaved.set(false);
 
     // Keep a copy in app storage so the file manager can reopen it.
     try {
@@ -1766,10 +1726,7 @@
         targetControlPointIndex,
       );
 
-      if (newLines) {
-        lines = normalizePaths(newLines);
-        recordChange();
-      }
+      if (newLines) project.apply(setLines(normalizePaths(newLines)));
     } catch (err) {
       console.error(err);
       alert((err as Error).message || "Optimization failed.");
@@ -1795,12 +1752,9 @@
     const newLine = createSegment(_.random(36, 108), _.random(36, 108), {
       reverse: true,
     });
-    const newLineId = newLine.id;
-    lines = [...lines, newLine];
-    sequence = [...sequence, { kind: "path", lineId: newLineId }];
-    selectedPathIds = [newLineId];
+    project.apply(addSegment(newLine));
+    selectedPathIds = [newLine.id];
     selectedPointIndex = 0;
-    recordChange();
   }
 
   /** The drivable curve edits apply to: the selection, else the last one. */
@@ -1810,34 +1764,28 @@
   }
 
   function addControlPoint() {
-    if (lines.length > 0) {
-      const targetLine = targetSegment();
-      if (!targetLine) return;
-      targetLine.controlPoints.push({
-        x: _.random(36, 108),
-        y: _.random(36, 108),
-      });
-      lines = [...lines];
-      selectedPointIndex = targetLine.controlPoints.length;
-      recordChange();
-      two?.update();
-    }
+    const targetLine = targetSegment();
+    if (!targetLine) return;
+    const controlPoints = [
+      ...targetLine.controlPoints,
+      { x: _.random(36, 108), y: _.random(36, 108) },
+    ];
+    project.apply(
+      updateSegment(targetLine.id, (segment) => ({ ...segment, controlPoints })),
+    );
+    selectedPointIndex = controlPoints.length;
+    two?.update();
   }
 
   function removeControlPoint() {
-    if (lines.length > 0) {
-      const targetLine = targetSegment();
-      if (targetLine && targetLine.controlPoints.length > 0) {
-        targetLine.controlPoints.pop();
-        lines = [...lines];
-        selectedPointIndex = Math.min(
-          selectedPointIndex,
-          targetLine.controlPoints.length,
-        );
-        recordChange();
-        two?.update();
-      }
-    }
+    const targetLine = targetSegment();
+    if (!targetLine || targetLine.controlPoints.length === 0) return;
+    const controlPoints = targetLine.controlPoints.slice(0, -1);
+    project.apply(
+      updateSegment(targetLine.id, (segment) => ({ ...segment, controlPoints })),
+    );
+    selectedPointIndex = Math.min(selectedPointIndex, controlPoints.length);
+    two?.update();
   }
 
   function deleteSelectedPoint() {
@@ -1847,30 +1795,14 @@
     if (selectedPointIndex === 0) {
       if (atomicSegments(lines).length <= 1) return;
 
-      const remove = (nodes: Path[]): Path[] =>
-        nodes
-          .filter((node) => node.id !== line.id)
-          .map((node) =>
-            node.kind === "compound"
-              ? { ...node, segments: remove(node.segments) }
-              : node,
-          );
-      lines = remove(lines);
-      sequence = sequence.filter(
-        (item) => item.kind === "wait" || item.lineId !== line.id,
+      const removedAt = atomicSegments(lines).findIndex(
+        (segment) => segment.id === line.id,
       );
-      const nextLine = atomicSegments(lines)[
-        Math.max(
-          0,
-          Math.min(
-            selectedLineIndex,
-            Math.max(0, atomicSegments(lines).length - 1),
-          ),
-        )
-      ];
+      project.apply(removePath(line.id));
+      const remaining = atomicSegments(project.doc.lines);
+      const nextLine = remaining[Math.min(removedAt, remaining.length - 1)];
       selectedPathIds = nextLine ? [nextLine.id] : [];
       selectedPointIndex = 0;
-      recordChange();
       two?.update();
       return;
     }
@@ -1878,14 +1810,15 @@
     const controlPointIndex = selectedPointIndex - 1;
     if (line.controlPoints[controlPointIndex]?.locked) return;
 
-    lines = replaceSegment(lines, line.id, (segment) => ({
-      ...segment,
-      controlPoints: segment.controlPoints.filter(
-        (_point, index) => index !== controlPointIndex,
-      ),
-    }));
+    project.apply(
+      updateSegment(line.id, (segment) => ({
+        ...segment,
+        controlPoints: segment.controlPoints.filter(
+          (_point, index) => index !== controlPointIndex,
+        ),
+      })),
+    );
     selectedPointIndex = Math.max(0, selectedPointIndex - 1);
-    recordChange();
     two?.update();
   }
 
@@ -1918,7 +1851,6 @@
       selectedLineIndex >= 0 ? selectedLineIndex : lines.length - 1;
     const nextLines = [...lines];
     nextLines.splice(Math.max(0, insertAt), 0, newLine);
-    lines = nextLines;
 
     const nextSequence = [...sequence];
     nextSequence.splice(
@@ -1926,11 +1858,14 @@
       0,
       { kind: "path", lineId: newLineId },
     );
-    sequence = nextSequence;
 
+    project.apply((doc) => ({
+      ...doc,
+      lines: nextLines,
+      sequence: nextSequence,
+    }));
     selectedPathIds = [newLineId];
     selectedPointIndex = 0;
-    recordChange();
   }
 
   function selectLinePoint(lineId: string | null, pointIndex = 0) {
@@ -1960,11 +1895,11 @@
     });
     hotkeys("cmd+z, ctrl+z", function (event) {
       event.preventDefault();
-      undoAction();
+      project.undo();
     });
     hotkeys("cmd+shift+z, ctrl+shift+z, ctrl+y", function (event) {
       event.preventDefault();
-      redoAction();
+      project.redo();
     });
 
     return () => {
@@ -2010,7 +1945,7 @@
           serializeProject(currentProject()),
         );
         currentFilePath.set(fullFileName);
-        isUnsaved.set(false);
+        project.markSaved();
 
         // Show success feedback
         showSaveDialog = false;
@@ -2047,7 +1982,7 @@
             serializeProject(secondProject()),
           );
         }
-        if (saveFirst) isUnsaved.set(false);
+        if (saveFirst) project.markSaved();
         showDualPathSaveDialog = false;
       } catch (error) {
         console.error("Dual path save failed:", error);
@@ -2160,8 +2095,6 @@
     ),
   );
   // Use the stores for reactivity
-  let canUndo = $derived($canUndoStore);
-  let canRedo = $derived($canRedoStore);
   let timePrediction = $derived(
     calculateVisualizationPathTime(startPoint, lines, settings, sequence),
   );
@@ -2538,17 +2471,9 @@
         )
       : [],
   );
-  // Reactively trigger when any saveable data changes
+  // The saved robot settings become the starting robot for the next fresh document.
   $effect.pre(() => {
-    if (isLoaded && (lines || shapes || startPoint || settings)) {
-      isUnsaved.set(true);
-    }
-  });
-  // Watch for settings changes and save
-  $effect.pre(() => {
-    if (settings) {
-      debouncedSaveSettings(settings);
-    }
+    debouncedSaveSettings(settings);
   });
   $effect.pre(() => {
     if (isLoaded) {
@@ -2748,10 +2673,6 @@
   <MobileBlocked />
 {:else}
   <Navbar
-    {lines}
-    {startPoint}
-    {shapes}
-    {sequence}
     {currentProject}
     {secondProject}
     {applyProject}
@@ -2759,16 +2680,12 @@
     bind:secondLines
     bind:secondShapes
     bind:secondSequence
-    bind:settings
+    bind:prefs
     {percent}
     {saveProject}
     {saveFileAs}
     {renameCurrentFile}
     {loadFile}
-    {undoAction}
-    {redoAction}
-    {canUndo}
-    {canRedo}
     {optimizeAllLines}
     {optimizingAll}
     {twoElement}
@@ -2985,9 +2902,6 @@
           bind:playing
           {play}
           {pause}
-          bind:startPoint
-          bind:lines
-          bind:sequence
           {selectedLineId}
           selectedPathId={primarySelectedId}
           onSelectPath={(id) => (selectedPathIds = id ? [id] : [])}
@@ -2997,12 +2911,10 @@
           bind:percent
           {robotXY}
           {robotHeading}
-          bind:shapes
           {x}
           {y}
           {handleSeek}
           bind:loopAnimation
-          {recordChange}
         />
       </aside>
     </div>

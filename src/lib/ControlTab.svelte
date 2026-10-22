@@ -3,13 +3,10 @@
 
   import type {
     AtomicPath,
+    BasePoint,
     CompoundPath,
     Path,
-    BasePoint,
     Settings,
-    Shape,
-    SequenceItem,
-    StartPose,
   } from "../types";
   import type * as d3 from "d3";
   import ObstaclesSection from "./components/ObstaclesSection.svelte";
@@ -20,21 +17,21 @@
   import SelectedPathInspector from "./components/SelectedPathInspector.svelte";
   import SelectedGroupInspector from "./components/SelectedGroupInspector.svelte";
   import { curveThroughPoints } from "../utils/math";
+  import { atomicSegments, findPathById } from "../utils/pathTraversal";
   import {
-    atomicSegments,
-    findPathById,
-    replaceSegment,
-    updatePath,
-  } from "../utils/pathTraversal";
+    removePath,
+    updatePathById,
+    updatePoint,
+    updateSegment,
+    type PointAddress,
+  } from "../model/commands";
+  import { useProject } from "../state/project.svelte";
 
   interface Props {
     percent: number;
     playing: boolean;
     play: () => any;
     pause: () => any;
-    startPoint: StartPose;
-    lines: Path[];
-    sequence: SequenceItem[];
     selectedLineId?: string | null;
     /** The primary selection, which may be a group. */
     selectedPathId?: string | null;
@@ -49,8 +46,6 @@
     settings: Settings;
     handleSeek: (percent: number) => void;
     loopAnimation: boolean;
-    shapes: Shape[];
-    recordChange: () => void;
   }
 
   let {
@@ -58,9 +53,6 @@
     playing = $bindable(),
     play,
     pause,
-    startPoint = $bindable(),
-    lines = $bindable(),
-    sequence = $bindable(),
     selectedLineId = null,
     selectedPathId = null,
     onSelectPath,
@@ -73,9 +65,10 @@
     settings,
     handleSeek,
     loopAnimation = $bindable(),
-    shapes = $bindable(),
-    recordChange,
   }: Props = $props();
+
+  const project = useProject();
+  let { startPoint, lines, shapes, sequence } = $derived(project.doc);
 
   let curveTension = $state(1.0);
   let obstaclesOpen = $state(true);
@@ -125,31 +118,30 @@
     }
   });
 
-  function commitSelectedPointChange() {
-    lines = [...lines];
-    recordChange?.();
+  let selectedAddress: Extract<PointAddress, { kind: "path" }> | null = $derived(
+    selectedLine
+      ? { kind: "path", lineId: selectedLine.id, index: selectedPointIndex }
+      : null,
+  );
+
+  function changeSelectedPoint(patch: Partial<BasePoint>) {
+    if (!selectedAddress) return;
+    const field = Object.keys(patch).join();
+    project.apply(updatePoint(selectedAddress, patch), {
+      coalesce: `${selectedAddress.lineId}.${selectedAddress.index}.${field}`,
+    });
   }
 
   function toggleSelectedPointLock() {
-    const line = selectedLine;
-    if (!line || !selectedPoint) return;
+    if (!selectedAddress || !selectedPoint) return;
+    project.apply(
+      updatePoint(selectedAddress, { locked: !selectedPoint.locked }),
+    );
+  }
 
-    const pointIndex = selectedPointIndex;
-    // Rebuild the point rather than mutating in place: the inspector reads the
-    // lock state off the line, so it has to see a fresh object to update.
-    lines = replaceSegment(lines, line.id, (segment) => {
-      if (pointIndex === 0) {
-        return {
-          ...segment,
-          endPoint: { ...segment.endPoint, locked: !segment.endPoint.locked },
-        };
-      }
-      const controlPoints = segment.controlPoints.map((point, index) =>
-        index === pointIndex - 1 ? { ...point, locked: !point.locked } : point,
-      );
-      return { ...segment, controlPoints };
-    });
-    recordChange?.();
+  /** Name and heading edits merge while typing, per path and field. */
+  function editPath(id: string, field: string, update: (path: Path) => Path) {
+    project.apply(updatePathById(id, update), { coalesce: `${id}.${field}` });
   }
 
   // Compute timeline markers for the UI (start of each travel segment)
@@ -182,7 +174,7 @@
   );
 
   // Collapsed state for obstacles (default collapsed)
-  let collapsedObstacles = $state(shapes.map(() => true));
+  let collapsedObstacles = $state(project.doc.shapes.map(() => true));
 
   // Keep obstacle collapse state aligned with shapes list
   run(() => {
@@ -229,37 +221,27 @@
       throughPoints: candidateThroughPoints.slice(0, maxThroughPoints),
     };
 
-    lines = normalizePaths([throughLine]);
-    sequence = [{ kind: "path", lineId: throughLine.id }];
+    project.apply((doc) => ({
+      ...doc,
+      lines: normalizePaths([throughLine]),
+      sequence: [{ kind: "path", lineId: throughLine.id }],
+    }));
     onSelectPath(throughLine.id);
     selectedPointIndex = 0;
-    recordChange();
     alert(`Created a Paths.through curve through ${poses.length - 2} middle points.`);
-  }
-
-  function removeLine(idx: number) {
-    const removedId = lines[idx]?.id;
-    let _lns = lines;
-    lines.splice(idx, 1);
-    lines = _lns;
-    if (removedId) {
-      sequence = sequence.filter(
-        (s) => s.kind === "wait" || s.lineId !== removedId,
-      );
-    }
-    recordChange();
   }
 
   function deleteSelectedLine() {
     if (!selectedLine) return;
-    if (lines.length <= 1) return;
+    const segments = atomicSegments(lines);
+    if (segments.length <= 1) return;
 
     // Select whatever now occupies the deleted segment's slot, or the last one.
-    const removedIndex = selectedLineIndex;
-    removeLine(removedIndex);
-    onSelectPath(lines[Math.min(removedIndex, lines.length - 1)]?.id ?? null);
+    const removedAt = segments.findIndex((line) => line.id === selectedLine.id);
+    project.apply(removePath(selectedLine.id));
+    const remaining = atomicSegments(project.doc.lines);
+    onSelectPath(remaining[Math.min(removedAt, remaining.length - 1)]?.id ?? null);
     selectedPointIndex = 0;
-    recordChange();
   }
 
   function deleteSelectedControlPoint() {
@@ -268,13 +250,16 @@
     const controlPointIndex = selectedPointIndex - 1;
     if (!selectedLine.controlPoints[controlPointIndex]) return;
 
-    selectedLine.controlPoints.splice(controlPointIndex, 1);
-    lines = [...lines];
-    selectedPointIndex = Math.min(
-      selectedPointIndex,
-      selectedLine.controlPoints.length,
+    const controlPoints = selectedLine.controlPoints.filter(
+      (_, index) => index !== controlPointIndex,
     );
-    recordChange();
+    project.apply(
+      updateSegment(selectedLine.id, (segment) => ({
+        ...segment,
+        controlPoints,
+      })),
+    );
+    selectedPointIndex = Math.min(selectedPointIndex, controlPoints.length);
   }
 </script>
 
@@ -297,14 +282,14 @@
           >
         </button>
         {#if obstaclesOpen}
-          <ObstaclesSection bind:shapes bind:collapsedObstacles />
+          <ObstaclesSection bind:collapsedObstacles />
         {/if}
       {/if}
     </div>
 
     <div class="grid w-full grid-cols-1 gap-2 lg:grid-cols-2">
       <div class="w-full border border-[#333333] bg-[#222222] p-3">
-        <StartingPointSection bind:startPoint />
+        <StartingPointSection />
       </div>
       <div class="w-full border border-[#333333] bg-[#222222] p-3">
         <RobotPositionDisplay {robotXY} {robotHeading} {x} {y} />
@@ -315,20 +300,12 @@
       <SelectedGroupInspector
         {selectedGroup}
         segmentCount={atomicSegments(selectedGroup.segments).length}
-        onNameInput={(name) => {
-          lines = updatePath(lines, selectedGroup.id, (path) => ({
-            ...path,
-            name,
-          }));
-        }}
-        onHeadingOverrideChange={(heading) => {
-          lines = updatePath(lines, selectedGroup.id, (path) =>
+        onNameInput={(name) =>
+          editPath(selectedGroup.id, "name", (path) => ({ ...path, name }))}
+        onHeadingOverrideChange={(heading) =>
+          editPath(selectedGroup.id, "heading", (path) =>
             path.kind === "compound" ? { ...path, heading } : path,
-          );
-          recordChange?.();
-        }}
-        onLinesChanged={() => (lines = [...lines])}
-        onRecordChange={() => recordChange?.()}
+          )}
         {onUngroup}
       />
     {:else}
@@ -342,23 +319,31 @@
         {settings}
         bind:curveTension
         onNameInput={(name) => {
-          if (selectedLine) selectedLine.name = name;
-          lines = [...lines];
+          if (selectedLine) {
+            editPath(selectedLine.id, "name", (path) => ({ ...path, name }));
+          }
         }}
-        onLinesChanged={() => (lines = [...lines])}
-        onRecordChange={() => recordChange?.()}
+        onHeadingChange={(heading) => {
+          if (selectedLine) {
+            editPath(selectedLine.id, "heading", (path) => ({
+              ...path,
+              heading,
+            }));
+          }
+        }}
         onVisualizationWaitChange={(durationMs) => {
-          if (!selectedLine) return;
-          lines = updatePath(lines, selectedLine.id, (path) => ({
-            ...path,
-            waitAfterMs: durationMs,
-          }));
+          if (selectedLine) {
+            editPath(selectedLine.id, "wait", (path) => ({
+              ...path,
+              waitAfterMs: durationMs,
+            }));
+          }
         }}
         onCurveFromSelected={curveFromSelected}
         onDeleteSelectedLine={deleteSelectedLine}
         onDeleteControlPoint={deleteSelectedControlPoint}
         onToggleLock={toggleSelectedPointLock}
-        onCommitPointChange={commitSelectedPointChange}
+        onPointChange={changeSelectedPoint}
       />
     {/if}
   </div>

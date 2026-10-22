@@ -3,31 +3,53 @@
   import { createTriangle } from "../../utils";
   import { snapToGrid, showGrid, gridSize } from "../../stores";
   import { FIELD_SIZE } from "../../config";
+  import { setShapes, updatePoint, updateShape } from "../../model/commands";
+  import { useProject } from "../../state/project.svelte";
 
   const colorChoices = [
     { label: "Red", color: "#dc2626", fill: "#ff6b6b" },
     { label: "Blue", color: "#2563eb", fill: "#60a5fa" },
   ];
 
-  function setPresetColor(shape: Shape, color: string) {
-    const choice = colorChoices.find((c) => c.color === color);
-    if (choice) {
-      shape.color = choice.color;
-      shape.fillColor = choice.fill;
-    }
-  }
-
   interface Props {
-    shapes: Shape[];
     collapsedObstacles: boolean[];
     compact?: boolean;
   }
 
-  let {
-    shapes = $bindable(),
-    collapsedObstacles = $bindable(),
-    compact = false,
-  }: Props = $props();
+  let { collapsedObstacles = $bindable(), compact = false }: Props = $props();
+
+  const project = useProject();
+  let shapes = $derived(project.doc.shapes);
+
+  function editShape(shape: Shape, patch: Partial<Shape>, coalesce?: string) {
+    project.apply(
+      updateShape(shape.id, (current) => ({ ...current, ...patch })),
+      { coalesce: coalesce && `${shape.id}.${coalesce}` },
+    );
+  }
+
+  function setPresetColor(shape: Shape, color: string) {
+    const choice = colorChoices.find((c) => c.color === color);
+    if (choice)
+      editShape(shape, { color: choice.color, fillColor: choice.fill });
+  }
+
+  function setVertex(
+    shape: Shape,
+    index: number,
+    axis: "x" | "y",
+    input: HTMLInputElement,
+  ) {
+    const value = parseFloat(input.value);
+    if (Number.isNaN(value)) return;
+    project.apply(
+      updatePoint(
+        { kind: "vertex", shapeId: shape.id, index },
+        { [axis]: value },
+      ),
+      { coalesce: `${shape.id}.${index}.${axis}` },
+    );
+  }
 
   let snapToGridTitle = $derived(
     $snapToGrid && $showGrid ? `Snapping to ${$gridSize} grid` : "No snapping",
@@ -102,14 +124,16 @@
           </button>
 
           <input
-            bind:value={shape.name}
+            value={shape.name ?? ""}
+            oninput={(e) =>
+              editShape(shape, { name: e.currentTarget.value }, "name")}
             placeholder={`Obstacle ${shapeIdx + 1}`}
             class={`pl-1.5 bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] focus:outline-none font-medium ${compact ? "w-28 py-0.5 text-xs" : "w-40 py-1 text-sm"}`}
           />
 
           <select
             class={`bg-neutral-100 dark:bg-neutral-950 dark:border-neutral-700 border-[0.5px] px-2 font-medium ${compact ? "py-0.5 text-xs" : "py-1 text-sm"}`}
-            bind:value={shape.color}
+            value={shape.color}
             onchange={(e) => setPresetColor(shape, e.currentTarget.value)}
           >
             {#each colorChoices as c (c.color)}
@@ -121,9 +145,10 @@
         <div class="flex flex-row gap-1 shrink-0">
           <button
             title="Add Vertex"
-            onclick={() => {
-              shape.vertices = [...shape.vertices, { x: 50, y: 50 }];
-            }}
+            onclick={() =>
+              editShape(shape, {
+                vertices: [...shape.vertices, { x: 50, y: 50 }],
+              })}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -143,10 +168,12 @@
             <button
               title="Remove Shape"
               onclick={() => {
-                shapes.splice(shapeIdx, 1);
-                shapes = shapes;
-                collapsedObstacles.splice(shapeIdx, 1);
-                collapsedObstacles = [...collapsedObstacles];
+                project.apply(
+                  setShapes(shapes.filter((other) => other.id !== shape.id)),
+                );
+                collapsedObstacles = collapsedObstacles.filter(
+                  (_, index) => index !== shapeIdx,
+                );
               }}
             >
               <svg
@@ -179,7 +206,8 @@
               X:
             </div>
             <input
-              bind:value={vertex.x}
+              value={vertex.x}
+              oninput={(e) => setVertex(shape, vertexIdx, "x", e.currentTarget)}
               type="number"
               min="0"
               max={FIELD_SIZE}
@@ -191,7 +219,8 @@
               Y:
             </div>
             <input
-              bind:value={vertex.y}
+              value={vertex.y}
+              oninput={(e) => setVertex(shape, vertexIdx, "y", e.currentTarget)}
               type="number"
               min="0"
               max={FIELD_SIZE}
@@ -207,10 +236,12 @@
             {#if shape.vertices.length > 3}
               <button
                 title="Remove Vertex"
-                onclick={() => {
-                  shape.vertices.splice(vertexIdx, 1);
-                  shape.vertices = shape.vertices;
-                }}
+                onclick={() =>
+                  editShape(shape, {
+                    vertices: shape.vertices.filter(
+                      (_, index) => index !== vertexIdx,
+                    ),
+                  })}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -235,7 +266,7 @@
 
   <button
     onclick={() => {
-      shapes = [...shapes, createTriangle(shapes.length)];
+      project.apply(setShapes([...shapes, createTriangle()]));
       collapsedObstacles = [...collapsedObstacles, true];
     }}
     class="font-semibold text-red-500 text-sm flex flex-row justify-start items-center gap-1 mt-2"

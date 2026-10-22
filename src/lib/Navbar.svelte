@@ -14,10 +14,10 @@
     showGrid,
     gridSize,
     currentFilePath,
-    isUnsaved,
     dualPathMode,
     activePaths,
   } from "../stores";
+  import { useProject } from "../state/project.svelte";
   import FileManager from "./FileManager.svelte";
   import SettingsDialog from "./components/SettingsDialog.svelte";
   import ExportCodeDialog from "./components/ExportCodeDialog.svelte";
@@ -35,23 +35,15 @@
     currentProject: () => ProjectDoc;
     secondProject: () => ProjectDoc;
     applyProject: (doc: ProjectDoc) => void;
-    startPoint: StartPose;
-    lines: Path[];
-    shapes: Shape[];
-    sequence: SequenceItem[];
     secondStartPoint?: StartPose | null;
     secondLines?: Path[];
     secondShapes?: Shape[];
     secondSequence?: SequenceItem[];
     percent?: number;
-    settings: Settings;
+    prefs: Settings;
     saveProject: () => any;
     saveFileAs: () => any;
     renameCurrentFile: () => any;
-    undoAction: () => any;
-    redoAction: () => any;
-    canUndo: boolean;
-    canRedo: boolean;
     optimizeAllLines: () => Promise<void>;
     optimizingAll?: boolean;
     twoElement?: HTMLDivElement | null;
@@ -67,23 +59,15 @@
     currentProject,
     secondProject,
     applyProject,
-    startPoint,
-    lines,
-    shapes,
-    sequence,
     secondStartPoint = $bindable(null),
     secondLines = $bindable([]),
     secondShapes = $bindable([]),
     secondSequence = $bindable([]),
     percent = 0,
-    settings = $bindable(),
+    prefs = $bindable(),
     saveProject,
     saveFileAs,
     renameCurrentFile,
-    undoAction,
-    redoAction,
-    canUndo,
-    canRedo,
     optimizeAllLines,
     optimizingAll = false,
     twoElement = null,
@@ -126,6 +110,10 @@
       exportMenuOpen = false;
     }
   });
+
+  const project = useProject();
+  let { startPoint, lines, shapes, sequence } = $derived(project.doc);
+  let settings = $derived({ ...prefs, ...project.doc.robot });
 
   let timePrediction = $derived(
     calculatePathTime(startPoint, lines, settings, sequence),
@@ -205,13 +193,13 @@
   }
 
   function resetPath() {
-    applyProject(createDefaultProject(currentProject().robot));
+    applyProject(createDefaultProject(project.doc.robot));
     dualPathMode.set(false);
   }
 
   function handleResetPathWithConfirmation() {
     // Check if there's unsaved work
-    const hasChanges = $isUnsaved || lines.length > 1 || shapes.length > 0;
+    const hasChanges = project.dirty || lines.length > 1 || shapes.length > 0;
 
     let message = "Are you sure you want to reset the path?\n\n";
 
@@ -222,7 +210,7 @@
         message += "This will reset your current work to the default path.";
       }
 
-      if ($isUnsaved) {
+      if (project.dirty) {
         message += "\n\n⚠ WARNING: You have unsaved changes that will be lost!";
       }
     } else {
@@ -286,7 +274,7 @@
   {sequence}
 />
 
-<SettingsDialog bind:isOpen={settingsOpen} bind:settings />
+<SettingsDialog bind:isOpen={settingsOpen} bind:prefs />
 
 <div
   class="absolute top-0 left-0 w-full bg-[#1a1a1a]/95 backdrop-blur-sm text-[#d8d8d8] flex flex-row justify-between items-center px-6 py-3 border-b border-[#333333] shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.02)]"
@@ -354,7 +342,7 @@
           }}
         >
           {basename($currentFilePath)}
-          {#if $isUnsaved}
+          {#if project.dirty}
             <span class="text-amber-500 font-bold ml-1" title="Unsaved changes"
               >*</span
             >
@@ -398,9 +386,9 @@
       <div class="flex items-center gap-2">
         <button
           title="Undo"
-          onclick={undoAction}
-          disabled={!canUndo}
-          class:opacity-50={!canUndo}
+          onclick={() => project.undo()}
+          disabled={!project.canUndo}
+          class:opacity-50={!project.canUndo}
           class="console-icon-button disabled:cursor-not-allowed transition-all duration-250 hover:scale-105 active:scale-98"
         >
           <svg
@@ -420,9 +408,9 @@
         </button>
         <button
           title="Redo"
-          onclick={redoAction}
-          disabled={!canRedo}
-          class:opacity-50={!canRedo}
+          onclick={() => project.redo()}
+          disabled={!project.canRedo}
+          class:opacity-50={!project.canRedo}
           class="console-icon-button disabled:cursor-not-allowed transition-all duration-250 hover:scale-105 active:scale-98"
         >
           <svg

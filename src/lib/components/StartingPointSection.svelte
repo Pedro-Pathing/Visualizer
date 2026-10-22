@@ -3,12 +3,22 @@
 
   import type { StartPose } from "../../types";
   import { FIELD_SIZE } from "../../config";
+  import { updateStartPoint } from "../../model/commands";
+  import { useProject } from "../../state/project.svelte";
 
-  interface Props {
-    startPoint: StartPose;
+  const project = useProject();
+  let startPoint = $derived(project.doc.startPoint);
+
+  function update(patch: Partial<StartPose>, field?: string) {
+    project.apply(updateStartPoint(patch), {
+      coalesce: field && `start.${field}`,
+    });
   }
 
-  let { startPoint = $bindable() }: Props = $props();
+  function numberFrom(input: HTMLInputElement): number | null {
+    const value = parseFloat(input.value);
+    return Number.isNaN(value) ? null : value;
+  }
 </script>
 
 <div class="flex flex-col w-full justify-start items-start gap-2">
@@ -19,10 +29,7 @@
         title={startPoint.locked
           ? "Unlock Starting Point"
           : "Lock Starting Point"}
-        onclick={stopPropagation(() => {
-          startPoint.locked = !startPoint.locked;
-          startPoint = { ...startPoint };
-        })}
+        onclick={stopPropagation(() => update({ locked: !startPoint.locked }))}
         class="p-1 rounded transition-colors duration-250"
       >
         {#if startPoint.locked}
@@ -65,10 +72,7 @@
       <span class="font-extralight">Name</span>
       <input
         value={startPoint.name ?? ""}
-        oninput={(e) => {
-          startPoint.name = e.currentTarget.value;
-          startPoint = { ...startPoint };
-        }}
+        oninput={(e) => update({ name: e.currentTarget.value }, "name")}
         type="text"
         placeholder="start"
         class="w-full rounded-md border-[0.5px] bg-neutral-100 px-2 py-1 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950"
@@ -79,7 +83,11 @@
     <label class="flex flex-col gap-1 text-xs">
       <span class="font-extralight">X</span>
       <input
-        bind:value={startPoint.x}
+        value={startPoint.x}
+        oninput={(e) => {
+          const x = numberFrom(e.currentTarget);
+          if (x !== null) update({ x }, "x");
+        }}
         min="0"
         max={FIELD_SIZE}
         type="number"
@@ -92,7 +100,11 @@
     <label class="flex flex-col gap-1 text-xs">
       <span class="font-extralight">Y</span>
       <input
-        bind:value={startPoint.y}
+        value={startPoint.y}
+        oninput={(e) => {
+          const y = numberFrom(e.currentTarget);
+          if (y !== null) update({ y }, "y");
+        }}
         min="0"
         max={FIELD_SIZE}
         type="number"

@@ -1,25 +1,31 @@
 <script lang="ts">
-  import type { Settings } from "../../../types";
+  import type { RobotConfig, Settings } from "../../../types";
   import NumberField from "../ui/NumberField.svelte";
   import RobotImagePicker from "./RobotImagePicker.svelte";
-  import {
-    clampNumberInput,
-    type NumericSettingKey,
-  } from "../../settings/numericSetting";
+  import { clampNumberInput } from "../../settings/numericSetting";
+  import { updateRobot } from "../../../model/commands";
+  import { useProject } from "../../../state/project.svelte";
 
   interface Props {
+    /** Display preferences: the robot image and heading arrow. */
     settings: Settings;
   }
 
   let { settings = $bindable() }: Props = $props();
 
+  const project = useProject();
+  let robot = $derived(project.doc.robot);
+
   function setNumber(
     value: string,
-    property: NumericSettingKey,
+    property: keyof RobotConfig,
     min?: number,
     max?: number,
   ) {
-    settings[property] = clampNumberInput(value, min, max);
+    project.apply(
+      updateRobot({ [property]: clampNumberInput(value, min, max) }),
+      { coalesce: `robot.${property}` },
+    );
   }
 </script>
 
@@ -28,7 +34,7 @@
     id="robot-width"
     label="Robot Width (in)"
     description="Width of the robot base"
-    value={settings.rWidth}
+    value={robot.rWidth}
     min={1}
     max={36}
     step={0.5}
@@ -39,7 +45,7 @@
     id="robot-height"
     label="Robot Height (in)"
     description="Height of the robot base"
-    value={settings.rHeight}
+    value={robot.rHeight}
     min={1}
     max={36}
     step={0.5}
@@ -50,7 +56,7 @@
     id="safety-margin"
     label="Safety Margin (in)"
     description="Buffer around obstacles"
-    value={settings.safetyMargin}
+    value={robot.safetyMargin}
     min={0}
     max={24}
     step={0.5}
