@@ -142,7 +142,8 @@
         {#if prefs.fieldMap === "custom"}
           <label class="flex flex-col gap-1">
             <span class={labelClass}>
-              Custom field image (PNG, JPG or WEBP, square)
+              Custom field image (PNG, JPG or WEBP, square, all six tiles
+              edge to edge)
             </span>
             <input
               type="file"
@@ -172,6 +173,11 @@
           />
         </label>
 
+        <Toggle
+          label="Tile seams"
+          description='Outline the 24" floor tiles. The edge tiles are 22.75" because the walls cover their outer edge.'
+          bind:checked={prefs.showTileSeams}
+        />
         <Toggle
           label="Show the path's t value"
           description="Next to the robot while it moves."

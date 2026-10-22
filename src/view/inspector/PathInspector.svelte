@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Lock, LockOpen, Plus, Trash2 } from "@lucide/svelte";
+  import { Lock, LockOpen, Plus, Trash2, X } from "@lucide/svelte";
   import type { AtomicPath, BasePoint, Path } from "../../types";
   import { FIELD_SIZE } from "../../config";
   import { gridSize, showGrid, snapToGrid } from "../../stores";
@@ -9,7 +9,7 @@
   import { useProject } from "../../state/project.svelte";
   import Button from "../../lib/components/ui/Button.svelte";
   import IconButton from "../../lib/components/ui/IconButton.svelte";
-  import { fieldClass, labelClass, sectionClass } from "../../lib/components/ui/styles";
+  import { fieldClass, labelClass } from "../../lib/components/ui/styles";
   import HeadingControls from "../../lib/components/HeadingControls.svelte";
 
   interface Props {
@@ -25,10 +25,22 @@
     atomicSegments(project.doc.lines).findIndex((path) => path.id === line.id) + 1,
   );
   let index = $derived(editor.selectedPointIndex);
-  let point = $derived(editor.selectedPoint);
-  let pointLocked = $derived(Boolean(line.locked || point?.locked));
   let step = $derived($snapToGrid && $showGrid ? $gridSize : 0.1);
   let isOnlyPath = $derived(atomicSegments(project.doc.lines).length <= 1);
+  /** A through-curve's inner points replace its control points. */
+  let throughPoints = $derived(
+    line.throughPoints?.length ? line.throughPoints : null,
+  );
+
+  /** Every point in driving order; `index` is its point address (0 is the end). */
+  let rows = $derived([
+    ...(throughPoints ?? line.controlPoints).map((point, i) => ({
+      index: i + 1,
+      label: `${throughPoints ? "T" : "CP"}${i + 1}`,
+      point: point as BasePoint,
+    })),
+    { index: 0, label: "End", point: line.endPoint as BasePoint },
+  ]);
 
   /** Typing into one field merges into one undo step. */
   function edit(field: string, update: (path: Path) => Path) {
@@ -37,19 +49,22 @@
     });
   }
 
-  function movePoint(patch: Partial<BasePoint>) {
-    const address = editor.selectedAddress;
-    if (!address) return;
-    project.apply(updatePoint(address, patch), {
-      coalesce: `${address.lineId}.${address.index}.${Object.keys(patch).join()}`,
-    });
+  function movePoint(pointIndex: number, patch: Partial<BasePoint>) {
+    project.apply(
+      updatePoint({ kind: "path", lineId: line.id, index: pointIndex }, patch),
+      {
+        coalesce: `${line.id}.${pointIndex}.${Object.keys(patch).join()}`,
+      },
+    );
   }
 
-  function toggleLock() {
-    const address = editor.selectedAddress;
-    if (address && point) {
-      project.apply(updatePoint(address, { locked: !point.locked }));
-    }
+  function toggleLock(pointIndex: number, point: BasePoint) {
+    project.apply(
+      updatePoint(
+        { kind: "path", lineId: line.id, index: pointIndex },
+        { locked: !point.locked },
+      ),
+    );
   }
 
   const numberFrom = (input: HTMLInputElement) => {
@@ -101,105 +116,83 @@
     />
   </label>
 
-  <div class={[sectionClass, "flex flex-col gap-3"]}>
-    <div class="flex flex-wrap items-center gap-1">
-      <button
-        type="button"
-        class={[
-          "rounded-md px-2 py-1 text-xs font-medium transition",
-          index === 0
-            ? "bg-primary/15 text-primary"
-            : "text-body hover:bg-body/10",
-        ]}
-        onclick={() => (editor.selectedPointIndex = 0)}
-      >
-        Endpoint
-      </button>
-      {#each line.controlPoints as _, pointIndex (pointIndex)}
-        <button
-          type="button"
-          class={[
-            "rounded-md px-2 py-1 font-mono text-xs transition",
-            index === pointIndex + 1
-              ? "bg-primary/15 text-primary"
-              : "text-body hover:bg-body/10",
-          ]}
-          onclick={() => (editor.selectedPointIndex = pointIndex + 1)}
-        >
-          CP{pointIndex + 1}
-        </button>
-      {/each}
-      <IconButton
-        label="Add control point (A)"
-        size="sm"
-        disabled={line.locked}
-        onclick={() => editor.addControlPoint()}
-      >
-        <Plus />
-      </IconButton>
-    </div>
-
-    {#if point}
-      <div class="grid grid-cols-2 gap-2">
-        <label class="flex flex-col gap-1">
-          <span class={labelClass}>X</span>
-          <input
-            class={fieldClass}
-            type="number"
-            min="0"
-            max={FIELD_SIZE}
-            {step}
-            value={point.x}
-            disabled={pointLocked}
-            oninput={(event) => {
-              const x = numberFrom(event.currentTarget);
-              if (x !== null) movePoint({ x });
-            }}
-          />
-        </label>
-        <label class="flex flex-col gap-1">
-          <span class={labelClass}>Y</span>
-          <input
-            class={fieldClass}
-            type="number"
-            min="0"
-            max={FIELD_SIZE}
-            {step}
-            value={point.y}
-            disabled={pointLocked}
-            oninput={(event) => {
-              const y = numberFrom(event.currentTarget);
-              if (y !== null) movePoint({ y });
-            }}
-          />
-        </label>
-      </div>
-
-      <div class="flex items-center justify-end gap-1">
-        {#if index > 0}
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={pointLocked}
-            onclick={() => editor.deleteSelectedPoint()}
-          >
-            Delete control point
-          </Button>
-        {/if}
+  <div class="flex flex-col gap-1.5">
+    <div class="flex items-center justify-between">
+      <span class={labelClass}>Points</span>
+      {#if !throughPoints}
         <Button
           size="sm"
           variant="ghost"
           disabled={line.locked}
-          onclick={toggleLock}
+          title="Add control point (A)"
+          onclick={() => editor.addControlPoint()}
         >
-          {#if point.locked}
-            <LockOpen class="size-3.5" /> Unlock point
-          {:else}
-            <Lock class="size-3.5" /> Lock point
-          {/if}
+          <Plus class="size-3.5" /> Control point
         </Button>
-      </div>
-    {/if}
+      {/if}
+    </div>
+
+    <div class="grid grid-cols-[2.75rem_1fr_1fr_auto] items-center gap-x-2 gap-y-1">
+      {#each rows as row (row.index)}
+        {@const locked = Boolean(line.locked || row.point.locked)}
+        {@const selected = index === row.index}
+        <span
+          class={[
+            "rounded-md py-1 text-center font-mono text-xs",
+            selected ? "bg-primary/15 text-primary" : "text-body",
+          ]}
+        >
+          {row.label}
+        </span>
+        {#each ["x", "y"] as const as axis (axis)}
+          <input
+            class={[
+              fieldClass,
+              "font-mono [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none",
+            ]}
+            type="number"
+            min="0"
+            max={FIELD_SIZE}
+            {step}
+            aria-label={`${row.label} ${axis.toUpperCase()}`}
+            value={Number(row.point[axis].toFixed(2))}
+            disabled={locked}
+            onfocus={() => (editor.selectedPointIndex = row.index)}
+            oninput={(event) => {
+              const value = numberFrom(event.currentTarget);
+              if (value !== null) movePoint(row.index, { [axis]: value });
+            }}
+          />
+        {/each}
+        <div class="flex">
+          <IconButton
+            label={row.point.locked ? "Unlock point" : "Lock point"}
+            size="sm"
+            active={Boolean(row.point.locked)}
+            disabled={line.locked}
+            onclick={() => toggleLock(row.index, row.point)}
+          >
+            {#if row.point.locked}<Lock />{:else}<LockOpen />{/if}
+          </IconButton>
+          {#if row.index > 0 && !throughPoints}
+            <IconButton
+              label="Delete control point"
+              size="sm"
+              class="hover:text-danger!"
+              disabled={locked}
+              onclick={() => {
+                editor.selectedPointIndex = row.index;
+                editor.deleteSelectedPoint();
+              }}
+            >
+              <X />
+            </IconButton>
+          {:else}
+            <span class="size-7"></span>
+          {/if}
+        </div>
+      {/each}
+    </div>
   </div>
 
   <div class="flex flex-col gap-2">

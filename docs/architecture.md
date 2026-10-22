@@ -590,6 +590,11 @@ Changes in 7b to call out:
 - **Heading arrow:** its toggle moved from the robot section to Settings, next to its length,
   color and thickness.
 - **Image upload errors** show a toast in place of an `alert()`.
+- **Field images draw at their true scale.** They show six 24" tiles (144"), so they now extend
+  1.25" past the 141.5" floor on each side and get cropped. Before, they were squeezed into the
+  floor, which made each tile 23.6". The default DECODE goal obstacles were re-traced to match,
+  and an optional tile-seam overlay (Settings → Display) marks the seams at 22.75", 46.75" and
+  so on.
 
 Phases 1 and 2 don't depend on each other and can run in parallel. Phase 3 comes before 4 and 5.
 Phase 8 needs phase 2 (sim) and is easier to show after 5. Phase 7 needs phase 3 (the commands

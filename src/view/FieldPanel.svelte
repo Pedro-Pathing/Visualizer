@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { BasePoint, Settings } from "../types";
-  import { FIELD_SIZE, LINE_WIDTH } from "../config/defaults";
+  import { FIELD_SIZE, LINE_WIDTH, TILE_SEAMS } from "../config/defaults";
   import { gridSize, showGrid, snapToGrid } from "../stores";
   import {
     pointAt,
@@ -391,6 +391,14 @@
         aria-hidden="true"
       >
         <g transform={`matrix(1 0 0 -1 0 ${FIELD_SIZE})`}>
+          {#if settings.showTileSeams}
+            <g stroke="white" stroke-width={0.35} opacity={0.6}>
+              {#each TILE_SEAMS as seam (seam)}
+                <line x1={seam} y1={0} x2={seam} y2={FIELD_SIZE} />
+                <line x1={0} y1={seam} x2={FIELD_SIZE} y2={seam} />
+              {/each}
+            </g>
+          {/if}
           {#each doc.fieldPoints as point, i (i)}
             <circle
               cx={point.x}

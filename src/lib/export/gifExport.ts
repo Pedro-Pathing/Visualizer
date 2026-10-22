@@ -5,7 +5,11 @@ import type {
   Settings,
   StartPose,
 } from "../../types";
-import { FIELD_SIZE, LINE_WIDTH } from "../../config/defaults";
+import {
+  FIELD_IMAGE_OVERHANG,
+  FIELD_SIZE,
+  LINE_WIDTH,
+} from "../../config/defaults";
 import { robotPoseAt } from "../../sim/pose";
 import { exportAsGif } from "../../utils/gifExporter";
 import { pathStem } from "../../utils/filename";
@@ -63,7 +67,14 @@ export async function renderPathGif(request: GifRequest): Promise<Blob> {
   background.height = size;
   const backgroundContext = background.getContext("2d");
   if (!backgroundContext) throw new Error("Failed to get canvas context");
-  backgroundContext.drawImage(fieldImage, 0, 0, size, size);
+  const overhang = toX(FIELD_IMAGE_OVERHANG);
+  backgroundContext.drawImage(
+    fieldImage,
+    -overhang,
+    -overhang,
+    size + 2 * overhang,
+    size + 2 * overhang,
+  );
   for (const path of request.paths) {
     drawPathLayer(backgroundContext, path, toX, toY, toX(LINE_WIDTH));
   }

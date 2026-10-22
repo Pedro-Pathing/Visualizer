@@ -12,7 +12,22 @@ export const DEFAULT_ROBOT_HEIGHT = 16;
  */
 export const POINT_RADIUS = 1.15;
 export const LINE_WIDTH = 0.57;
+/**
+ * The floor inside the perimeter walls, in inches; coordinates run from 0 to
+ * this. Six 24" tiles make 144", and the walls cover the outer 1.25" of the
+ * edge tiles.
+ */
 export const FIELD_SIZE = 141.5;
+export const TILE_SIZE = 24;
+/**
+ * Field images show all six tiles at full size, so they extend this far past
+ * the floor on every side and are cropped to it.
+ */
+export const FIELD_IMAGE_OVERHANG = (6 * TILE_SIZE - FIELD_SIZE) / 2;
+/** Where the tiles meet, in field coordinates: 22.75", 46.75", … */
+export const TILE_SEAMS = [1, 2, 3, 4, 5].map(
+  (n) => n * TILE_SIZE - FIELD_IMAGE_OVERHANG,
+);
 
 /**
  * Available field maps
@@ -58,6 +73,7 @@ export const DEFAULT_SETTINGS: Settings = {
   rightPanelMinWidth: 0,
   penToolMaxPaths: 8,
   curveThroughMaxPoints: 4,
+  showTileSeams: false,
   autoCollapsePanels: false,
   experimentalFeatures: {
     optimize: false,
@@ -100,9 +116,7 @@ export function getDefaultPaths(): AtomicPath[] {
   ];
 }
 
-/**
- * Get default shapes (field obstacles)
- */
+/** The DECODE goals and the structures along the side walls below them. */
 export function getDefaultShapes(): Shape[] {
   return [
     {
@@ -111,9 +125,9 @@ export function getDefaultShapes(): Shape[] {
       vertices: [
         { x: 141.5, y: 70 },
         { x: 141.5, y: 141.5 },
-        { x: 118.3, y: 141.5 },
-        { x: 135.5, y: 118 },
-        { x: 136.3, y: 70.2 },
+        { x: 119.1, y: 141.5 },
+        { x: 136.6, y: 118.8 },
+        { x: 136.4, y: 70 },
       ],
       color: "#dc2626",
       fillColor: "#ff6b6b",
@@ -122,11 +136,11 @@ export function getDefaultShapes(): Shape[] {
       id: "triangle-2",
       name: "Blue Goal",
       vertices: [
-        { x: 6.2, y: 116.9 },
-        { x: 25, y: 141.5 },
+        { x: 5.1, y: 117.7 },
+        { x: 24.2, y: 141.5 },
         { x: 0, y: 141.5 },
         { x: 0, y: 70 },
-        { x: 6, y: 70 },
+        { x: 5.1, y: 70 },
       ],
       color: "#2563eb",
       fillColor: "#60a5fa",

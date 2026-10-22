@@ -11,11 +11,11 @@ async function openApp(page: Page) {
   return errors;
 }
 
-/** The selected point, as the inspector's X and Y fields show it. */
+/** The selected path's end point, as the inspector's fields show it. */
 async function selectedPoint(page: Page) {
   const value = async (label: string) =>
     Number(await page.getByLabel(label, { exact: true }).inputValue()).toFixed(1);
-  return `${await value("X")}, ${await value("Y")}`;
+  return `${await value("End X")}, ${await value("End Y")}`;
 }
 
 const expectSelectedPoint = (page: Page, text: string) =>
@@ -89,7 +89,7 @@ test("typing a coordinate moves the point in one undo step", async ({
   page,
 }) => {
   await openApp(page);
-  await page.getByLabel("X", { exact: true }).fill("100");
+  await page.getByLabel("End X", { exact: true }).fill("100");
   await expectSelectedPoint(page, "100.0, 36.0");
 
   await undo(page);
@@ -148,5 +148,5 @@ test("the context menu adds a control point", async ({ page }) => {
   await openApp(page);
   await page.locator(ENDPOINT).click({ button: "right" });
   await page.getByRole("menuitem", { name: "Add control point here" }).click();
-  await expect(page.getByRole("button", { name: "CP1" })).toBeVisible();
+  await expect(page.getByLabel("CP1 X", { exact: true })).toBeVisible();
 });
