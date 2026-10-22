@@ -6,6 +6,7 @@ import {
   generateSequentialCommandCode,
   type ExportMode,
 } from "../src/lib/codegen";
+import { MIRROR_AXIS } from "../src/model/mirror";
 import { fixtures, goldenPath, loadProject } from "./support/fixtures";
 
 const languages = [
@@ -14,19 +15,29 @@ const languages = [
 ] as const;
 const modes: ExportMode[] = ["coordinates", "class", "full"];
 
+const PLAIN_FACTORY = "PoseFactory.degrees()";
+const MIRRORED_FACTORY = `PoseFactory.degrees().mirrorX(${MIRROR_AXIS})`;
+
 describe.each(fixtures)("code export of $name", ({ name, text }) => {
   for (const { id, ext, generate } of languages) {
     for (const mode of modes) {
-      for (const mirrored of [false, true]) {
-        const file = `${id}-${mode}${mirrored ? "-mirrored" : ""}.${ext}`;
-        it(file, async () => {
-          const { startPoint, lines } = loadProject(text);
-          const source = await generate(startPoint, lines, mode, mirrored);
-          await expect(source).toMatchFileSnapshot(
-            goldenPath(name, "codegen", file),
-          );
-        });
-      }
+      const file = `${id}-${mode}.${ext}`;
+      it(file, async () => {
+        const { startPoint, lines } = loadProject(text);
+        const source = await generate(startPoint, lines, mode, false);
+        await expect(source).toMatchFileSnapshot(
+          goldenPath(name, "codegen", file),
+        );
+      });
+
+      // Pedro mirrors at runtime, so only the pose factory changes.
+      it(`${file} mirrored`, async () => {
+        const { startPoint, lines } = loadProject(text);
+        const plain = await generate(startPoint, lines, mode, false);
+        const mirrored = await generate(startPoint, lines, mode, true);
+        expect(plain.split(PLAIN_FACTORY)).toHaveLength(2);
+        expect(mirrored).toBe(plain.replace(PLAIN_FACTORY, MIRRORED_FACTORY));
+      });
     }
   }
 
