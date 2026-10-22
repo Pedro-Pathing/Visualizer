@@ -28,8 +28,6 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;`;
 export const javaSpec: LanguageSpec = {
   id: "java",
 
-  prettier: { parser: "java", pluginSpecifier: "prettier-plugin-java" },
-
   terminator: ";",
 
   numberLiteral(value: number): string {

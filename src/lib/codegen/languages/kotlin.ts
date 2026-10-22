@@ -26,8 +26,6 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode`;
 export const kotlinSpec: LanguageSpec = {
   id: "kotlin",
 
-  prettier: { parser: "kotlin", pluginSpecifier: "prettier-plugin-kotlin" },
-
   terminator: "",
 
   numberLiteral(value: number): string {

@@ -192,7 +192,8 @@ ${spec.classOpen("Paths", "paths")}
 ${fields}
 
 ${methods}
-}`;
+}
+`;
   }
 
   return `${spec.packageStatement(model.options.packageName)}
