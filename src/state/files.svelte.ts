@@ -68,7 +68,12 @@ export class ProjectFiles {
     ) {
       return;
     }
-    this.open(createDefaultProject(this.#project.doc.robot));
+    this.open(
+      createDefaultProject(
+        this.#project.doc.robot,
+        this.#prefs.settings.fieldMap,
+      ),
+    );
     currentFilePath.set(null);
   }
 

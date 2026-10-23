@@ -111,12 +111,106 @@ export function getDefaultPaths(): AtomicPath[] {
   ];
 }
 
+/** Outline and fill for obstacles that belong to an alliance. */
+export const RED_ALLIANCE_COLORS = { color: "#dc2626", fillColor: "#ff6b6b" };
+export const BLUE_ALLIANCE_COLORS = { color: "#2563eb", fillColor: "#60a5fa" };
+
+/** The obstacles a new project starts with, by field map. Other fields start empty. */
+const FIELD_OBSTACLES: Record<string, () => Shape[]> = {
+  "decode.webp": decodeObstacles,
+  "biobuzz.webp": biobuzzObstacles,
+};
+
+export function getDefaultShapes(fieldMap: string): Shape[] {
+  return FIELD_OBSTACLES[fieldMap]?.() ?? [];
+}
+
+/**
+ * The BIOBUZZ seesaws, one outline per alliance. A seesaw tips between its two
+ * cells during the match, and robots can drive under the raised end, so each
+ * outline stops short of it.
+ */
+function biobuzzObstacles(): Shape[] {
+  return [
+    {
+      id: "biobuzz-red-hive",
+      name: "Red HIVE",
+      vertices: [
+        { x: 46, y: 91.4 },
+        { x: 70.75, y: 91.4 },
+        { x: 70.75, y: 50 },
+        { x: 46, y: 50 },
+      ],
+      ...RED_ALLIANCE_COLORS,
+    },
+    {
+      id: "biobuzz-blue-hive",
+      name: "Blue HIVE",
+      vertices: [
+        { x: 70.75, y: 90.5 },
+        { x: 96.5, y: 90.5 },
+        { x: 96.5, y: 49.4 },
+        { x: 70.75, y: 49.4 },
+      ],
+      ...BLUE_ALLIANCE_COLORS,
+    },
+    {
+      id: "biobuzz-flower-top",
+      name: "Scoring-Side FLOWER",
+      vertices: [
+        { x: 43.4, y: 141.5 },
+        { x: 50.1, y: 141.5 },
+        { x: 50.1, y: 139.4 },
+        { x: 46.75, y: 137.7 },
+        { x: 43.4, y: 139.4 },
+      ],
+      ...BLUE_ALLIANCE_COLORS,
+    },
+    {
+      id: "biobuzz-flower-right",
+      name: "Blue Alliance FLOWER",
+      vertices: [
+        { x: 141.5, y: 98.1 },
+        { x: 139.4, y: 98.1 },
+        { x: 137.7, y: 94.75 },
+        { x: 139.4, y: 91.4 },
+        { x: 141.5, y: 91.4 },
+      ],
+      ...BLUE_ALLIANCE_COLORS,
+    },
+    {
+      id: "biobuzz-flower-bottom",
+      name: "Audience-Side FLOWER",
+      vertices: [
+        { x: 91.15, y: 0 },
+        { x: 97.8, y: 0 },
+        { x: 97.8, y: 2.1 },
+        { x: 94.5, y: 3.8 },
+        { x: 91.15, y: 2.1 },
+      ],
+      ...RED_ALLIANCE_COLORS,
+    },
+    {
+      id: "biobuzz-flower-left",
+      name: "Red Alliance FLOWER",
+      vertices: [
+        { x: 0, y: 50.35 },
+        { x: 2.1, y: 50.35 },
+        { x: 3.8, y: 47 },
+        { x: 2.1, y: 43.65 },
+        { x: 0, y: 43.65 },
+      ],
+      ...RED_ALLIANCE_COLORS,
+    },
+  ];
+}
+
 /** The DECODE goals and the structures along the side walls below them. */
-export function getDefaultShapes(): Shape[] {
+function decodeObstacles(): Shape[] {
   return [
     {
       id: "triangle-1",
-      name: "Red Goal",
+      name: "Red GOAL",
       vertices: [
         { x: 141.5, y: 70 },
         { x: 141.5, y: 141.5 },
@@ -124,12 +218,11 @@ export function getDefaultShapes(): Shape[] {
         { x: 136.6, y: 118.8 },
         { x: 136.4, y: 70 },
       ],
-      color: "#dc2626",
-      fillColor: "#ff6b6b",
+      ...RED_ALLIANCE_COLORS,
     },
     {
       id: "triangle-2",
-      name: "Blue Goal",
+      name: "Blue GOAL",
       vertices: [
         { x: 5.1, y: 117.7 },
         { x: 24.2, y: 141.5 },
@@ -137,8 +230,7 @@ export function getDefaultShapes(): Shape[] {
         { x: 0, y: 70 },
         { x: 5.1, y: 70 },
       ],
-      color: "#2563eb",
-      fillColor: "#60a5fa",
+      ...BLUE_ALLIANCE_COLORS,
     },
   ];
 }

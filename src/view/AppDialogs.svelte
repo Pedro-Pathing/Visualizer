@@ -39,6 +39,7 @@
     bind:isOpen={dialogs.fileManager}
     currentProject={() => files.current()}
     applyProject={(doc) => files.open(doc)}
+    fieldMap={prefs.settings.fieldMap}
   />
 {/if}
 

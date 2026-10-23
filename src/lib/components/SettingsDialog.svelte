@@ -10,11 +10,11 @@
   import { confirmDialog } from "../dialog";
   import { showToast } from "../toast";
   import { PROJECT_VERSION, robotConfigOf } from "../../io";
-  import { updateRobot } from "../../model/commands";
+  import { setShapes, updateRobot } from "../../model/commands";
   import { useProject } from "../../state/project.svelte";
   import type { Theme, ThemeChoice } from "../../state/theme.svelte";
   import { resetSettings } from "../../utils/settingsPersistence";
-  import { AVAILABLE_FIELD_MAPS } from "../../config/defaults";
+  import { AVAILABLE_FIELD_MAPS, getDefaultShapes } from "../../config/defaults";
   import type { Settings } from "../../types";
 
   interface Props {
@@ -133,7 +133,14 @@
 
         <label class="flex flex-col gap-1">
           <span class={labelClass}>Field</span>
-          <select class={fieldClass} bind:value={prefs.fieldMap}>
+          <select
+            class={fieldClass}
+            value={prefs.fieldMap}
+            onchange={(event) => {
+              prefs.fieldMap = event.currentTarget.value;
+              project.apply(setShapes(getDefaultShapes(prefs.fieldMap)));
+            }}
+          >
             {#each AVAILABLE_FIELD_MAPS as field (field.value)}
               <option value={field.value}>{field.label}</option>
             {/each}

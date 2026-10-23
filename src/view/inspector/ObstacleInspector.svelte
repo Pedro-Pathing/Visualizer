@@ -1,7 +1,11 @@
 <script lang="ts">
   import { Minus, Plus, Trash2 } from "@lucide/svelte";
   import type { Shape } from "../../types";
-  import { FIELD_SIZE } from "../../config";
+  import {
+    BLUE_ALLIANCE_COLORS,
+    FIELD_SIZE,
+    RED_ALLIANCE_COLORS,
+  } from "../../config";
   import { gridSize, showGrid, snapToGrid } from "../../stores";
   import { setShapes, updatePoint, updateShape } from "../../model/commands";
   import { useEditor } from "../../state/editor.svelte";
@@ -20,8 +24,8 @@
   const editor = useEditor();
 
   const COLORS = [
-    { label: "Red", color: "#dc2626", fill: "#ff6b6b" },
-    { label: "Blue", color: "#2563eb", fill: "#60a5fa" },
+    { label: "Red", ...RED_ALLIANCE_COLORS },
+    { label: "Blue", ...BLUE_ALLIANCE_COLORS },
   ];
 
   let number = $derived(
@@ -71,7 +75,7 @@
         value={shape.color}
         onchange={(event) => {
           const choice = COLORS.find((c) => c.color === event.currentTarget.value);
-          if (choice) edit({ color: choice.color, fillColor: choice.fill });
+          if (choice) edit({ color: choice.color, fillColor: choice.fillColor });
         }}
       >
         {#each COLORS as choice (choice.color)}

@@ -23,7 +23,10 @@
   import { Theme } from "./state/theme.svelte";
 
   const project = new ProjectStore(
-    createDefaultProject(robotConfigOf(DEFAULT_SETTINGS)),
+    createDefaultProject(
+      robotConfigOf(DEFAULT_SETTINGS),
+      DEFAULT_SETTINGS.fieldMap,
+    ),
   );
   const prefs = new Prefs(project);
   const overlays = new Overlays(project, () => prefs.settings);

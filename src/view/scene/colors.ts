@@ -1,5 +1,3 @@
-/** The brand pink, so selection stands apart from every path color. */
-export const SELECTION_COLOR = "#fe55a2";
 export const GHOST_COLOR = "#a78bfa";
 export const PEN_PREVIEW_COLOR = "#facc15";
 export const COLLISION_COLOR = "#e60026";

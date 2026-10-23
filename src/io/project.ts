@@ -105,12 +105,15 @@ export function serializeProject(
   );
 }
 
-export function createDefaultProject(robot: RobotConfig): ProjectDoc {
+export function createDefaultProject(
+  robot: RobotConfig,
+  fieldMap: string,
+): ProjectDoc {
   const lines = normalizePaths(getDefaultPaths());
   return {
     startPoint: getDefaultStartPoint(),
     lines,
-    shapes: getDefaultShapes(),
+    shapes: getDefaultShapes(fieldMap),
     sequence: deriveSequence({}, lines),
     fieldPoints: [],
     robot,

@@ -32,10 +32,15 @@
     isOpen?: boolean;
     currentProject: () => ProjectDoc;
     applyProject: (doc: ProjectDoc) => void;
+    fieldMap: string;
   }
 
-  let { isOpen = $bindable(false), currentProject, applyProject }: Props =
-    $props();
+  let {
+    isOpen = $bindable(false),
+    currentProject,
+    applyProject,
+    fieldMap,
+  }: Props = $props();
 
   const SUPPORTED_EXTENSIONS = [".pp", ".json"];
 
@@ -145,7 +150,7 @@
         return;
       }
 
-      const doc = createDefaultProject(currentProject().robot);
+      const doc = createDefaultProject(currentProject().robot, fieldMap);
       await browserFileStore.writeFile(name, serializeProject(doc));
       await refreshDirectory();
       applyProject(doc);

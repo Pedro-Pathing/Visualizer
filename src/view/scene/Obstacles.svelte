@@ -3,7 +3,7 @@
   import type { PointAddress } from "../../model/commands";
   import { POINT_RADIUS } from "../../config/defaults";
   import { polylinePath } from "./svgPath";
-  import { SELECTION_COLOR } from "./colors";
+  import { SELECTED_PATH_SCALE } from "./selection";
 
   interface Props {
     shapes: Shape[];
@@ -14,17 +14,30 @@
 
   let { shapes, selectedId = null, onShapeDown, onVertexDown }: Props =
     $props();
+
+  /** Vertex numbers, which only the selected obstacle shows. */
+  const LABEL_SIZE = 1.1;
+
+  /** The selected obstacle draws last, so it wins overlapping clicks. */
+  let ordered = $derived(
+    shapes
+      .map((shape, shapeIndex) => ({ shape, shapeIndex }))
+      .sort(
+        (a, b) =>
+          Number(a.shape.id === selectedId) - Number(b.shape.id === selectedId),
+      ),
+  );
 </script>
 
-{#each shapes as shape, shapeIndex (shape.id)}
+{#each ordered as { shape, shapeIndex } (shape.id)}
   {#if shape.vertices.length >= 3}
     <path
       id={`shape-${shapeIndex}`}
       d={polylinePath(shape.vertices, true)}
       fill={shape.color}
       fill-opacity={0.4}
-      stroke={shape.id === selectedId ? SELECTION_COLOR : shape.color}
-      stroke-width={shape.id === selectedId ? 0.8 : 0.5}
+      stroke={shape.color}
+      stroke-width={0.5 * (shape.id === selectedId ? SELECTED_PATH_SCALE : 1)}
       role="button"
       tabindex="-1"
       aria-label={shape.name || `Obstacle ${shapeIndex + 1}`}
@@ -33,7 +46,9 @@
   {/if}
 {/each}
 
-{#each shapes as shape, shapeIndex (shape.id)}
+{#each ordered as { shape, shapeIndex } (shape.id)}
+  {@const isSelected = shape.id === selectedId}
+  {@const scale = isSelected ? SELECTED_PATH_SCALE : 1}
   {#each shape.vertices as vertex, vertexIndex (vertexIndex)}
     <g
       id={`obstacle-${shapeIndex}-${vertexIndex}`}
@@ -47,15 +62,22 @@
           event,
         )}
     >
-      <circle cx={vertex.x} cy={vertex.y} r={POINT_RADIUS} fill={shape.fillColor} />
-      <text
-        transform={`translate(${vertex.x} ${vertex.y}) scale(1 -1)`}
-        font-size={1.1}
-        text-anchor="middle"
-        dy="0.35em"
-        pointer-events="none"
-        class="fill-surface-dark font-sans select-none">{vertexIndex + 1}</text
-      >
+      <circle
+        cx={vertex.x}
+        cy={vertex.y}
+        r={POINT_RADIUS * scale}
+        fill={shape.fillColor}
+      />
+      {#if isSelected}
+        <text
+          transform={`translate(${vertex.x} ${vertex.y}) scale(1 -1)`}
+          font-size={LABEL_SIZE * scale}
+          text-anchor="middle"
+          dy="0.35em"
+          pointer-events="none"
+          class="fill-surface-dark font-sans select-none">{vertexIndex + 1}</text
+        >
+      {/if}
     </g>
   {/each}
 {/each}

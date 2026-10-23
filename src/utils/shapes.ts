@@ -1,4 +1,5 @@
 import type { Shape } from "../types";
+import { RED_ALLIANCE_COLORS } from "../config/defaults";
 import { makeShapeId } from "./ids";
 
 /**
@@ -17,8 +18,7 @@ export function createTriangle(): Shape {
       { x: 84, y: 60 },
       { x: 72, y: 84 },
     ],
-    color: "#dc2626",
-    fillColor: "#ff6b6b",
+    ...RED_ALLIANCE_COLORS,
   };
 }
 
@@ -35,8 +35,7 @@ export function createRectangle(existingShapesCount: number): Shape {
       { x: 60, y: 50 },
       { x: 30, y: 50 },
     ],
-    color: "#dc2626",
-    fillColor: "#ff6b6b",
+    ...RED_ALLIANCE_COLORS,
   };
 }
 
@@ -61,8 +60,7 @@ export function createNGon(sides: number, existingShapesCount: number): Shape {
     id: makeShapeId(),
     name: `Obstacle ${existingShapesCount + 1}`,
     vertices,
-    color: "#dc2626",
-    fillColor: "#ff6b6b",
+    ...RED_ALLIANCE_COLORS,
   };
 }
 
