@@ -1,4 +1,10 @@
-import type { StartPose, AtomicPath, Shape, Settings } from "../types";
+import type {
+  StartPose,
+  AtomicPath,
+  Shape,
+  Settings,
+  BasePoint,
+} from "../types";
 import { makePathId } from "../utils/ids";
 
 /**
@@ -65,8 +71,8 @@ export const DEFAULT_SETTINGS: Settings = {
   headingArrowColor: "#ffffff",
   headingArrowThickness: 2,
   pathOpacity: 1,
-  leftPanelMinWidth: 0,
-  rightPanelMinWidth: 0,
+  leftPanelMinWidth: 200,
+  rightPanelMinWidth: 240,
   penToolMaxPaths: 8,
   curveThroughMaxPoints: 4,
   autoCollapsePanels: false,
@@ -125,6 +131,31 @@ export function getDefaultShapes(fieldMap: string): Shape[] {
   return FIELD_OBSTACLES[fieldMap]?.() ?? [];
 }
 
+const HIVE_CENTER = { x: 71.25, y: 70.7 };
+
+/**
+ * One alliance's HIVE: just the bar along its field-side edge, so the open
+ * floor between the two HIVEs stays driveable. `place` maps the red bar onto
+ * the alliance's side of the field.
+ */
+function hiveObstacle(
+  alliance: "red" | "blue",
+  colors: { color: string; fillColor: string },
+  place: (point: BasePoint) => BasePoint,
+): Shape {
+  return {
+    id: `biobuzz-${alliance}-hive`,
+    name: alliance === "red" ? "Red HIVE" : "Blue HIVE",
+    vertices: [
+      { x: 46, y: 50 },
+      { x: 48.6, y: 50 },
+      { x: 48.6, y: 91.4 },
+      { x: 46, y: 91.4 },
+    ].map(place),
+    ...colors,
+  };
+}
+
 /**
  * The BIOBUZZ seesaws, one outline per alliance. A seesaw tips between its two
  * cells during the match, and robots can drive under the raised end, so each
@@ -132,28 +163,12 @@ export function getDefaultShapes(fieldMap: string): Shape[] {
  */
 function biobuzzObstacles(): Shape[] {
   return [
-    {
-      id: "biobuzz-red-hive",
-      name: "Red HIVE",
-      vertices: [
-        { x: 46, y: 91.4 },
-        { x: 70.75, y: 91.4 },
-        { x: 70.75, y: 50 },
-        { x: 46, y: 50 },
-      ],
-      ...RED_ALLIANCE_COLORS,
-    },
-    {
-      id: "biobuzz-blue-hive",
-      name: "Blue HIVE",
-      vertices: [
-        { x: 70.75, y: 90.5 },
-        { x: 96.5, y: 90.5 },
-        { x: 96.5, y: 49.4 },
-        { x: 70.75, y: 49.4 },
-      ],
-      ...BLUE_ALLIANCE_COLORS,
-    },
+    hiveObstacle("red", RED_ALLIANCE_COLORS, (p) => p),
+    // The blue HIVE is the red one rotated half a turn about the field's centre.
+    hiveObstacle("blue", BLUE_ALLIANCE_COLORS, ({ x, y }) => ({
+      x: HIVE_CENTER.x * 2 - x,
+      y: HIVE_CENTER.y * 2 - y,
+    })),
     {
       id: "biobuzz-flower-top",
       name: "Scoring-Side FLOWER",

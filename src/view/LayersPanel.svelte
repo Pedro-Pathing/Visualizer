@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { PanelLeft, Plus } from "@lucide/svelte";
+  import { PanelLeft, Plus, RotateCcw } from "@lucide/svelte";
   import type { Settings } from "../types";
+  import { getDefaultShapes } from "../config/defaults";
   import { createTriangle } from "../utils";
   import { atomicSegments } from "../utils/pathTraversal";
   import { setShapes } from "../model/commands";
@@ -33,6 +34,10 @@
     project.apply(setShapes([...project.doc.shapes, shape]));
     editor.selectShape(shape.id);
   }
+
+  function resetObstacles() {
+    project.apply(setShapes(getDefaultShapes(settings.fieldMap)));
+  }
 </script>
 
 <aside
@@ -55,12 +60,24 @@
       title="Paths"
       count={atomicSegments(project.doc.lines).length}
     >
+      {#snippet actions()}
+        <IconButton label="Add path" size="sm" onclick={() => editor.addPath()}>
+          <Plus />
+        </IconButton>
+      {/snippet}
       <PathTree />
     </PanelSection>
 
     {#if settings.experimentalFeatures?.obstacles}
       <PanelSection title="Obstacles" count={project.doc.shapes.length}>
         {#snippet actions()}
+          <IconButton
+            label="Reset obstacles to field default"
+            size="sm"
+            onclick={resetObstacles}
+          >
+            <RotateCcw />
+          </IconButton>
           <IconButton label="Add obstacle" size="sm" onclick={addObstacle}>
             <Plus />
           </IconButton>
