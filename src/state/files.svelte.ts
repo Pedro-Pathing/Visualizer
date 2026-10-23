@@ -23,7 +23,12 @@ import { mirrorProject } from "../model/mirror";
 import { showToast } from "../lib/toast";
 import { activePaths, currentFilePath } from "../stores";
 import * as browserFileStore from "../utils/browserFileStore";
-import { basename, pathStem } from "../utils/filename";
+import {
+  OPENABLE_EXTENSIONS,
+  PROJECT_EXTENSION,
+  basename,
+  pathStem,
+} from "../utils/filename";
 import type { Overlays } from "./overlays.svelte";
 import type { Prefs } from "./prefs.svelte";
 import type { ProjectStore } from "./project.svelte";
@@ -129,7 +134,7 @@ export class ProjectFiles {
       const name = canPickSaveFile()
         ? await saveToPickedFile(
             content,
-            basename(get(currentFilePath)) || "path.pp",
+            basename(get(currentFilePath)) || `path${PROJECT_EXTENSION}`,
           )
         : await overwritePickedFile(content);
       currentFilePath.set(name);
@@ -207,7 +212,7 @@ export class ProjectFiles {
   openFromDisk() {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".pp,.json";
+    input.accept = OPENABLE_EXTENSIONS.join(",");
     input.onchange = () => void this.upload(input);
     input.click();
   }
@@ -219,8 +224,8 @@ export class ProjectFiles {
     if (!file) return;
 
     const lowerName = file.name.toLowerCase();
-    if (!lowerName.endsWith(".pp") && !lowerName.endsWith(".json")) {
-      showToast("Please select a .pp or .json file", "error");
+    if (!OPENABLE_EXTENSIONS.some((ext) => lowerName.endsWith(ext))) {
+      showToast(`Please select a ${PROJECT_EXTENSION} file`, "error");
       return;
     }
 

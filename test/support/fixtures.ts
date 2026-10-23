@@ -1,7 +1,11 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { DEFAULT_SETTINGS } from "../../src/config/defaults";
 import { parseProject, robotConfigOf, type ProjectDoc } from "../../src/io";
+import {
+  isProjectFileName,
+  stripProjectExtension,
+} from "../../src/utils/filename";
 
 const FIXTURE_DIR = join(import.meta.dirname, "../fixtures/projects");
 
@@ -13,10 +17,10 @@ export interface Fixture {
 }
 
 export const fixtures: Fixture[] = readdirSync(FIXTURE_DIR)
-  .filter((file) => file.endsWith(".pp"))
+  .filter(isProjectFileName)
   .sort()
   .map((file) => ({
-    name: basename(file, ".pp"),
+    name: stripProjectExtension(file),
     text: readFileSync(join(FIXTURE_DIR, file), "utf8"),
   }));
 

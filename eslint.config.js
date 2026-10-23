@@ -58,6 +58,7 @@ export default ts.config(
       "src/lib/codegen/**/*.ts",
       "src/lib/scene/stroke.ts",
       "src/utils/color.ts",
+      "src/utils/filename.ts",
       "src/utils/geometry.ts",
       "src/utils/headingInterpolation.ts",
       "src/utils/ids.ts",

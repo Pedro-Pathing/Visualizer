@@ -47,11 +47,10 @@
 
     project.apply(
       updateRobot({
-        xVelocity: DEFAULT_SETTINGS.xVelocity,
-        yVelocity: DEFAULT_SETTINGS.yVelocity,
+        forwardVelocity: DEFAULT_SETTINGS.forwardVelocity,
+        strafeVelocity: DEFAULT_SETTINGS.strafeVelocity,
         aVelocity: DEFAULT_SETTINGS.aVelocity,
         kFriction: DEFAULT_SETTINGS.kFriction,
-        maxVelocity: DEFAULT_SETTINGS.maxVelocity,
         maxAcceleration: DEFAULT_SETTINGS.maxAcceleration,
         maxDeceleration: DEFAULT_SETTINGS.maxDeceleration,
       }),
@@ -63,36 +62,20 @@
 <div class="flex flex-col gap-3 px-1">
   <div class="grid grid-cols-2 gap-2">
     <NumberField
-      id="x-velocity"
-      label="X velocity (in/s)"
-      value={settings.xVelocity}
+      id="forward-velocity"
+      label="Forward velocity (in/s)"
+      value={settings.forwardVelocity}
       min={0}
       step={1}
-      onInput={(v) => setNumber(v, "xVelocity", 0)}
+      onInput={(v) => setNumber(v, "forwardVelocity", 0)}
     />
     <NumberField
-      id="y-velocity"
-      label="Y velocity (in/s)"
-      value={settings.yVelocity}
+      id="strafe-velocity"
+      label="Strafe velocity (in/s)"
+      value={settings.strafeVelocity}
       min={0}
       step={1}
-      onInput={(v) => setNumber(v, "yVelocity", 0)}
-    />
-    <NumberField
-      id="angular-velocity"
-      label="Turn rate (π rad/s)"
-      value={angularVelocityDisplay}
-      min={0}
-      step={0.1}
-      onInput={setAngularVelocity}
-    />
-    <NumberField
-      id="max-velocity"
-      label="Max velocity (in/s)"
-      value={settings.maxVelocity}
-      min={0}
-      step={1}
-      onInput={(v) => setNumber(v, "maxVelocity", 0)}
+      onInput={(v) => setNumber(v, "strafeVelocity", 0)}
     />
     <NumberField
       id="max-acceleration"
@@ -109,6 +92,14 @@
       min={0}
       step={1}
       onInput={(v) => setNumber(v, "maxDeceleration", 0)}
+    />
+    <NumberField
+      id="angular-velocity"
+      label="Turn rate (π rad/s)"
+      value={angularVelocityDisplay}
+      min={0}
+      step={0.1}
+      onInput={setAngularVelocity}
     />
   </div>
 

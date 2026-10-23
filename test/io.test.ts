@@ -49,16 +49,23 @@ describe("parseProject", () => {
 });
 
 describe("robot config", () => {
-  it("is taken from the settings block of files before 1.6.0", () => {
+  it("is taken from the settings block of files before 2.0.0", () => {
     const result = parse({
       ...minimal,
       version: "1.5.0",
-      settings: { rWidth: 18, maxVelocity: 50, fieldMap: "decode.webp" },
+      settings: {
+        rWidth: 18,
+        xVelocity: 50,
+        yVelocity: 45,
+        maxVelocity: 40,
+        fieldMap: "decode.webp",
+      },
     });
     expect(result.ok && result.doc.robot).toEqual({
       ...DEFAULT_ROBOT,
       rWidth: 18,
-      maxVelocity: 50,
+      forwardVelocity: 50,
+      strafeVelocity: 45,
     });
   });
 
@@ -71,7 +78,7 @@ describe("robot config", () => {
     const result = parse({
       ...minimal,
       version: PROJECT_VERSION,
-      robot: { rWidth: 20, rHeight: "wide", maxVelocity: null },
+      robot: { rWidth: 20, rHeight: "wide", forwardVelocity: null },
     });
     expect(result.ok && result.doc.robot).toEqual({
       ...DEFAULT_ROBOT,

@@ -39,14 +39,13 @@
   ],
   "fieldPoints": [],
   "robot": {
-    "xVelocity": 60,
-    "yVelocity": 55,
+    "forwardVelocity": 60,
+    "strafeVelocity": 55,
     "aVelocity": 4,
     "kFriction": 0.2,
     "rWidth": 18,
     "rHeight": 14,
     "safetyMargin": 2,
-    "maxVelocity": 50,
     "maxAcceleration": 35,
     "maxDeceleration": 25
   },

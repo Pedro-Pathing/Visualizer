@@ -1,11 +1,13 @@
 import { promptDialog } from "../dialog";
+import { PROJECT_EXTENSION, stripProjectExtension } from "../../utils/filename";
 
-const FILE_NAME_PATTERN = /^[a-zA-Z0-9_\-. ]+\.pp$/;
+const FILE_STEM_PATTERN = /^[a-zA-Z0-9_\-. ]+$/;
 
+/** `name` with the current extension, replacing a legacy `.pp` ending. */
 export const withExtension = (name: string) =>
-  name.endsWith(".pp") ? name : `${name}.pp`;
+  `${stripProjectExtension(name)}${PROJECT_EXTENSION}`;
 
-/** Ask for a project file name; resolves with `.pp` added, or null if cancelled. */
+/** Ask for a project file name; resolves with the extension added, or null if cancelled. */
 export async function askFileName(options: {
   title: string;
   value: string;
@@ -18,14 +20,13 @@ export async function askFileName(options: {
     title: options.title,
     value: options.value,
     placeholder: "my_path",
-    hint: options.hint ?? "Saved in the app as a .pp file.",
+    hint: options.hint ?? `Saved in the app as a ${PROJECT_EXTENSION} file.`,
     confirmLabel: options.confirmLabel,
     validate: (input) => {
-      const fileName = withExtension(input);
-      if (!FILE_NAME_PATTERN.test(fileName)) {
+      if (!FILE_STEM_PATTERN.test(stripProjectExtension(input))) {
         return "Use letters, numbers, spaces, dots, dashes and underscores.";
       }
-      if (options.isTaken?.(fileName)) {
+      if (options.isTaken?.(withExtension(input))) {
         return "A file with this name already exists.";
       }
       return null;

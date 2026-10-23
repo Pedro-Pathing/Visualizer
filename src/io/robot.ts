@@ -1,14 +1,13 @@
 import type { RobotConfig, Settings } from "../types";
 
 export const ROBOT_CONFIG_KEYS = [
-  "xVelocity",
-  "yVelocity",
+  "forwardVelocity",
+  "strafeVelocity",
   "aVelocity",
   "kFriction",
   "rWidth",
   "rHeight",
   "safetyMargin",
-  "maxVelocity",
   "maxAcceleration",
   "maxDeceleration",
 ] as const satisfies readonly (keyof RobotConfig)[];

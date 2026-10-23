@@ -19,6 +19,22 @@ const SETTINGS_STORAGE_KEY = "pedro_settings";
 export function normalizeLegacyFieldMap(input: Settings): Settings {
   const next = { ...input };
 
+  // Saved settings from before x/y velocity became forward/strafe.
+  const legacy = next as Settings & {
+    xVelocity?: number;
+    yVelocity?: number;
+    maxVelocity?: number;
+  };
+  if (legacy.xVelocity !== undefined) {
+    next.forwardVelocity = legacy.xVelocity;
+  }
+  if (legacy.yVelocity !== undefined) {
+    next.strafeVelocity = legacy.yVelocity;
+  }
+  delete legacy.xVelocity;
+  delete legacy.yVelocity;
+  delete legacy.maxVelocity;
+
   if (
     typeof next.fieldMap === "string" &&
     next.fieldMap.startsWith("custom||")

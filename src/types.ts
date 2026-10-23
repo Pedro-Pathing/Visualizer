@@ -113,14 +113,13 @@ export type SequenceWaitItem = {
 export type SequenceItem = SequencePathItem | SequenceWaitItem;
 
 export interface Settings {
-  xVelocity: number;
-  yVelocity: number;
+  forwardVelocity: number; // inches/sec
+  strafeVelocity: number; // inches/sec
   aVelocity: number;
   kFriction: number;
   rWidth: number;
   rHeight: number;
   safetyMargin: number;
-  maxVelocity: number; // inches/sec
   maxAcceleration: number; // inches/sec²
   maxDeceleration?: number; // inches/sec²
   fieldMap: string;
@@ -154,14 +153,13 @@ export interface Settings {
 /** The settings that change how a path drives, so they are saved with it. */
 export type RobotConfig = Pick<
   Settings,
-  | "xVelocity"
-  | "yVelocity"
+  | "forwardVelocity"
+  | "strafeVelocity"
   | "aVelocity"
   | "kFriction"
   | "rWidth"
   | "rHeight"
   | "safetyMargin"
-  | "maxVelocity"
   | "maxAcceleration"
   | "maxDeceleration"
 >;

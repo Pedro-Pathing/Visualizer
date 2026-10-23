@@ -1,3 +1,5 @@
+import { OPENABLE_EXTENSIONS } from "../../utils/filename";
+
 interface WritableFileHandle {
   name: string;
   createWritable(): Promise<{
@@ -14,7 +16,7 @@ interface FilePickerWindow {
 const PATH_FILE_TYPES = [
   {
     description: "Path files",
-    accept: { "application/json": [".pp", ".json"] },
+    accept: { "application/json": OPENABLE_EXTENSIONS },
   },
 ];
 

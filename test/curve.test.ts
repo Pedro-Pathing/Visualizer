@@ -91,9 +91,8 @@ describe("curve", () => {
 
 describe("motionProfile", () => {
   const limits = {
-    xVelocity: 75,
-    yVelocity: 65,
-    maxVelocity: 40,
+    forwardVelocity: 75,
+    strafeVelocity: 65,
     maxAcceleration: 30,
     maxDeceleration: 20,
   };

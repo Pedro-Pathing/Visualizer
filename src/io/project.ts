@@ -23,7 +23,7 @@ import {
 import { compareVersions, isRecord, migrateProject } from "./migrations";
 import { normalizeRobotConfig } from "./robot";
 
-export const PROJECT_VERSION = "1.6.0";
+export const PROJECT_VERSION = "2.0.0";
 
 export interface ProjectDoc {
   startPoint: StartPose;
@@ -42,7 +42,7 @@ export type LoadResult =
 
 /**
  * Read a saved project. `robotFallback` fills in robot settings that the file
- * doesn't record, which is every file written before 1.6.0.
+ * doesn't record, which is every file written before 2.0.0.
  */
 export function parseProject(
   text: string,

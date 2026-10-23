@@ -9,17 +9,15 @@ export interface MotionProfile {
 
 type ProfileLimits = Pick<
   RobotConfig,
-  | "xVelocity"
-  | "yVelocity"
-  | "maxVelocity"
-  | "maxAcceleration"
-  | "maxDeceleration"
+  "forwardVelocity" | "strafeVelocity" | "maxAcceleration" | "maxDeceleration"
 >;
 
 /**
  * A trapezoidal velocity profile over `distance` inches, or a triangular one
- * when the distance is too short to reach full speed. Without usable limits
- * the robot drives at its average axis velocity throughout.
+ * when the distance is too short to reach full speed. Full speed is the
+ * average of the forward and strafe velocities, since the profile doesn't know
+ * which way the robot is heading. Without usable acceleration limits the robot
+ * drives at that speed throughout.
  */
 export function motionProfile(
   distance: number,
@@ -27,14 +25,13 @@ export function motionProfile(
 ): MotionProfile {
   if (distance <= 0) return { duration: 0, distanceAt: () => 0 };
 
-  const maxVelocity = limits.maxVelocity;
+  const maxVelocity = (limits.forwardVelocity + limits.strafeVelocity) / 2;
   const acceleration = limits.maxAcceleration;
   const deceleration = limits.maxDeceleration || acceleration;
-  if (!(maxVelocity > 0 && acceleration > 0 && deceleration > 0)) {
-    const speed = (limits.xVelocity + limits.yVelocity) / 2;
+  if (!(acceleration > 0 && deceleration > 0)) {
     return {
-      duration: distance / speed,
-      distanceAt: (time) => clampTo(time * speed, distance),
+      duration: distance / maxVelocity,
+      distanceAt: (time) => clampTo(time * maxVelocity, distance),
     };
   }
 

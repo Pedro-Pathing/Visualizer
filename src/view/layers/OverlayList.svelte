@@ -1,6 +1,7 @@
 <script lang="ts">
   import { activePaths, currentFilePath } from "../../stores";
   import * as browserFileStore from "../../utils/browserFileStore";
+  import { isProjectFileName } from "../../utils/filename";
   import { MAX_OVERLAYS, type Overlays } from "../../state/overlays.svelte";
   import { checkboxClass } from "../../lib/components/ui/styles";
 
@@ -17,7 +18,9 @@
     void $currentFilePath;
     browserFileStore
       .listFiles()
-      .then((all) => (files = all.filter((file) => file.name.endsWith(".pp"))))
+      .then(
+        (all) => (files = all.filter((file) => isProjectFileName(file.name))),
+      )
       .catch((error) => console.error("Couldn't list saved files:", error));
   });
 

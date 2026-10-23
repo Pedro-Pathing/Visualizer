@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS } from "../src/config/defaults";
 import type { ProjectDoc } from "../src/io";
@@ -14,6 +14,10 @@ import {
   calculatePathTime,
   calculateVisualizationPathTime,
 } from "../src/utils/timeCalculator";
+import {
+  isProjectFileName,
+  stripProjectExtension,
+} from "../src/utils/filename";
 import { DEFAULT_ROBOT, goldenPath, loadProject } from "./support/fixtures";
 
 const ROBOT = { ...DEFAULT_ROBOT, rWidth: 18, rHeight: 12, safetyMargin: 1 };
@@ -344,10 +348,10 @@ describe("findCollisions", () => {
 
 const COLLISION_FIXTURE_DIR = join(import.meta.dirname, "fixtures/collision");
 const collisionFixtures = readdirSync(COLLISION_FIXTURE_DIR)
-  .filter((file) => file.endsWith(".pp"))
+  .filter(isProjectFileName)
   .sort()
   .map((file) => ({
-    name: basename(file, ".pp"),
+    name: stripProjectExtension(file),
     text: readFileSync(join(COLLISION_FIXTURE_DIR, file), "utf8"),
   }));
 

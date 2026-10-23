@@ -9,6 +9,7 @@
     Trash2,
   } from "@lucide/svelte";
   import type { FileInfo } from "../../types";
+  import { PROJECT_EXTENSION } from "../../utils/filename";
   import Button from "./ui/Button.svelte";
   import IconButton from "./ui/IconButton.svelte";
   import { labelClass } from "./ui/styles";
@@ -81,7 +82,11 @@
           <FilePlus class="size-3.5" />
           New
         </Button>
-        <Button size="sm" title="Download as a .pp file" onclick={onDownload}>
+        <Button
+          size="sm"
+          title={`Download as a ${PROJECT_EXTENSION} file`}
+          onclick={onDownload}
+        >
           <Download class="size-3.5" />
           Download
         </Button>

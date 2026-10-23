@@ -37,6 +37,6 @@
   ],
   "fieldPoints": [],
   "robot": { "rWidth": 16, "rHeight": 16, "safetyMargin": 1 },
-  "version": "1.6.0",
+  "version": "2.0.0",
   "timestamp": "2026-10-01T00:00:00.000Z"
 }

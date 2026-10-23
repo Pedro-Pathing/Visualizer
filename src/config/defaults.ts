@@ -46,14 +46,13 @@ export const AVAILABLE_FIELD_MAPS = [
  * Default settings
  */
 export const DEFAULT_SETTINGS: Settings = {
-  xVelocity: 75,
-  yVelocity: 65,
+  forwardVelocity: 75,
+  strafeVelocity: 65,
   aVelocity: Math.PI,
   kFriction: 0.1,
   rWidth: DEFAULT_ROBOT_WIDTH,
   rHeight: DEFAULT_ROBOT_HEIGHT,
   safetyMargin: 1,
-  maxVelocity: 40,
   maxAcceleration: 30,
   maxDeceleration: 30,
   fieldMap: "biobuzz.webp",

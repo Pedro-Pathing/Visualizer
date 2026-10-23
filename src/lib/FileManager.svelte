@@ -20,7 +20,11 @@
     type ProjectDoc,
   } from "../io";
   import { downloadJson } from "../utils/download";
-  import { stripPpExtension } from "../utils/filename";
+  import {
+    OPENABLE_EXTENSIONS,
+    PROJECT_EXTENSION,
+    stripProjectExtension,
+  } from "../utils/filename";
   import {
     canPickExistingFile,
     isPickerCancel,
@@ -47,8 +51,6 @@
     applyProject,
     fieldMap,
   }: Props = $props();
-
-  const SUPPORTED_EXTENSIONS = [".pp", ".json"];
 
   const project = useProject();
   let files: FileInfo[] = $state([]);
@@ -77,7 +79,7 @@
     try {
       const stored = await browserFileStore.listFiles();
       files = stored
-        .filter((file) => SUPPORTED_EXTENSIONS.includes(extension(file.name)))
+        .filter((file) => OPENABLE_EXTENSIONS.includes(extension(file.name)))
         .map((file) => ({ ...file, modified: new Date(file.modified) }));
       errorMessage = "";
     } catch (error) {
@@ -116,9 +118,9 @@
 
   /** Store `doc` under `stem`, adding a number if taken, and open it. */
   async function saveAsNewFile(doc: ProjectDoc, stem: string): Promise<string> {
-    let name = `${stem}.pp`;
+    let name = `${stem}${PROJECT_EXTENSION}`;
     for (let n = 1; await browserFileStore.fileExists(name); n++) {
-      name = `${stem}${n}.pp`;
+      name = `${stem}${n}${PROJECT_EXTENSION}`;
     }
     await browserFileStore.writeFile(name, serializeProject(doc));
     await refreshDirectory();
@@ -170,7 +172,7 @@
   async function renameFile(file: FileInfo) {
     const name = await askFileName({
       title: "Rename file",
-      value: stripPpExtension(file.name),
+      value: stripProjectExtension(file.name),
       confirmLabel: "Rename",
       isTaken: (candidate) =>
         candidate !== file.path && files.some((f) => f.path === candidate),
@@ -228,7 +230,7 @@
     try {
       const name = await saveAsNewFile(
         doc,
-        `${stripPpExtension(selectedFile.name)}_copy`,
+        `${stripProjectExtension(selectedFile.name)}_copy`,
       );
       showToast(`Duplicated: ${name}`, "success");
     } catch (error) {
@@ -253,7 +255,7 @@
 
   function downloadCurrentToDisk() {
     try {
-      const name = selectedFile?.name || "path.pp";
+      const name = selectedFile?.name || `path${PROJECT_EXTENSION}`;
       downloadJson(serializeProject(currentProject(), { pretty: true }), name);
       showToast(`Downloaded: ${name}`, "success");
     } catch (error) {

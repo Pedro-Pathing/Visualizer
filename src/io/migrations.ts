@@ -2,6 +2,12 @@ import { ROBOT_CONFIG_KEYS } from "./robot";
 
 export type RawProject = Record<string, unknown>;
 
+/** Robot config keys that were renamed before the robot block was first saved. */
+const RENAMED_ROBOT_KEYS: Record<string, string> = {
+  xVelocity: "forwardVelocity",
+  yVelocity: "strafeVelocity",
+};
+
 interface Migration {
   /** The format version this migration produces. */
   version: string;
@@ -15,14 +21,13 @@ interface Migration {
  */
 const MIGRATIONS: Migration[] = [
   {
-    version: "1.6.0",
+    version: "2.0.0",
     up({ settings, ...rest }) {
       if (!isRecord(settings)) return rest;
       const robot = Object.fromEntries(
-        ROBOT_CONFIG_KEYS.filter((key) => key in settings).map((key) => [
-          key,
-          settings[key],
-        ]),
+        [...ROBOT_CONFIG_KEYS, ...Object.keys(RENAMED_ROBOT_KEYS)]
+          .filter((key) => key in settings)
+          .map((key) => [RENAMED_ROBOT_KEYS[key] ?? key, settings[key]]),
       );
       return { ...rest, robot };
     },
