@@ -341,7 +341,7 @@
     <PanelSection title="Experimental" open={false}>
       <div class="flex flex-col gap-2 px-1">
         <p class="text-xs text-body">
-          Unfinished features. Expect rough edges.
+          Unfinished features. These features may not work correctly, so save your project before enabling them/
         </p>
         <Toggle
           label="Path optimizer"

@@ -25,9 +25,6 @@
         style={`background: ${shape.color}`}
       ></span>
       <span class="truncate">{shape.name || `Obstacle ${index + 1}`}</span>
-      <span class="ml-auto font-mono text-[11px] opacity-60">
-        {shape.vertices.length} pts
-      </span>
     </button>
   {/each}
   {#if project.doc.shapes.length === 0}

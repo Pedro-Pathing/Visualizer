@@ -125,10 +125,6 @@
       <span class={["truncate", selected && "text-heading"]}>{item.name}</span>
       {#if item.kind === "compound"}
         <span class="font-mono text-[11px] opacity-60">{item.children.length}</span>
-      {:else}
-        <span class="ml-auto font-mono text-[11px] whitespace-nowrap opacity-60">
-          {item.x}, {item.y}
-        </span>
       {/if}
     </button>
     {#if count}

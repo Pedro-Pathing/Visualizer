@@ -15,7 +15,7 @@
   let { shapes, selectedId = null, onShapeDown, onVertexDown }: Props =
     $props();
 
-  /** Vertex numbers, which only the selected obstacle shows. */
+  /** Vertices and their numbers, which only the selected obstacle shows. */
   const LABEL_SIZE = 1.1;
 
   /** The selected obstacle draws last, so it wins overlapping clicks. */
@@ -27,6 +27,7 @@
           Number(a.shape.id === selectedId) - Number(b.shape.id === selectedId),
       ),
   );
+  let selected = $derived(ordered.find(({ shape }) => shape.id === selectedId));
 </script>
 
 {#each ordered as { shape, shapeIndex } (shape.id)}
@@ -46,9 +47,8 @@
   {/if}
 {/each}
 
-{#each ordered as { shape, shapeIndex } (shape.id)}
-  {@const isSelected = shape.id === selectedId}
-  {@const scale = isSelected ? SELECTED_PATH_SCALE : 1}
+{#if selected}
+  {@const { shape, shapeIndex } = selected}
   {#each shape.vertices as vertex, vertexIndex (vertexIndex)}
     <g
       id={`obstacle-${shapeIndex}-${vertexIndex}`}
@@ -65,19 +65,17 @@
       <circle
         cx={vertex.x}
         cy={vertex.y}
-        r={POINT_RADIUS * scale}
+        r={POINT_RADIUS * SELECTED_PATH_SCALE}
         fill={shape.fillColor}
       />
-      {#if isSelected}
-        <text
-          transform={`translate(${vertex.x} ${vertex.y}) scale(1 -1)`}
-          font-size={LABEL_SIZE * scale}
-          text-anchor="middle"
-          dy="0.35em"
-          pointer-events="none"
-          class="fill-surface-dark font-sans select-none">{vertexIndex + 1}</text
-        >
-      {/if}
+      <text
+        transform={`translate(${vertex.x} ${vertex.y}) scale(1 -1)`}
+        font-size={LABEL_SIZE * SELECTED_PATH_SCALE}
+        text-anchor="middle"
+        dy="0.35em"
+        pointer-events="none"
+        class="fill-surface-dark font-sans select-none">{vertexIndex + 1}</text
+      >
     </g>
   {/each}
-{/each}
+{/if}

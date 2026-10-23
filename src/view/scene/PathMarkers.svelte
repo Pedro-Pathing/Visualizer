@@ -13,7 +13,7 @@
     color?: string;
     radiusScale?: number;
     opacity?: number;
-    /** The selected point; turns on selection styling. */
+    /** The selected point; turns on selection styling and hides other paths' markers. */
     selection?: { lineId: string | null; index: number } | null;
     onPointDown?: (
       address: PointAddress,
@@ -38,15 +38,11 @@
 
   let radius = $derived(POINT_RADIUS * radiusScale);
   let segments = $derived(atomicSegments(lines));
-  /** The selected segment's markers draw last, so they win overlapping clicks. */
-  let ordered = $derived(
+  /** With a selection, only the selected segment shows its markers. */
+  let shown = $derived(
     segments
       .map((line, index) => ({ line, index }))
-      .sort(
-        (a, b) =>
-          Number(a.line.id === selection?.lineId) -
-          Number(b.line.id === selection?.lineId),
-      ),
+      .filter(({ line }) => !selection || line.id === selection.lineId),
   );
 </script>
 
@@ -77,7 +73,7 @@
       onPointDown?.({ kind: "start" }, Boolean(startPoint.locked), event)}
   />
 
-  {#each ordered as { line, index } (line.id)}
+  {#each shown as { line, index } (line.id)}
     {@const isSelectedLine = selection?.lineId === line.id}
     {#each [line.endPoint, ...(line.throughPoints ?? line.controlPoints)] as point, pointIndex (pointIndex)}
       {@const locked = Boolean(line.locked) || Boolean(point.locked)}
