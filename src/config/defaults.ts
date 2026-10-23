@@ -10,7 +10,7 @@ export const DEFAULT_ROBOT_HEIGHT = 16;
 /**
  * Default canvas drawing settings
  */
-export const POINT_RADIUS = 1.15;
+export const POINT_RADIUS = 1;
 export const LINE_WIDTH = 0.57;
 /**
  * The floor inside the perimeter walls, in inches; coordinates run from 0 to

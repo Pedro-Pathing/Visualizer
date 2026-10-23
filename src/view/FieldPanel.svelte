@@ -571,7 +571,6 @@
                 idPrefix={`additional-path-${index}-point`}
                 color={overlay.color}
                 radiusScale={0.9}
-                labelSize={1.4}
                 opacity={0.8}
                 onPointDown={(address, _locked, event) => {
                   if (editor.tool !== "select") return;
@@ -586,6 +585,7 @@
               lines={doc.lines}
               idPrefix="line"
               opacity={settings.pathOpacity || 1}
+              selectedId={editor.selectedLineId}
               {onSegmentDown}
             />
             {#each collisionMarks as mark, index (index)}

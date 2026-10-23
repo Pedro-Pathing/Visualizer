@@ -3,7 +3,7 @@ import type { Curve } from "../../model/curve";
 import { lerp2d } from "../../utils/math";
 
 /** Points drawn for a curve the renderer can't express as one cubic. */
-export const POLYLINE_SAMPLES = 100;
+export const POLYLINE_SAMPLES = 1000;
 
 /** How a curve is drawn, in field inches. */
 export type SegmentStroke =

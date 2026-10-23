@@ -2,13 +2,14 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Shared with the Pedro docs and AutoTune; see docs/architecture.md §2.9. */
+/* Shared with the Pedro docs and AutoTune */
 @theme {
   --color-primary: #fe55a2;
   --color-danger: #e60026;
   --color-warning: #f59e0b;
   --color-success: #22c55e;
   --color-accent-foreground: #fafafa;
+  --color-surface-dark: #16161c;
   --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -26,7 +27,7 @@
 
 .dark {
   --base: #0f0f14;
-  --surface: #16161c;
+  --surface: var(--color-surface-dark);
   --border: #80808033;
   --body: #999999;
   --heading: #fafafa;
@@ -89,6 +90,11 @@ img[alt="Field"],
 img[alt="Robot"] {
   pointer-events: none !important;
   -webkit-user-drag: none !important;
+}
+
+/* Field markers take focus on click only to receive pointer events; no ring. */
+svg [role="button"]:focus {
+  outline: none;
 }
 
 [id^="selected-point-"] {

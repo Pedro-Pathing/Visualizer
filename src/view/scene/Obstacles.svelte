@@ -49,13 +49,12 @@
     >
       <circle cx={vertex.x} cy={vertex.y} r={POINT_RADIUS} fill={shape.fillColor} />
       <text
-        transform={`translate(${vertex.x} ${vertex.y - 0.15}) scale(1 -1)`}
-        font-size={1.55}
+        transform={`translate(${vertex.x} ${vertex.y}) scale(1 -1)`}
+        font-size={1.1}
         text-anchor="middle"
-        dominant-baseline="central"
-        fill="white"
+        dy="0.35em"
         pointer-events="none"
-        class="font-sans select-none">{vertexIndex + 1}</text
+        class="fill-surface-dark font-sans select-none">{vertexIndex + 1}</text
       >
     </g>
   {/each}

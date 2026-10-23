@@ -3,7 +3,7 @@
   import type { PointAddress } from "../../model/commands";
   import { POINT_RADIUS } from "../../config/defaults";
   import { atomicSegments } from "../../utils/pathTraversal";
-  import { SELECTION_COLOR } from "./colors";
+  import { SELECTED_PATH_SCALE, SELECTED_POINT_SCALE } from "./selection";
 
   interface Props {
     startPoint: StartPose;
@@ -12,7 +12,6 @@
     /** Draws every marker in this colour instead of its segment's. */
     color?: string;
     radiusScale?: number;
-    labelSize?: number;
     opacity?: number;
     /** The selected point; turns on selection styling. */
     selection?: { lineId: string | null; index: number } | null;
@@ -29,11 +28,13 @@
     idPrefix,
     color,
     radiusScale = 1,
-    labelSize = 1.55,
     opacity = 1,
     selection = null,
     onPointDown,
   }: Props = $props();
+
+  /** Point numbers, which only the selected path shows. */
+  const LABEL_SIZE = 1.2;
 
   let radius = $derived(POINT_RADIUS * radiusScale);
   let segments = $derived(atomicSegments(lines));
@@ -50,14 +51,14 @@
 </script>
 
 {#snippet label(text: string, x: number, y: number, size: number)}
+  <!-- Dropping the baseline by half the digit height centers the digit itself. -->
   <text
-    transform={`translate(${x} ${y - 0.15}) scale(1 -1)`}
+    transform={`translate(${x} ${y}) scale(1 -1)`}
     font-size={size}
     text-anchor="middle"
-    dominant-baseline="central"
-    fill="white"
+    dy="0.35em"
     pointer-events="none"
-    class="font-sans select-none">{text}</text
+    class="fill-surface-dark font-sans select-none">{text}</text
   >
 {/snippet}
 
@@ -81,6 +82,11 @@
     {#each [line.endPoint, ...(line.throughPoints ?? line.controlPoints)] as point, pointIndex (pointIndex)}
       {@const locked = Boolean(line.locked) || Boolean(point.locked)}
       {@const id = `${idPrefix}-${index + 1}-${pointIndex}`}
+      {@const scale = isSelectedLine
+        ? selection?.index === pointIndex
+          ? SELECTED_POINT_SCALE
+          : SELECTED_PATH_SCALE
+        : 1}
       <g
         {id}
         class={onPointDown && !locked ? "cursor-grab" : ""}
@@ -96,42 +102,14 @@
             event,
           )}
       >
-        {#if isSelectedLine}
-          {@const isSelectedPoint = selection?.index === pointIndex}
-          <circle
-            cx={point.x}
-            cy={point.y}
-            r={radius * 1.45}
-            fill="none"
-            stroke={isSelectedPoint ? "#ffffff" : SELECTION_COLOR}
-            stroke-width={isSelectedPoint ? 0.45 : 0.25}
-          />
-          {#if isSelectedPoint}
-            <circle
-              cx={point.x}
-              cy={point.y}
-              r={POINT_RADIUS * 1.7}
-              fill="none"
-              stroke={SELECTION_COLOR}
-              stroke-width={0.35}
-              opacity={0.95}
-            />
-          {/if}
-        {/if}
         <circle
           cx={point.x}
           cy={point.y}
-          r={radius}
+          r={radius * scale}
           fill={color || line.color}
-          stroke={selection
-            ? isSelectedLine
-              ? SELECTION_COLOR
-              : line.color
-            : "none"}
-          stroke-width={isSelectedLine ? 0.7 : 0.25}
         />
-        {#if pointIndex > 0}
-          {@render label(`${pointIndex}`, point.x, point.y, labelSize)}
+        {#if pointIndex > 0 && isSelectedLine}
+          {@render label(`${pointIndex}`, point.x, point.y, LABEL_SIZE * scale)}
         {/if}
       </g>
     {/each}
