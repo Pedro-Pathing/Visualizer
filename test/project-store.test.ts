@@ -13,7 +13,7 @@ import { createSegment } from "../src/utils/normalize";
 import { DEFAULT_ROBOT } from "./support/fixtures";
 
 function store() {
-  return new ProjectStore(createDefaultProject(DEFAULT_ROBOT));
+  return new ProjectStore(createDefaultProject(DEFAULT_ROBOT, "biobuzz.webp"));
 }
 
 const endpoint = (project: ProjectStore): PointAddress => ({
@@ -97,7 +97,7 @@ describe("ProjectStore", () => {
   it("starts a fresh history when a document is loaded", () => {
     const project = store();
     project.apply(updatePoint(endpoint(project), { x: 10 }));
-    project.load(createDefaultProject(DEFAULT_ROBOT));
+    project.load(createDefaultProject(DEFAULT_ROBOT, "biobuzz.webp"));
     expect(project.canUndo).toBe(false);
     expect(project.dirty).toBe(false);
   });

@@ -109,11 +109,21 @@ describe("serializeProject", () => {
 describe("createDefaultProject", () => {
   it("uses the given robot config", () => {
     const robot = { ...DEFAULT_ROBOT, rWidth: 12 };
-    expect(createDefaultProject(robot).robot).toBe(robot);
+    expect(createDefaultProject(robot, "biobuzz.webp").robot).toBe(robot);
   });
 
   it("round-trips through a save", () => {
-    const doc = createDefaultProject(DEFAULT_ROBOT);
+    const doc = createDefaultProject(DEFAULT_ROBOT, "biobuzz.webp");
     expect(loadProject(serializeProject(doc))).toEqual(doc);
+  });
+
+  it("starts with the obstacles of the given field", () => {
+    const names = (fieldMap: string) =>
+      createDefaultProject(DEFAULT_ROBOT, fieldMap).shapes.map(
+        (shape) => shape.name,
+      );
+    expect(names("decode.webp")).toEqual(["Red GOAL", "Blue GOAL"]);
+    expect(names("biobuzz.webp")).toContain("Red HIVE");
+    expect(names("custom")).toEqual([]);
   });
 });
