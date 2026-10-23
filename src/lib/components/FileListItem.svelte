@@ -11,8 +11,13 @@
     onDelete: (file: FileInfo) => void;
   }
 
-  let { file, isPrimary = false, onActivate, onRename, onDelete }: Props =
-    $props();
+  let {
+    file,
+    isPrimary = false,
+    onActivate,
+    onRename,
+    onDelete,
+  }: Props = $props();
 
   function formatSize(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;

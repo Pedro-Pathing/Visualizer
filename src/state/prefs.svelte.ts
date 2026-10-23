@@ -24,7 +24,10 @@ export class Prefs {
 
   constructor(project: ProjectStore) {
     this.#project = project;
-    const persist = debounce((settings: Settings) => saveSettings(settings), 1000);
+    const persist = debounce(
+      (settings: Settings) => saveSettings(settings),
+      1000,
+    );
     $effect(() => {
       persist(this.settings);
     });

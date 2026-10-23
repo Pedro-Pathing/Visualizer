@@ -2,7 +2,13 @@
   import { onMount } from "svelte";
   import { cubicInOut } from "svelte/easing";
   import { fade, fly } from "svelte/transition";
-  import { FolderOpen, LoaderCircle, Plus, TriangleAlert, X } from "@lucide/svelte";
+  import {
+    FolderOpen,
+    LoaderCircle,
+    Plus,
+    TriangleAlert,
+    X,
+  } from "@lucide/svelte";
   import type { FileInfo } from "../types";
   import * as browserFileStore from "../utils/browserFileStore";
   import { currentFilePath } from "../stores";
@@ -180,7 +186,10 @@
         return;
       }
       if (isOpenFile) {
-        await browserFileStore.writeFile(name, serializeProject(currentProject()));
+        await browserFileStore.writeFile(
+          name,
+          serializeProject(currentProject()),
+        );
         currentFilePath.set(name);
         project.markSaved();
       }
@@ -268,14 +277,20 @@
       showToast(`Saved to local file: ${name}`, "success");
     } catch (error) {
       if (isPickerCancel(error)) return;
-      showToast(`Failed to write local file: ${getErrorMessage(error)}`, "error");
+      showToast(
+        `Failed to write local file: ${getErrorMessage(error)}`,
+        "error",
+      );
     }
   }
 
   onMount(() => {
     syncActiveProjectToStorage()
       .catch((error) => {
-        console.error("Failed to sync active project before opening files:", error);
+        console.error(
+          "Failed to sync active project before opening files:",
+          error,
+        );
       })
       .finally(() => loadDirectory());
   });
@@ -291,7 +306,12 @@
   ></div>
 
   <aside
-    transition:fly|global={{ duration: 300, easing: cubicInOut, x: -320, opacity: 1 }}
+    transition:fly|global={{
+      duration: 300,
+      easing: cubicInOut,
+      x: -320,
+      opacity: 1,
+    }}
     class="fixed inset-y-2 left-2 z-1010 flex w-80 flex-col overflow-hidden rounded-2xl border border-border bg-surface text-body shadow-xl md:w-96"
     aria-label="Files"
   >
@@ -299,7 +319,9 @@
       <div class="flex items-center gap-2">
         <h2 class="text-sm font-semibold text-heading">Files</h2>
         {#if files.length > 0}
-          <span class="font-mono text-xs tabular-nums text-body">{files.length}</span>
+          <span class="font-mono text-xs tabular-nums text-body"
+            >{files.length}</span
+          >
         {/if}
         <IconButton
           label="Close files"
@@ -332,7 +354,9 @@
           Loading files…
         </div>
       {:else if errorMessage && files.length === 0}
-        <div class="flex flex-col items-center gap-2 px-3 py-10 text-center text-xs text-body">
+        <div
+          class="flex flex-col items-center gap-2 px-3 py-10 text-center text-xs text-body"
+        >
           <TriangleAlert class="size-6 text-danger" />
           {errorMessage}
         </div>

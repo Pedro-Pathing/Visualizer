@@ -46,7 +46,11 @@
       >
         {file.name}
       </span>
-      <IconButton label="Rename this file" size="sm" onclick={() => onRename(file)}>
+      <IconButton
+        label="Rename this file"
+        size="sm"
+        onclick={() => onRename(file)}
+      >
         <Pencil />
       </IconButton>
       <IconButton label="Duplicate this file" size="sm" onclick={onDuplicate}>
@@ -65,7 +69,11 @@
     <div class="flex flex-col gap-1.5">
       <span class={labelClass}>Save</span>
       <div class="grid grid-cols-2 gap-2">
-        <Button size="sm" title="Save into the selected file" onclick={onOverwrite}>
+        <Button
+          size="sm"
+          title="Save into the selected file"
+          onclick={onOverwrite}
+        >
           <Save class="size-3.5" />
           Overwrite
         </Button>

@@ -12,8 +12,12 @@
     onVertexDown: (address: PointAddress, event: PointerEvent) => void;
   }
 
-  let { shapes, selectedId = null, onShapeDown, onVertexDown }: Props =
-    $props();
+  let {
+    shapes,
+    selectedId = null,
+    onShapeDown,
+    onVertexDown,
+  }: Props = $props();
 
   /** Vertices and their numbers, which only the selected obstacle shows. */
   const LABEL_SIZE = 1.1;

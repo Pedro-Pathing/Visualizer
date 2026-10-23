@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Path } from "../src/types";
 import { createSegment } from "../src/utils/normalize";
-import {
-  groupPaths,
-  insertPaths,
-  movePath,
-} from "../src/utils/pathTraversal";
+import { groupPaths, insertPaths, movePath } from "../src/utils/pathTraversal";
 
 const ids = (paths: Path[]): unknown[] =>
   paths.map((path) =>

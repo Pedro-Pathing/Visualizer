@@ -108,7 +108,10 @@
         onclick={() => (collapsed[item.id] = !collapsed[item.id])}
       >
         <ChevronDown
-          class={["size-3.5 transition-transform", collapsed[item.id] && "-rotate-90"]}
+          class={[
+            "size-3.5 transition-transform",
+            collapsed[item.id] && "-rotate-90",
+          ]}
         />
       </button>
     {:else}
@@ -124,7 +127,9 @@
     >
       <span class={["truncate", selected && "text-heading"]}>{item.name}</span>
       {#if item.kind === "compound"}
-        <span class="font-mono text-[11px] opacity-60">{item.children.length}</span>
+        <span class="font-mono text-[11px] opacity-60"
+          >{item.children.length}</span
+        >
       {/if}
     </button>
     {#if count}

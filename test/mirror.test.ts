@@ -28,7 +28,7 @@ const pedroMirrorX = ({ x, y, heading }: Pose): Pose => ({
 });
 
 const sameAngle = (a: number, b: number) =>
-  Math.abs((((a - b) % 360) + 540) % 360 - 180) < 1e-3;
+  Math.abs(((((a - b) % 360) + 540) % 360) - 180) < 1e-3;
 
 describe.each(fixtures)("mirroring $name", ({ text }) => {
   it("matches exporting with mirrorX", async () => {
@@ -38,7 +38,12 @@ describe.each(fixtures)("mirroring $name", ({ text }) => {
     );
     const mirrored = mirrorProject(doc);
     const expected = posesIn(
-      await generateJavaCode(mirrored.startPoint, mirrored.lines, "class", false),
+      await generateJavaCode(
+        mirrored.startPoint,
+        mirrored.lines,
+        "class",
+        false,
+      ),
     );
 
     expect([...exported.keys()]).toEqual([...expected.keys()]);
@@ -73,7 +78,9 @@ describe("mirrorProject", () => {
     expect(mirrored.shapes).toHaveLength(doc.shapes.length);
     mirrored.shapes.forEach((shape, i) =>
       shape.vertices.forEach((vertex, j) => {
-        expect(vertex.x).toBeCloseTo(2 * MIRROR_AXIS - doc.shapes[i].vertices[j].x);
+        expect(vertex.x).toBeCloseTo(
+          2 * MIRROR_AXIS - doc.shapes[i].vertices[j].x,
+        );
         expect(vertex.y).toBe(doc.shapes[i].vertices[j].y);
       }),
     );

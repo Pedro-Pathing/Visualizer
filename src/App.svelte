@@ -79,8 +79,9 @@
   /** Only trust the browser's own report of a phone or tablet. */
   function isMobileDevice() {
     if (typeof navigator === "undefined") return false;
-    const hint = (navigator as Navigator & { userAgentData?: { mobile?: boolean } })
-      .userAgentData?.mobile;
+    const hint = (
+      navigator as Navigator & { userAgentData?: { mobile?: boolean } }
+    ).userAgentData?.mobile;
     return (
       hint === true ||
       /Android|iPhone|iPad|iPod|Mobile|Tablet|Silk/i.test(navigator.userAgent)

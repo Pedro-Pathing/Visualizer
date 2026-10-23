@@ -72,12 +72,12 @@ function expressionOf(expr: PathExpr, spec: LanguageSpec): string {
             expr.endPoseVar,
           ])
         : expr.controlPoseVars.length === 0
-        ? PEDRO_API.paths.line(expr.startPoseVar, expr.endPoseVar)
-        : PEDRO_API.paths.curve(
-            expr.startPoseVar,
-            expr.controlPoseVars,
-            expr.endPoseVar,
-          );
+          ? PEDRO_API.paths.line(expr.startPoseVar, expr.endPoseVar)
+          : PEDRO_API.paths.curve(
+              expr.startPoseVar,
+              expr.controlPoseVars,
+              expr.endPoseVar,
+            );
 
   return expr.heading ? `${base}${headingSuffix(expr.heading, spec)}` : base;
 }

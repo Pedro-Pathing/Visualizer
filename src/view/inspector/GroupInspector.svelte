@@ -44,7 +44,8 @@
   </label>
 
   <p class="text-xs text-body">
-    {group.segments.length} direct children, {atomicSegments(group.segments).length}
+    {group.segments.length} direct children, {atomicSegments(group.segments)
+      .length}
     paths in all.
   </p>
 

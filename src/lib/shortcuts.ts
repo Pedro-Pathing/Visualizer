@@ -54,7 +54,8 @@ export function installShortcuts(shortcuts: Shortcut[]): () => void {
 }
 
 const isMac =
-  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+  typeof navigator !== "undefined" &&
+  /Mac|iPhone|iPad/.test(navigator.platform);
 
 const KEY_LABELS: Record<string, string> = {
   mod: isMac ? "⌘" : "Ctrl",

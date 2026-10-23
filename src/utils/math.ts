@@ -161,7 +161,8 @@ export function curveThroughPoints(
     const previous = result[result.length - 1];
     if (
       !previous ||
-      Math.hypot(point.x - previous.x, point.y - previous.y) >= smoothingDistance
+      Math.hypot(point.x - previous.x, point.y - previous.y) >=
+        smoothingDistance
     ) {
       result.push({ x: point.x, y: point.y });
     } else {

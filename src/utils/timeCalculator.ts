@@ -169,12 +169,7 @@ export function calculateVisualizationPathTime(
     }
   });
 
-  return calculatePathTime(
-    startPoint,
-    lines,
-    settings,
-    visualizationSequence,
-  );
+  return calculatePathTime(startPoint, lines, settings, visualizationSequence);
 }
 
 export function formatTime(totalSeconds: number): string {

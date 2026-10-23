@@ -44,7 +44,10 @@
     const value = parseFloat(input.value);
     if (Number.isNaN(value)) return;
     project.apply(
-      updatePoint({ kind: "vertex", shapeId: shape.id, index }, { [axis]: value }),
+      updatePoint(
+        { kind: "vertex", shapeId: shape.id, index },
+        { [axis]: value },
+      ),
       { coalesce: `${shape.id}.${index}.${axis}` },
     );
   }
@@ -74,8 +77,11 @@
         class={[fieldClass, "w-24"]}
         value={shape.color}
         onchange={(event) => {
-          const choice = COLORS.find((c) => c.color === event.currentTarget.value);
-          if (choice) edit({ color: choice.color, fillColor: choice.fillColor });
+          const choice = COLORS.find(
+            (c) => c.color === event.currentTarget.value,
+          );
+          if (choice)
+            edit({ color: choice.color, fillColor: choice.fillColor });
         }}
       >
         {#each COLORS as choice (choice.color)}
@@ -83,7 +89,11 @@
         {/each}
       </select>
     </label>
-    <IconButton label="Delete obstacle" class="hover:text-danger!" onclick={remove}>
+    <IconButton
+      label="Delete obstacle"
+      class="hover:text-danger!"
+      onclick={remove}
+    >
       <Trash2 />
     </IconButton>
   </div>
@@ -92,7 +102,9 @@
     <span class={labelClass}>Vertices</span>
     {#each shape.vertices as vertex, index (index)}
       <div class="flex items-center gap-2">
-        <span class="w-4 text-right font-mono text-xs text-body">{index + 1}</span>
+        <span class="w-4 text-right font-mono text-xs text-body"
+          >{index + 1}</span
+        >
         <input
           class={fieldClass}
           type="number"

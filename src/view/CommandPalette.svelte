@@ -73,7 +73,10 @@
     }}
   >
     <div
-      class={[surfaceClass, "w-full max-w-lg overflow-hidden bg-surface shadow-xl"]}
+      class={[
+        surfaceClass,
+        "w-full max-w-lg overflow-hidden bg-surface shadow-xl",
+      ]}
       role="dialog"
       aria-modal="true"
       aria-label="Command palette"
@@ -90,10 +93,16 @@
           role="combobox"
           aria-expanded="true"
           aria-controls="palette-results"
-          aria-activedescendant={matches[active] ? `palette-${matches[active].id}` : undefined}
+          aria-activedescendant={matches[active]
+            ? `palette-${matches[active].id}`
+            : undefined}
         />
       </div>
-      <ul id="palette-results" class="max-h-80 overflow-y-auto p-1" role="listbox">
+      <ul
+        id="palette-results"
+        class="max-h-80 overflow-y-auto p-1"
+        role="listbox"
+      >
         {#each matches as action, index (action.id)}
           <li
             id={`palette-${action.id}`}
@@ -109,7 +118,9 @@
             <span class="w-20 shrink-0 text-xs opacity-70">{action.group}</span>
             <span class="flex-1 text-heading">{action.title}</span>
             {#if action.keys?.[0]}
-              <kbd class="font-mono text-xs opacity-70">{formatKeys(action.keys[0])}</kbd>
+              <kbd class="font-mono text-xs opacity-70"
+                >{formatKeys(action.keys[0])}</kbd
+              >
             {/if}
           </li>
         {/each}

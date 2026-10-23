@@ -38,7 +38,9 @@
   {/if}
   {#each files as file (file.path)}
     {@const on = $activePaths.includes(file.path)}
-    {@const color = overlays.items.find((item) => item.filePath === file.path)?.color}
+    {@const color = overlays.items.find(
+      (item) => item.filePath === file.path,
+    )?.color}
     <label
       class={[
         "flex h-7 items-center gap-2 rounded-md px-2 text-sm transition hover:bg-body/8",
@@ -56,7 +58,9 @@
       />
       <span class="truncate">{file.name}</span>
       {#if color}
-        <span class="ml-auto size-2.5 shrink-0 rounded-full" style={`background: ${color}`}
+        <span
+          class="ml-auto size-2.5 shrink-0 rounded-full"
+          style={`background: ${color}`}
         ></span>
       {/if}
     </label>

@@ -14,7 +14,9 @@ async function openApp(page: Page) {
 /** The selected path's end point, as the inspector's fields show it. */
 async function selectedPoint(page: Page) {
   const value = async (label: string) =>
-    Number(await page.getByLabel(label, { exact: true }).inputValue()).toFixed(1);
+    Number(await page.getByLabel(label, { exact: true }).inputValue()).toFixed(
+      1,
+    );
   return `${await value("End X")}, ${await value("End Y")}`;
 }
 

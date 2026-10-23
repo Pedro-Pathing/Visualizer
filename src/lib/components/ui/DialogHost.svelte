@@ -70,7 +70,12 @@
             aria-label={shown.title}
             aria-invalid={problem !== null}
           />
-          <p class={["text-xs", value.trim() && problem ? "text-danger" : "text-body"]}>
+          <p
+            class={[
+              "text-xs",
+              value.trim() && problem ? "text-danger" : "text-body",
+            ]}
+          >
             {value.trim() && problem ? problem : (shown.hint ?? " ")}
           </p>
         </div>
@@ -80,7 +85,9 @@
         <Button variant="ghost" onclick={() => finish(false)}>Cancel</Button>
         <Button
           type="submit"
-          variant={shown.kind === "confirm" && shown.danger ? "danger" : "primary"}
+          variant={shown.kind === "confirm" && shown.danger
+            ? "danger"
+            : "primary"}
           disabled={problem !== null}
         >
           {shown.confirmLabel ?? "OK"}

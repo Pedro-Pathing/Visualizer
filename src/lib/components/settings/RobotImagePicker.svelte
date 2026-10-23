@@ -17,13 +17,21 @@
   const DUCK_IMAGE = "/MecanumDuck.png";
 
   const presets = [
-    { src: DEFAULT_ROBOT_IMAGE, label: "Default", hint: "Use the default robot image" },
+    {
+      src: DEFAULT_ROBOT_IMAGE,
+      label: "Default",
+      hint: "Use the default robot image",
+    },
     {
       src: POTATO_IMAGE,
       label: "🥔 Potato",
       hint: "Transform your robot into Jeffery the Potato!",
     },
-    { src: DUCK_IMAGE, label: "Duck", hint: "Use the Mecanum Duck robot image" },
+    {
+      src: DUCK_IMAGE,
+      label: "Duck",
+      hint: "Use the Mecanum Duck robot image",
+    },
   ];
 
   let fileInput: HTMLInputElement | undefined = $state();
@@ -100,7 +108,10 @@
         <p class="text-body">Quack Quack</p>
       {:else if customImage}
         <p class="font-medium text-heading">Custom image loaded</p>
-        <p class="truncate font-mono text-body" title={customImage.substring(0, 100)}>
+        <p
+          class="truncate font-mono text-body"
+          title={customImage.substring(0, 100)}
+        >
           {customImage.substring(0, 30)}...
         </p>
       {:else}
@@ -115,7 +126,10 @@
         size="sm"
         title={preset.hint}
         aria-pressed={currentImage === preset.src}
-        class={["min-w-0", currentImage === preset.src && "border-primary! text-primary!"]}
+        class={[
+          "min-w-0",
+          currentImage === preset.src && "border-primary! text-primary!",
+        ]}
         onclick={() => setImage(preset.src)}
       >
         {preset.label}

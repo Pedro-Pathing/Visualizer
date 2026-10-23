@@ -51,7 +51,10 @@
   </div>
 
   <div class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
-    <PanelSection title="Paths" count={atomicSegments(project.doc.lines).length}>
+    <PanelSection
+      title="Paths"
+      count={atomicSegments(project.doc.lines).length}
+    >
       <PathTree />
     </PanelSection>
 

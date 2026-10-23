@@ -14,7 +14,10 @@
   import { useProject } from "../../state/project.svelte";
   import type { Theme, ThemeChoice } from "../../state/theme.svelte";
   import { resetSettings } from "../../utils/settingsPersistence";
-  import { AVAILABLE_FIELD_MAPS, getDefaultShapes } from "../../config/defaults";
+  import {
+    AVAILABLE_FIELD_MAPS,
+    getDefaultShapes,
+  } from "../../config/defaults";
   import type { Settings } from "../../types";
 
   interface Props {
@@ -24,8 +27,11 @@
     theme: Theme;
   }
 
-  let { isOpen = $bindable(false), prefs = $bindable(), theme }: Props =
-    $props();
+  let {
+    isOpen = $bindable(false),
+    prefs = $bindable(),
+    theme,
+  }: Props = $props();
 
   const project = useProject();
 
@@ -36,7 +42,9 @@
   ];
 
   type NumericSetting = {
-    [K in keyof Settings]-?: NonNullable<Settings[K]> extends number ? K : never;
+    [K in keyof Settings]-?: NonNullable<Settings[K]> extends number
+      ? K
+      : never;
   }[keyof Settings];
   type Flag = keyof NonNullable<Settings["experimentalFeatures"]>;
 
@@ -93,11 +101,14 @@
   onClose={() => (isOpen = false)}
   panelClass="flex max-h-[85vh] w-full max-w-xl flex-col mx-4"
 >
-  <div class="flex items-center justify-between border-b border-border px-5 py-3">
+  <div
+    class="flex items-center justify-between border-b border-border px-5 py-3"
+  >
     <h2 id="settings-title" class="text-base font-semibold text-heading">
       Settings
     </h2>
-    <IconButton label="Close" onclick={() => (isOpen = false)}><X /></IconButton>
+    <IconButton label="Close" onclick={() => (isOpen = false)}><X /></IconButton
+    >
   </div>
 
   <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
@@ -111,7 +122,10 @@
       <div class="flex flex-col gap-3 px-1">
         <div class="flex flex-col gap-1">
           <span class={labelClass}>Theme</span>
-          <div class="inline-flex w-fit rounded-lg border border-border p-0.5" role="radiogroup">
+          <div
+            class="inline-flex w-fit rounded-lg border border-border p-0.5"
+            role="radiogroup"
+          >
             {#each THEMES as [choice, label] (choice)}
               <button
                 type="button"
@@ -149,8 +163,8 @@
         {#if prefs.fieldMap === "custom"}
           <label class="flex flex-col gap-1">
             <span class={labelClass}>
-              Custom field image (PNG, JPG or WEBP, square, all six tiles
-              edge to edge)
+              Custom field image (PNG, JPG or WEBP, square, all six tiles edge
+              to edge)
             </span>
             <input
               type="file"
@@ -341,7 +355,8 @@
     <PanelSection title="Experimental" open={false}>
       <div class="flex flex-col gap-2 px-1">
         <p class="text-xs text-body">
-          Unfinished features. These features may not work correctly, so save your project before enabling them/
+          Unfinished features. These features may not work correctly, so save
+          your project before enabling them/
         </p>
         <Toggle
           label="Path optimizer"
@@ -359,7 +374,8 @@
         <Toggle
           label="Obstacles and collision checks"
           checked={prefs.experimentalFeatures?.obstacles ?? false}
-          onchange={(event) => setFlag("obstacles", event.currentTarget.checked)}
+          onchange={(event) =>
+            setFlag("obstacles", event.currentTarget.checked)}
         />
       </div>
     </PanelSection>
@@ -378,7 +394,12 @@
         rel="noreferrer">GitHub</a
       >
     </span>
-    <Button size="sm" variant="ghost" class="hover:text-danger" onclick={resetAll}>
+    <Button
+      size="sm"
+      variant="ghost"
+      class="hover:text-danger"
+      onclick={resetAll}
+    >
       Reset all settings
     </Button>
   </div>

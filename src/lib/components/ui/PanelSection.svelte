@@ -30,11 +30,16 @@
       onclick={() => (open = !open)}
     >
       <ChevronDown
-        class={["size-3.5 shrink-0 transition-transform", !open && "-rotate-90"]}
+        class={[
+          "size-3.5 shrink-0 transition-transform",
+          !open && "-rotate-90",
+        ]}
       />
       <span class="truncate">{title}</span>
       {#if count !== undefined}
-        <span class="font-mono font-normal tabular-nums opacity-70">{count}</span>
+        <span class="font-mono font-normal tabular-nums opacity-70"
+          >{count}</span
+        >
       {/if}
     </button>
     {@render actions?.()}

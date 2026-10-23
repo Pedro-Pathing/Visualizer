@@ -17,7 +17,11 @@
 
   let { heading, locked = false, onChange }: Props = $props();
 
-  const headingTypes: Array<{ value: HeadingType; label: string; hint: string }> = [
+  const headingTypes: Array<{
+    value: HeadingType;
+    label: string;
+    hint: string;
+  }> = [
     {
       value: "constant",
       label: "Constant",

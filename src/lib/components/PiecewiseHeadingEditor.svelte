@@ -2,7 +2,12 @@
   import { ChevronRight, Plus, Trash2, TriangleAlert } from "@lucide/svelte";
   import Button from "./ui/Button.svelte";
   import IconButton from "./ui/IconButton.svelte";
-  import { checkboxClass, fieldClass, labelClass, sectionClass } from "./ui/styles";
+  import {
+    checkboxClass,
+    fieldClass,
+    labelClass,
+    sectionClass,
+  } from "./ui/styles";
   import type {
     PiecewiseHeadingInterpolation,
     PiecewiseHeadingInterpolationType,
@@ -151,7 +156,10 @@
   }
 
   function typeLabel(type: PiecewiseHeadingInterpolationType): string {
-    return interpolationOptions.find((option) => option.value === type)?.label ?? type;
+    return (
+      interpolationOptions.find((option) => option.value === type)?.label ??
+      type
+    );
   }
 
   function getProgressFromPointer(
@@ -398,7 +406,9 @@
               {typeLabel(segment.interpolationType)}
             </span>
             <span class="font-mono text-body tabular-nums">
-              {segment.startProgress.toFixed(2)}–{segment.endProgress.toFixed(2)}
+              {segment.startProgress.toFixed(2)}–{segment.endProgress.toFixed(
+                2,
+              )}
             </span>
           </button>
           <IconButton
@@ -429,7 +439,10 @@
                     ? "The first segment always starts at 0."
                     : "Moves the boundary shared with the previous segment."}
                   onchange={(event) =>
-                    updateSegmentStart(index, Number(event.currentTarget.value))}
+                    updateSegmentStart(
+                      index,
+                      Number(event.currentTarget.value),
+                    )}
                 />
               </label>
               <label class="flex flex-col gap-1">
@@ -460,7 +473,8 @@
                 onchange={(event) =>
                   setInterpolationType(
                     index,
-                    event.currentTarget.value as PiecewiseHeadingInterpolationType,
+                    event.currentTarget
+                      .value as PiecewiseHeadingInterpolationType,
                   )}
               >
                 {#each interpolationOptions as option (option.value)}
@@ -479,7 +493,9 @@
                       checked={!!segment.reversed}
                       disabled={locked}
                       onchange={(event) =>
-                        updateSegment(index, { reversed: event.currentTarget.checked })}
+                        updateSegment(index, {
+                          reversed: event.currentTarget.checked,
+                        })}
                     />
                     Reverse
                   </label>
@@ -523,7 +539,9 @@
                     disabled={locked}
                     onchange={(event) =>
                       updateSegment(index, {
-                        parameters: { startDeg: Number(event.currentTarget.value) },
+                        parameters: {
+                          startDeg: Number(event.currentTarget.value),
+                        },
                       })}
                   />
                 </label>
@@ -537,7 +555,9 @@
                     disabled={locked}
                     onchange={(event) =>
                       updateSegment(index, {
-                        parameters: { endDeg: Number(event.currentTarget.value) },
+                        parameters: {
+                          endDeg: Number(event.currentTarget.value),
+                        },
                       })}
                   />
                 </label>
@@ -562,7 +582,9 @@
                   disabled={locked}
                   onchange={(event) =>
                     updateSegment(index, {
-                      parameters: { degrees: Number(event.currentTarget.value) },
+                      parameters: {
+                        degrees: Number(event.currentTarget.value),
+                      },
                     })}
                 />
               </label>

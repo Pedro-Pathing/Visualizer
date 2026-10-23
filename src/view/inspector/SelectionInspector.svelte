@@ -7,8 +7,8 @@
 
 <div class="flex flex-col gap-3">
   <p class="text-sm text-body">
-    {editor.selectedPathIds.length} paths selected. Cmd/Ctrl-click to add or
-    remove one, Shift-click to select a run.
+    {editor.selectedPathIds.length} paths selected. Cmd/Ctrl-click to add or remove
+    one, Shift-click to select a run.
   </p>
   <div class="flex gap-2">
     <Button

@@ -29,12 +29,13 @@ export class PanelLayout {
     // saved width would let it reclaim space the other panel was dragged into.
     $effect(() => {
       const settings = prefs.value;
-      const available =
-        getTotalAvailableWidth() - getMinCenterWidthForSquare();
+      const available = getTotalAvailableWidth() - getMinCenterWidthForSquare();
       const rightMin = getRightPanelMinWidth(settings);
       const leftMin = getLeftPanelMinWidth(settings);
       if (!this.leftHidden) {
-        const right = this.rightHidden ? 0 : Math.max(this.rightWidth, rightMin);
+        const right = this.rightHidden
+          ? 0
+          : Math.max(this.rightWidth, rightMin);
         const next = clamp(
           this.leftWidth,
           leftMin,

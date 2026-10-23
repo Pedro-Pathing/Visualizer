@@ -372,7 +372,11 @@ export class EditorState {
     this.select(childIds);
   }
 
-  reorderPath(draggedId: string, targetId: string, position: "before" | "after") {
+  reorderPath(
+    draggedId: string,
+    targetId: string,
+    position: "before" | "after",
+  ) {
     const next = movePath(this.#lines, draggedId, targetId, position);
     if (next === this.#lines) return;
     // Playback follows the sequence, so it has to track the new order.
@@ -479,7 +483,10 @@ export class EditorState {
         sequence.splice(
           sequenceIndex >= 0 ? sequenceIndex + 1 : sequence.length,
           0,
-          ...newLines.map((line) => ({ kind: "path" as const, lineId: line.id })),
+          ...newLines.map((line) => ({
+            kind: "path" as const,
+            lineId: line.id,
+          })),
         );
         return { ...doc, lines, sequence };
       });

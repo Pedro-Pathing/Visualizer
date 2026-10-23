@@ -61,7 +61,9 @@ export function mirrorHeading(heading: Heading): Heading {
         ...heading,
         piecewiseHeading: {
           ...heading.piecewiseHeading,
-          segments: heading.piecewiseHeading.segments.map(mirrorPiecewiseSegment),
+          segments: heading.piecewiseHeading.segments.map(
+            mirrorPiecewiseSegment,
+          ),
         },
       };
   }

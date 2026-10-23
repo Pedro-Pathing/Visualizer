@@ -118,7 +118,9 @@
   onClose={() => (isOpen = false)}
   panelClass="flex max-h-[90vh] w-full max-w-4xl flex-col mx-4"
 >
-  <div class="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3">
+  <div
+    class="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3"
+  >
     <h2 id="export-title" class="mr-auto text-base font-semibold text-heading">
       {TITLES[format]}
     </h2>
@@ -145,7 +147,8 @@
         />
       </label>
     {/if}
-    <IconButton label="Close" onclick={() => (isOpen = false)}><X /></IconButton>
+    <IconButton label="Close" onclick={() => (isOpen = false)}><X /></IconButton
+    >
   </div>
 
   <div class="code-export relative min-h-0 flex-1 overflow-auto text-[13px]">

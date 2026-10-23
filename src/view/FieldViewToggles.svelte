@@ -1,5 +1,12 @@
 <script lang="ts">
-  import { Angle, Grid3x3, Lock, LockOpen, Magnet, Ruler } from "@lucide/svelte";
+  import {
+    Angle,
+    Grid3x3,
+    Lock,
+    LockOpen,
+    Magnet,
+    Ruler,
+  } from "@lucide/svelte";
   import IconButton from "../lib/components/ui/IconButton.svelte";
   import { surfaceClass } from "../lib/components/ui/styles";
   import {

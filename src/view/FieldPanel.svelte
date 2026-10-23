@@ -10,10 +10,7 @@
   } from "../model/commands";
   import { atomicSegments } from "../utils/pathTraversal";
   import { robotFootprint } from "../model/collision";
-  import {
-    generateGhostPathPoints,
-    generateOnionLayers,
-  } from "../model/sweep";
+  import { generateGhostPathPoints, generateOnionLayers } from "../model/sweep";
   import { robotPoseAt } from "../sim/pose";
   import { smoothStrokePreview } from "../lib/pen/strokeFitting";
   import { selectVisibleOnionLayers } from "../lib/scene/onion";
@@ -283,8 +280,7 @@
         label: onEndPoint ? "Delete path" : "Delete control point",
         hint: "Del",
         danger: true,
-        disabled:
-          onEndPoint && atomicSegments(doc.lines).length <= 1,
+        disabled: onEndPoint && atomicSegments(doc.lines).length <= 1,
         run: () => editor.deleteSelectedPoint(),
       },
     ];
@@ -415,7 +411,12 @@
         </div>
       {/if}
 
-      <MathTools {x} {y} fieldElement={element} robotXY={sprite(playback.robotPose).xy} />
+      <MathTools
+        {x}
+        {y}
+        fieldElement={element}
+        robotXY={sprite(playback.robotPose).xy}
+      />
 
       {#if overlays.active}
         {#each playback.overlayPoses as pose, index (index)}
@@ -450,7 +451,8 @@
           tValue={playback.robotPose.t}
           onImageSettled={() => (loadedRobotImage = robotImageSrc)}
         />
-        {@const clearance = x(Math.max(settings.rWidth, settings.rHeight)) * 0.75}
+        {@const clearance =
+          x(Math.max(settings.rWidth, settings.rHeight)) * 0.75}
         {@const below = xy.y + clearance + 20 < pixels}
         <div
           class={[

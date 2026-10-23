@@ -417,12 +417,20 @@ export function evaluatePiecewiseHeading(
     (segment.interpolationType === "tangential" ||
       segment.interpolationType === "facing-point")
   ) {
-    const previousAngle = piecewiseSegmentEndAngle(segments, index - 1, geometry);
+    const previousAngle = piecewiseSegmentEndAngle(
+      segments,
+      index - 1,
+      geometry,
+    );
     if (previousAngle !== null) {
       const targetAngle =
         segment.interpolationType === "tangential"
           ? tangentialAngle(geometry, segment.reversed)
-          : facingPointAngle(geometry, segment.parameters?.point, segment.reversed);
+          : facingPointAngle(
+              geometry,
+              segment.parameters?.point,
+              segment.reversed,
+            );
       return interpolateAngleDegrees(
         previousAngle,
         targetAngle,

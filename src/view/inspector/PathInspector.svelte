@@ -22,7 +22,8 @@
   const editor = useEditor();
 
   let number = $derived(
-    atomicSegments(project.doc.lines).findIndex((path) => path.id === line.id) + 1,
+    atomicSegments(project.doc.lines).findIndex((path) => path.id === line.id) +
+      1,
   );
   let index = $derived(editor.selectedPointIndex);
   let step = $derived($snapToGrid && $showGrid ? $gridSize : 0.1);
@@ -83,7 +84,10 @@
         placeholder={`Path ${number}`}
         disabled={line.locked}
         oninput={(event) =>
-          edit("name", (path) => ({ ...path, name: event.currentTarget.value }))}
+          edit("name", (path) => ({
+            ...path,
+            name: event.currentTarget.value,
+          }))}
       />
     </label>
     <IconButton
@@ -132,7 +136,9 @@
       {/if}
     </div>
 
-    <div class="grid grid-cols-[2.75rem_1fr_1fr_auto] items-center gap-x-2 gap-y-1">
+    <div
+      class="grid grid-cols-[2.75rem_1fr_1fr_auto] items-center gap-x-2 gap-y-1"
+    >
       {#each rows as row (row.index)}
         {@const locked = Boolean(line.locked || row.point.locked)}
         {@const selected = index === row.index}
@@ -176,7 +182,9 @@
           </IconButton>
           {#if row.index > 0}
             <IconButton
-              label={throughPoints ? "Delete through point" : "Delete control point"}
+              label={throughPoints
+                ? "Delete through point"
+                : "Delete control point"}
               size="sm"
               class="hover:text-danger!"
               disabled={locked}
@@ -201,7 +209,8 @@
       <HeadingControls
         heading={line.heading}
         locked={line.locked}
-        onChange={(heading) => edit("heading", (path) => ({ ...path, heading }))}
+        onChange={(heading) =>
+          edit("heading", (path) => ({ ...path, heading }))}
       />
     </div>
   </div>
