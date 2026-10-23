@@ -174,9 +174,9 @@
           >
             {#if row.point.locked}<Lock />{:else}<LockOpen />{/if}
           </IconButton>
-          {#if row.index > 0 && !throughPoints}
+          {#if row.index > 0}
             <IconButton
-              label="Delete control point"
+              label={throughPoints ? "Delete through point" : "Delete control point"}
               size="sm"
               class="hover:text-danger!"
               disabled={locked}

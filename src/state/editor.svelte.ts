@@ -286,16 +286,29 @@ export class EditorState {
       return;
     }
 
-    const controlPointIndex = this.selectedPointIndex - 1;
-    if (line.controlPoints[controlPointIndex]?.locked) return;
-    this.#project.apply(
-      updateSegment(line.id, (segment) => ({
-        ...segment,
-        controlPoints: segment.controlPoints.filter(
-          (_point, index) => index !== controlPointIndex,
-        ),
-      })),
-    );
+    const pointIndex = this.selectedPointIndex - 1;
+    if (line.throughPoints?.length) {
+      if (line.throughPoints[pointIndex]?.locked) return;
+      const remaining = line.throughPoints.filter(
+        (_point, index) => index !== pointIndex,
+      );
+      this.#project.apply(
+        updateSegment(line.id, (segment) => ({
+          ...segment,
+          throughPoints: remaining.length ? remaining : undefined,
+        })),
+      );
+    } else {
+      if (line.controlPoints[pointIndex]?.locked) return;
+      this.#project.apply(
+        updateSegment(line.id, (segment) => ({
+          ...segment,
+          controlPoints: segment.controlPoints.filter(
+            (_point, index) => index !== pointIndex,
+          ),
+        })),
+      );
+    }
     this.selectedPointIndex = Math.max(0, this.selectedPointIndex - 1);
   }
 

@@ -267,12 +267,6 @@ export function createActions(deps: ActionDeps): Action[] {
       run: toggleRuler,
     },
     {
-      id: "view.tileSeams",
-      group: "View",
-      title: "Toggle tile seams",
-      run: () => (prefs.value.showTileSeams = !prefs.value.showTileSeams),
-    },
-    {
       id: "view.protractor",
       group: "View",
       title: "Toggle protractor",

@@ -24,10 +24,6 @@ export const TILE_SIZE = 24;
  * the floor on every side and are cropped to it.
  */
 export const FIELD_IMAGE_OVERHANG = (6 * TILE_SIZE - FIELD_SIZE) / 2;
-/** Where the tiles meet, in field coordinates: 22.75", 46.75", … */
-export const TILE_SEAMS = [1, 2, 3, 4, 5].map(
-  (n) => n * TILE_SIZE - FIELD_IMAGE_OVERHANG,
-);
 
 /**
  * Available field maps
@@ -73,7 +69,6 @@ export const DEFAULT_SETTINGS: Settings = {
   rightPanelMinWidth: 0,
   penToolMaxPaths: 8,
   curveThroughMaxPoints: 4,
-  showTileSeams: false,
   autoCollapsePanels: false,
   experimentalFeatures: {
     optimize: false,

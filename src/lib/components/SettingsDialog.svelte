@@ -174,11 +174,6 @@
         </label>
 
         <Toggle
-          label="Tile seams"
-          description='Outline the 24" floor tiles. The edge tiles are 22.75" because the walls cover their outer edge.'
-          bind:checked={prefs.showTileSeams}
-        />
-        <Toggle
           label="Show the path's t value"
           description="Next to the robot while it moves."
           bind:checked={prefs.showCurrentTValue}
