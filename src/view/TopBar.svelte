@@ -1,6 +1,5 @@
 <script lang="ts">
   import { Download, Redo2, Settings, Undo2 } from "@lucide/svelte";
-  import { PROJECT_VERSION } from "../io";
   import { currentFilePath } from "../stores";
   import { basename } from "../utils/filename";
   import { useProject } from "../state/project.svelte";
@@ -39,6 +38,7 @@
       "export.java",
       "export.kotlin",
       "export.points",
+      "export.json",
       "separator",
       "export.image",
       "export.gif",
@@ -57,18 +57,23 @@
       <span class="text-sm font-semibold whitespace-nowrap text-heading">
         Pedro Pathing Visualizer
       </span>
-      <span class="font-mono text-[11px] text-body">v{PROJECT_VERSION}</span>
     </div>
     <Menu label="File" entries={fileEntries} />
-    <span
-      class="truncate text-sm text-body"
-      title={$currentFilePath ?? "Not saved yet"}
+    <button
+      type="button"
+      class="truncate rounded-md px-2 py-1 text-sm text-body transition hover:bg-base hover:text-heading"
+      title={$currentFilePath
+        ? `${$currentFilePath} (click to rename)`
+        : "Not saved yet (click to save with a name)"}
+      onclick={$currentFilePath
+        ? action("file.rename").run
+        : action("file.save").run}
     >
       {basename($currentFilePath) || "Untitled"}
       {#if project.dirty}
         <span class="text-primary" title="Unsaved changes">•</span>
       {/if}
-    </span>
+    </button>
   </div>
 
   <div class="flex items-center gap-1">

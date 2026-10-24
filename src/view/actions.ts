@@ -7,7 +7,8 @@ import { showToast } from "../lib/toast";
 import { currentFilePath } from "../stores";
 import { downloadBlob } from "../utils/download";
 import { exportElementAsPng } from "../utils/exportImage";
-import { pathStem } from "../utils/filename";
+import { PROJECT_EXTENSION, pathStem } from "../utils/filename";
+import { serializeProject } from "../io";
 import type { Dialogs } from "../state/dialogs.svelte";
 import type { Theme, ThemeChoice } from "../state/theme.svelte";
 import type { EditorState } from "../state/editor.svelte";
@@ -331,6 +332,21 @@ export function createActions(deps: ActionDeps): Action[] {
       group: "Export",
       title: "Export points array",
       run: () => deps.exportCode("points"),
+    },
+    {
+      id: "export.json",
+      group: "Export",
+      title: "Export project as JSON",
+      run: () => {
+        const name = pathStem(get(currentFilePath)) || "path";
+        downloadBlob(
+          new Blob([serializeProject(files.current(), { pretty: true })], {
+            type: "application/json",
+          }),
+          `${name}${PROJECT_EXTENSION}`,
+        );
+        showToast("Exported project as JSON", "success");
+      },
     },
     {
       id: "export.image",

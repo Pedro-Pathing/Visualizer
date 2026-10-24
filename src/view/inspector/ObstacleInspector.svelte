@@ -11,6 +11,7 @@
   import { useEditor } from "../../state/editor.svelte";
   import { useProject } from "../../state/project.svelte";
   import Button from "../../lib/components/ui/Button.svelte";
+  import ColorField from "../../lib/components/ui/ColorField.svelte";
   import IconButton from "../../lib/components/ui/IconButton.svelte";
   import { fieldClass, labelClass } from "../../lib/components/ui/styles";
 
@@ -23,10 +24,8 @@
   const project = useProject();
   const editor = useEditor();
 
-  const COLORS = [
-    { label: "Red", ...RED_ALLIANCE_COLORS },
-    { label: "Blue", ...BLUE_ALLIANCE_COLORS },
-  ];
+  /** Alliance colors pair with a lighter vertex fill; any other color fills with itself. */
+  const COLORS = [RED_ALLIANCE_COLORS, BLUE_ALLIANCE_COLORS];
 
   let number = $derived(
     project.doc.shapes.findIndex((candidate) => candidate.id === shape.id) + 1,
@@ -71,24 +70,6 @@
         oninput={(event) => edit({ name: event.currentTarget.value }, "name")}
       />
     </label>
-    <label class="flex flex-col gap-1">
-      <span class={labelClass}>Color</span>
-      <select
-        class={[fieldClass, "w-24"]}
-        value={shape.color}
-        onchange={(event) => {
-          const choice = COLORS.find(
-            (c) => c.color === event.currentTarget.value,
-          );
-          if (choice)
-            edit({ color: choice.color, fillColor: choice.fillColor });
-        }}
-      >
-        {#each COLORS as choice (choice.color)}
-          <option value={choice.color}>{choice.label}</option>
-        {/each}
-      </select>
-    </label>
     <IconButton
       label="Delete obstacle"
       class="hover:text-danger!"
@@ -97,6 +78,21 @@
       <Trash2 />
     </IconButton>
   </div>
+
+  <ColorField
+    label="Color"
+    value={shape.color}
+    presets={COLORS.map((choice) => choice.color)}
+    onchange={(color) =>
+      edit(
+        {
+          color,
+          fillColor:
+            COLORS.find((choice) => choice.color === color)?.fillColor ?? color,
+        },
+        "color",
+      )}
+  />
 
   <div class="flex flex-col gap-1.5">
     <span class={labelClass}>Vertices</span>

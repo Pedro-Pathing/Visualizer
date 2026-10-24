@@ -63,7 +63,7 @@ export const DEFAULT_SETTINGS: Settings = {
   onionColor: "#dc2626",
   onionNextPointOnly: false,
   showHeadingArrow: false,
-  showCurrentTValue: false,
+  showAllPoints: true,
   leftPanelWidth: 280,
   rightPanelWidth: 360,
   headingArrowLength: 50,
@@ -178,7 +178,7 @@ function biobuzzObstacles(): Shape[] {
         { x: 46.75, y: 137.7 },
         { x: 43.4, y: 139.4 },
       ],
-      ...BLUE_ALLIANCE_COLORS,
+      ...RED_ALLIANCE_COLORS,
     },
     {
       id: "biobuzz-flower-right",
@@ -202,7 +202,7 @@ function biobuzzObstacles(): Shape[] {
         { x: 94.5, y: 3.8 },
         { x: 91.15, y: 2.1 },
       ],
-      ...RED_ALLIANCE_COLORS,
+      ...BLUE_ALLIANCE_COLORS,
     },
     {
       id: "biobuzz-flower-left",

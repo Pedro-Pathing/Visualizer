@@ -15,6 +15,8 @@
     opacity?: number;
     /** The selected point; turns on selection styling and hides other paths' markers. */
     selection?: { lineId: string | null; index: number } | null;
+    /** Keeps the other paths' markers visible despite a selection. */
+    showAll?: boolean;
     onPointDown?: (
       address: PointAddress,
       locked: boolean,
@@ -30,6 +32,7 @@
     radiusScale = 1,
     opacity = 1,
     selection = null,
+    showAll = false,
     onPointDown,
   }: Props = $props();
 
@@ -38,11 +41,13 @@
 
   let radius = $derived(POINT_RADIUS * radiusScale);
   let segments = $derived(atomicSegments(lines));
-  /** With a selection, only the selected segment shows its markers. */
+  /** With a selection, only the selected segment shows its markers, unless `showAll`. */
   let shown = $derived(
     segments
       .map((line, index) => ({ line, index }))
-      .filter(({ line }) => !selection || line.id === selection.lineId),
+      .filter(
+        ({ line }) => showAll || !selection || line.id === selection.lineId,
+      ),
   );
 </script>
 

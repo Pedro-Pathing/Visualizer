@@ -195,9 +195,9 @@
         </label>
 
         <Toggle
-          label="Show the path's t value"
-          description="Next to the robot while it moves."
-          bind:checked={prefs.showCurrentTValue}
+          label="Show points on every path"
+          description="Otherwise only the selected path shows its points."
+          bind:checked={prefs.showAllPoints}
         />
         <Toggle
           label="Onion layers"

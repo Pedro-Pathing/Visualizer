@@ -8,6 +8,8 @@
   import { useEditor } from "../../state/editor.svelte";
   import { useProject } from "../../state/project.svelte";
   import Button from "../../lib/components/ui/Button.svelte";
+  import { PATH_COLORS } from "../../utils/color";
+  import ColorField from "../../lib/components/ui/ColorField.svelte";
   import IconButton from "../../lib/components/ui/IconButton.svelte";
   import { fieldClass, labelClass } from "../../lib/components/ui/styles";
   import HeadingControls from "../../lib/components/HeadingControls.svelte";
@@ -119,6 +121,14 @@
         }))}
     />
   </label>
+
+  <ColorField
+    label="Color"
+    value={line.color}
+    presets={PATH_COLORS}
+    disabled={line.locked}
+    onchange={(color) => edit("color", (path) => ({ ...path, color }))}
+  />
 
   <div class="flex flex-col gap-1.5">
     <div class="flex items-center justify-between">

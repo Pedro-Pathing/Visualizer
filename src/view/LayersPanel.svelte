@@ -7,6 +7,7 @@
   import { setShapes } from "../model/commands";
   import { useEditor } from "../state/editor.svelte";
   import { useProject } from "../state/project.svelte";
+  import { usePlayback } from "../state/playback.svelte";
   import type { Overlays } from "../state/overlays.svelte";
   import IconButton from "../lib/components/ui/IconButton.svelte";
   import PanelSection from "../lib/components/ui/PanelSection.svelte";
@@ -26,6 +27,7 @@
 
   const project = useProject();
   const editor = useEditor();
+  const playback = usePlayback();
 
   let overlaysOpen = $state(false);
 
@@ -85,6 +87,22 @@
         <ObstacleList />
       </PanelSection>
     {/if}
+
+    <PanelSection title="Robot">
+      <dl
+        class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 px-2 font-mono text-xs text-heading tabular-nums"
+        aria-label="Robot pose"
+      >
+        <dt class="text-body">x</dt>
+        <dd>{playback.robotPose.x.toFixed(1)}</dd>
+        <dt class="text-body">y</dt>
+        <dd>{playback.robotPose.y.toFixed(1)}</dd>
+        <dt class="text-body">heading</dt>
+        <dd>{playback.robotPose.heading.toFixed(0)}°</dd>
+        <dt class="text-body">t</dt>
+        <dd>{playback.robotPose.t?.toFixed(3) ?? "–"}</dd>
+      </dl>
+    </PanelSection>
 
     <PanelSection
       title="Overlays"

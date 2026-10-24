@@ -447,24 +447,8 @@
           zIndex={20}
           arrowZIndex={21}
           arrowId="arrowhead-main"
-          showTValue={settings.showCurrentTValue}
-          tValue={playback.robotPose.t}
           onImageSettled={() => (loadedRobotImage = robotImageSrc)}
         />
-        {@const clearance =
-          x(Math.max(settings.rWidth, settings.rHeight)) * 0.75}
-        {@const below = xy.y + clearance + 20 < pixels}
-        <div
-          class={[
-            "pointer-events-none absolute z-21 -translate-x-1/2 rounded bg-black/70 px-1.5 py-0.5 font-mono text-[10px] whitespace-nowrap text-white tabular-nums",
-            !below && "-translate-y-full",
-          ]}
-          style={`left: ${xy.x}px; top: ${below ? xy.y + clearance : xy.y - clearance}px;`}
-          aria-label="Robot position"
-        >
-          {playback.robotPose.x.toFixed(1)}, {playback.robotPose.y.toFixed(1)} ·
-          {playback.robotPose.heading.toFixed(0)}°
-        </div>
       {/if}
 
       <svg
@@ -609,6 +593,7 @@
                 lineId: editor.selectedLineId,
                 index: editor.selectedPointIndex,
               }}
+              showAll={settings.showAllPoints}
               onPointDown={onProjectPointDown}
             />
           {/if}
