@@ -1,5 +1,5 @@
 // src/utils/browserFileStore.ts
-// Browser file store for .pp files using localStorage (simple fallback for IndexedDB)
+// Browser file store for project files using localStorage (simple fallback for IndexedDB)
 
 export interface FileInfo {
   name: string;

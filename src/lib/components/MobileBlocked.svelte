@@ -1,23 +1,16 @@
-<div
-  class="flex min-h-screen w-screen items-center justify-center bg-neutral-950 px-6 text-center text-neutral-100"
->
+<script lang="ts">
+  import { Monitor } from "@lucide/svelte";
+</script>
+
+<main class="flex min-h-screen items-center justify-center p-6 text-center">
   <div
-    class="max-w-lg rounded-3xl border border-white/10 bg-neutral-900/95 px-8 py-10 shadow-2xl shadow-black/40"
+    class="flex w-full max-w-md flex-col items-center gap-5 rounded-3xl border border-border bg-base/70 p-8 shadow-sm"
   >
-    <div
-      class="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300"
-    >
-      Desktop Required
-    </div>
-    <h1 class="mt-4 text-3xl font-semibold text-white">
-      You need to be on a desktop for the website to function.
-    </h1>
-    <p class="mt-4 text-sm leading-6 text-neutral-300">
-      This visualizer depends on mouse, keyboard, and a large workspace, so
-      mobile devices are blocked from using it.
-    </p>
-    <p class="mt-3 text-xs text-neutral-500">
-      Please reopen the site on a desktop browser.
+    <Monitor class="size-12 text-primary/60" />
+    <h1 class="text-3xl font-bold text-heading">Computer required</h1>
+    <p class="max-w-[36ch] text-body">
+      The visualizer needs a mouse, a keyboard and a large screen. Please open
+      it on a desktop or laptop computer to continue.
     </p>
   </div>
-</div>
+</main>

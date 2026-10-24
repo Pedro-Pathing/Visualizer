@@ -15,7 +15,7 @@
   let {
     isOpen = false,
     titleId = "",
-    panelClass = "console-panel p-6 w-full max-w-md mx-4",
+    panelClass = "w-full max-w-md mx-4 p-6",
     closeOnEscape = true,
     closeOnBackdrop = true,
     onClose = () => {},
@@ -46,12 +46,15 @@
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div
     transition:fade={{ duration: BACKDROP_MS, easing: cubicInOut }}
-    class="console-backdrop fixed inset-0 z-2000 flex items-center justify-center"
+    class="fixed inset-0 z-2000 flex items-center justify-center bg-black/50 backdrop-blur-sm"
     onclick={handleBackdropClick}
   >
     <div
       transition:fly={{ duration: PANEL_MS, easing: cubicInOut, y: -20 }}
-      class={panelClass}
+      class={[
+        "rounded-2xl border border-border bg-surface text-body shadow-xl",
+        panelClass,
+      ]}
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId || undefined}

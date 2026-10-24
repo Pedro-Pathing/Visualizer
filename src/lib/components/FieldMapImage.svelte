@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { FIELD_IMAGE_OVERHANG, FIELD_SIZE } from "../../config/defaults";
+
   interface Props {
     src: string;
     fieldMapName: string | undefined;
@@ -8,34 +10,21 @@
   let { src, fieldMapName, onSettled = () => {} }: Props = $props();
 
   const FALLBACK_FIELD_MAP = "/fields/decode.webp";
+  // The parent clips to the floor; the image's edge tiles run under the walls.
+  const inset = `${(-FIELD_IMAGE_OVERHANG / FIELD_SIZE) * 100}%`;
+  const extent = `${((FIELD_SIZE + 2 * FIELD_IMAGE_OVERHANG) / FIELD_SIZE) * 100}%`;
 </script>
 
 <img
   {src}
   alt="Field"
-  class="absolute top-0 left-0 w-full h-full rounded-lg z-10"
-  style="
-    background: transparent;
-    pointer-events: none;
-    user-select: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    -webkit-touch-callout: none;
-    -webkit-tap-highlight-color: transparent;
-    user-drag: none;
-    -webkit-user-drag: none;
-    -moz-user-drag: none;
-    -ms-user-drag: none;
-    -o-user-drag: none;
-  "
+  class="pointer-events-none absolute z-10 max-w-none select-none"
+  style={`left: ${inset}; top: ${inset}; width: ${extent}; height: ${extent}; -webkit-user-drag: none;`}
   draggable="false"
   onload={onSettled}
-  onerror={(e) => {
+  onerror={(event) => {
     console.error("Failed to load field map:", fieldMapName);
     onSettled();
-    (e.currentTarget as HTMLImageElement).src = FALLBACK_FIELD_MAP;
+    (event.currentTarget as HTMLImageElement).src = FALLBACK_FIELD_MAP;
   }}
-  ondragstart={(e) => e.preventDefault()}
-  onselectstart={(e) => e.preventDefault()}
 />

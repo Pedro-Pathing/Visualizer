@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#171717" />
+    <meta name="theme-color" content="#0f0f14" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta
       name="apple-mobile-web-app-status-bar-style"
@@ -12,10 +12,21 @@
     <title>Pedro Pathing Visualizer</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- Applies the saved theme before first paint; state/theme.svelte.ts owns it after. -->
+    <script>
+      try {
+        const theme = (localStorage.getItem("theme") || "").replaceAll('"', "");
+        const dark =
+          theme === "light"
+            ? false
+            : theme === "system"
+              ? matchMedia("(prefers-color-scheme: dark)").matches
+              : true;
+        document.documentElement.classList.toggle("dark", dark);
+      } catch {}
+    </script>
   </head>
-  <body
-    class="h-full w-full bg-neutral-100 font-poppins dark:bg-neutral-950 dark:text-white"
-  >
+  <body class="h-full w-full">
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

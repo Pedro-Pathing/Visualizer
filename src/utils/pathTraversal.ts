@@ -5,174 +5,9 @@ import type {
   Heading,
   Path,
 } from "../types";
-import {
-  clamp,
-  curveThroughPoints,
-  getCurvePoint,
-  radiansToDegrees,
-} from "./math";
+import { curveOf, type Curve } from "../model/curve";
+import { clamp } from "./math";
 import { makePathId } from "./ids";
-
-/** Sample count used when approximating a curve's arc length. */
-export const CURVE_SAMPLES = 100;
-
-/** The bezier control polygon for one segment, given where it starts. */
-export function lineCurvePoints(
-  startPoint: BasePoint,
-  line: AtomicPath,
-): BasePoint[] {
-  if (!line.throughPoints?.length) {
-    return [startPoint, ...line.controlPoints, line.endPoint];
-  }
-
-  const poses = [startPoint, ...line.throughPoints, line.endPoint];
-  const cubicSegments = curveThroughPoints(1, poses);
-  const sampled: BasePoint[] = [{ ...startPoint }];
-  cubicSegments.forEach((segment) => {
-    const cubic = [
-      sampled[sampled.length - 1],
-      segment.cp1,
-      segment.cp2,
-      segment.end,
-    ];
-    for (let sample = 1; sample <= 20; sample += 1) {
-      sampled.push(getCurvePoint(sample / 20, cubic));
-    }
-  });
-  return sampled;
-}
-
-export function approximateCurveLength(
-  points: BasePoint[],
-  samples = CURVE_SAMPLES,
-): number {
-  if (points.length < 2) return 0;
-
-  let length = 0;
-  let previousPoint = points[0];
-
-  for (let index = 1; index <= samples; index += 1) {
-    const t = index / samples;
-    const point = getCurvePoint(t, points);
-    const dx = point.x - previousPoint.x;
-    const dy = point.y - previousPoint.y;
-    length += Math.sqrt(dx * dx + dy * dy);
-    previousPoint = point;
-  }
-
-  return length;
-}
-
-/** Cumulative arc length at each of `samples + 1` evenly spaced parameters. */
-function arcLengthTable(points: BasePoint[], samples: number): number[] {
-  const table = [0];
-  let travelled = 0;
-  let previousPoint = points[0];
-
-  for (let index = 1; index <= samples; index += 1) {
-    const point = getCurvePoint(index / samples, points);
-    travelled += Math.hypot(
-      point.x - previousPoint.x,
-      point.y - previousPoint.y,
-    );
-    table.push(travelled);
-    previousPoint = point;
-  }
-
-  return table;
-}
-
-/**
- * Arc-length fraction at a curve parameter. Pedro's `PiecewiseInterpolator`
- * keys segment boundaries on this rather than on the parameter itself.
- */
-export function curveCompletionAt(
-  points: BasePoint[],
-  parameter: number,
-  samples = CURVE_SAMPLES,
-): number {
-  const target = clamp(parameter, 0, 1);
-  if (points.length < 2 || target <= 0) return 0;
-
-  const table = arcLengthTable(points, samples);
-  const total = table[samples];
-  if (total <= 1e-9) return target;
-
-  const step = Math.min(Math.floor(target * samples), samples - 1);
-  const withinStep = target * samples - step;
-  const travelled = table[step] + (table[step + 1] - table[step]) * withinStep;
-
-  return clamp(travelled / total, 0, 1);
-}
-
-/** The inverse of `curveCompletionAt`. */
-export function curveParameterAt(
-  points: BasePoint[],
-  completion: number,
-  samples = CURVE_SAMPLES,
-): number {
-  const target = clamp(completion, 0, 1);
-  if (points.length < 2 || target <= 0) return 0;
-
-  const table = arcLengthTable(points, samples);
-  const total = table[samples];
-  if (total <= 1e-9) return target;
-
-  const targetLength = target * total;
-  let step = 0;
-  while (step < samples - 1 && table[step + 1] < targetLength) step += 1;
-
-  const spanLength = table[step + 1] - table[step];
-  const withinStep =
-    spanLength <= 1e-9 ? 0 : (targetLength - table[step]) / spanLength;
-
-  return clamp((step + withinStep) / samples, 0, 1);
-}
-
-/** Where the robot sits, and which way the curve runs, at an arc-length fraction. */
-export function curveGeometryAtCompletion(
-  points: BasePoint[],
-  completion: number,
-): { point: BasePoint; tangentDegrees: number } {
-  return getPointAndTangentAtProgress(
-    points,
-    curveParameterAt(points, completion),
-  );
-}
-
-export function getPointAndTangentAtProgress(
-  points: BasePoint[],
-  progress: number,
-  reversed = false,
-): { point: BasePoint; tangentDegrees: number } {
-  const clampedProgress = clamp(progress, 0, 1);
-  const point = getCurvePoint(clampedProgress, points);
-  const epsilon = 0.01;
-  const direction = reversed ? -epsilon : epsilon;
-
-  // Sample a step in the direction the robot faces. At the end of the curve
-  // that step would clamp onto the current point and yield no direction at
-  // all, so fall back to differencing from the other side instead.
-  let fromT = clampedProgress;
-  let toT = clamp(clampedProgress + direction, 0, 1);
-  if (fromT === toT) {
-    fromT = clamp(clampedProgress - direction, 0, 1);
-    toT = clampedProgress;
-  }
-
-  const from = getCurvePoint(fromT, points);
-  const to = getCurvePoint(toT, points);
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-
-  return {
-    point,
-    tangentDegrees:
-      Math.abs(dx) < 1e-9 && Math.abs(dy) < 1e-9
-        ? 0
-        : radiansToDegrees(Math.atan2(dy, dx)),
-  };
-}
 
 /** One drivable curve, resolved out of the path structure. */
 export interface FlatSegment {
@@ -182,10 +17,8 @@ export interface FlatSegment {
   index: number;
   /** Where the segment begins: the previous segment's end, or the path start. */
   start: BasePoint;
-  /** `[start, ...controlPoints, endPoint]`. */
-  points: BasePoint[];
-  /** Approximate arc length in inches, computed on first access. */
-  readonly arcLength: number;
+  /** Built on first access. */
+  readonly curve: Curve;
   /**
    * The groups containing this segment, outermost first. Empty for a segment
    * at the top level.
@@ -201,8 +34,7 @@ export interface FlatSegment {
  * them all through here means the rule lives in one place, which is what lets
  * the structure become a tree without touching the consumers.
  *
- * `arcLength` is lazy because several callers (rendering, the optimizer) only
- * need geometry, and measuring costs a full curve sampling per segment.
+ * `curve` is lazy because several callers only need the path structure.
  */
 export function flattenToAtomicSegments(
   startPoint: BasePoint,
@@ -221,17 +53,15 @@ export function flattenToAtomicSegments(
       }
       if (!node.endPoint) continue;
 
-      const points = lineCurvePoints(start, node);
-      let measured: number | null = null;
+      const segmentStart = start;
+      let curve: Curve | null = null;
 
       segments.push({
         line: node,
         index: segments.length,
-        start,
-        points,
-        get arcLength() {
-          if (measured === null) measured = approximateCurveLength(points);
-          return measured;
+        start: segmentStart,
+        get curve() {
+          return (curve ??= curveOf(segmentStart, node));
         },
         ancestors,
       });
@@ -245,34 +75,37 @@ export function flattenToAtomicSegments(
 }
 
 /**
- * Which heading actually applies part-way along a segment so that compound path headings override their children.
+ * The heading rule in force at arc-length fraction `s` of a segment, and how
+ * far through that rule the robot is. A group's heading overrides its
+ * children's and runs across the whole group, measured by distance as Pedro's
+ * compound paths do.
  */
 export function effectiveHeadingAt(
   segments: FlatSegment[],
   index: number,
-  localT: number,
-): { heading: Heading; t: number } {
+  s: number,
+): { heading: Heading; s: number } {
   const segment = segments[index];
   const override = segment.ancestors.find((group) => group.heading);
   if (!override?.heading) {
-    return { heading: segment.line.heading, t: localT };
+    return { heading: segment.line.heading, s };
   }
 
   const members = segments.filter((entry) =>
     entry.ancestors.includes(override),
   );
-  const total = members.reduce((sum, entry) => sum + entry.arcLength, 0);
-  if (total <= 1e-9) return { heading: override.heading, t: 0 };
+  const total = members.reduce((sum, entry) => sum + entry.curve.length, 0);
+  if (total <= 1e-9) return { heading: override.heading, s: 0 };
 
   let travelled = 0;
   for (const member of members) {
     if (member === segment) break;
-    travelled += member.arcLength;
+    travelled += member.curve.length;
   }
 
   return {
     heading: override.heading,
-    t: clamp((travelled + localT * segment.arcLength) / total, 0, 1),
+    s: clamp((travelled + s * segment.curve.length) / total, 0, 1),
   };
 }
 
@@ -507,21 +340,38 @@ export function movePath(
           : node,
       );
 
-  const insert = (nodes: Path[]): Path[] => {
+  return insertPaths(remove(paths), targetId, position, [dragged]);
+}
+
+/**
+ * Insert `added` directly before or after `targetId`, inside whichever group
+ * holds it. Returns the original array unchanged when the target is not found.
+ */
+export function insertPaths(
+  paths: Path[],
+  targetId: string,
+  position: "before" | "after",
+  added: Path[],
+): Path[] {
+  let inserted = false;
+
+  const walk = (nodes: Path[]): Path[] => {
     const index = nodes.findIndex((node) => node.id === targetId);
     if (index >= 0) {
+      inserted = true;
       const next = [...nodes];
-      next.splice(position === "before" ? index : index + 1, 0, dragged);
+      next.splice(position === "before" ? index : index + 1, 0, ...added);
       return next;
     }
     return nodes.map((node) =>
       node.kind === "compound"
-        ? { ...node, segments: insert(node.segments) }
+        ? { ...node, segments: walk(node.segments) }
         : node,
     );
   };
 
-  return insert(remove(paths));
+  const next = walk(paths);
+  return inserted ? next : paths;
 }
 
 /**

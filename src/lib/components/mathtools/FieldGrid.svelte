@@ -1,11 +1,11 @@
 <script lang="ts">
   import { gridSize } from "../../../stores";
   import { FIELD_SIZE } from "../../../config";
-  import type * as d3 from "d3";
+  import type { Axis } from "../../../view/viewport";
 
   interface Props {
-    x: d3.ScaleLinear<number, number>;
-    y: d3.ScaleLinear<number, number>;
+    x: Axis;
+    y: Axis;
   }
 
   let { x, y }: Props = $props();
@@ -62,7 +62,7 @@
       <text
         x={x(position)}
         y={y(0) + 15}
-        class="fill-gray-600 dark:fill-gray-400 {labelFontSize}"
+        class="field-label {labelFontSize}"
         text-anchor="middle"
       >
         {position}"
@@ -85,7 +85,7 @@
       <text
         x={x(0) - 5}
         y={y(position) + 4}
-        class="fill-gray-600 dark:fill-gray-400 {labelFontSize}"
+        class="field-label {labelFontSize}"
         text-anchor="end"
       >
         {position}"

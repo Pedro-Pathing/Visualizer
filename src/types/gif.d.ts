@@ -8,8 +8,13 @@ declare module "gif.js" {
   }
   class GIF {
     constructor(options?: GIFOptions);
-    addFrame(element: any, opts?: { copy?: boolean; delay?: number }): void;
-    on(event: string, cb: (arg?: any) => void): void;
+    addFrame(
+      element: CanvasImageSource | CanvasRenderingContext2D | ImageData,
+      opts?: { copy?: boolean; delay?: number },
+    ): void;
+    on(event: "progress", cb: (progress: number) => void): void;
+    on(event: "finished", cb: (blob: Blob) => void): void;
+    on(event: "error", cb: (error: Error) => void): void;
     render(): void;
   }
   export default GIF;

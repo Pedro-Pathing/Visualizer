@@ -12,8 +12,6 @@
     arrowZIndex?: number;
     opacity?: number;
     arrowId?: string;
-    showTValue?: boolean;
-    tValue?: number | null;
     onImageSettled?: () => void;
   }
 
@@ -28,8 +26,6 @@
     arrowZIndex = 21,
     opacity = 1,
     arrowId = "arrowhead-main",
-    showTValue = false,
-    tValue = null,
     onImageSettled = () => {},
   }: Props = $props();
 
@@ -56,15 +52,6 @@ pointer-events: none; opacity: ${opacity};`}
   ondragstart={(e) => e.preventDefault()}
   onselectstart={(e) => e.preventDefault()}
 />
-
-{#if showTValue && tValue !== null}
-  <div
-    class="pointer-events-none absolute z-22 rounded-full border border-white/20 bg-black/60 px-3.5 py-1.5 font-mono text-[22px] font-semibold leading-none tracking-wide text-white shadow-lg backdrop-blur-sm"
-    style={`left: ${xy.x}px; top: ${xy.y - heightPx / 2 - 14}px; transform: translate(-50%, -100%);`}
-  >
-    t {tValue.toFixed(3)}
-  </div>
-{/if}
 
 {#if settings.showHeadingArrow}
   <svg

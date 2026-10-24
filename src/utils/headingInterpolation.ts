@@ -1,33 +1,35 @@
 import type {
-  AtomicPath,
   BasePoint,
   Heading,
   PiecewiseHeadingInterpolation,
   PiecewiseHeadingInterpolationType,
   PiecewiseHeadingSegment,
-  Point,
 } from "../types";
+import type { Curve } from "../model/curve";
 import {
   clamp,
-  getTangentAngle,
   interpolateAngleDegrees,
   normalizeAngleDegrees,
   radiansToDegrees,
   shortestRotation,
 } from "./math";
-import { curveGeometryAtCompletion, lineCurvePoints } from "./pathTraversal";
+import { effectiveHeadingAt, type FlatSegment } from "./pathTraversal";
 
 /** Shortest stretch of progress a segment is allowed to cover. */
 export const MIN_SEGMENT_LENGTH = 0.0001;
 
-/** `getPointAndTangentAtProgress` in ./pathTraversal returns this shape. */
 export interface HeadingGeometry {
   /** Where the robot sits, in field inches. */
   point: BasePoint;
   /** The curve's tangent there, in degrees counter-clockwise from +x. */
   tangentDegrees: number;
   /** Needed to read geometry somewhere other than where the robot is. */
-  curvePoints?: BasePoint[];
+  curve?: Curve;
+}
+
+/** The robot's position and direction of travel at arc-length fraction `s`. */
+export function headingGeometryAt(curve: Curve, s: number): HeadingGeometry {
+  return { point: curve.pointAt(s), tangentDegrees: curve.tangentAt(s), curve };
 }
 
 /**
@@ -64,65 +66,44 @@ export function headingAngleAt(
 }
 
 /**
- * The heading a segment starts at, in field degrees.
- *
- * `heading` and `t` are passed in when a group overrides this segment's own
- * heading: the rule then belongs to the group and `t` is the position within
- * it, so a sweep is read part-way through rather than restarted.
+ * The robot's heading at arc-length fraction `s` of a segment, in degrees
+ * counter-clockwise from +x. Inside a group with its own heading, the group's
+ * rule applies.
  */
-export function getLineStartHeading(
-  line: AtomicPath | undefined,
-  previousPoint: Point,
-  heading: Heading | undefined = line?.heading,
-  t = 0,
+export function segmentHeadingAt(
+  segments: FlatSegment[],
+  index: number,
+  s: number,
 ): number {
-  if (!line || !line.endPoint || !heading) return 0;
-
-  const nextPoint =
-    line.controlPoints.length > 0 ? line.controlPoints[0] : line.endPoint;
-  return edgeHeading(heading, t, {
-    point: previousPoint,
-    tangentDegrees: getTangentAngle(previousPoint, nextPoint),
-    curvePoints: lineCurvePoints(previousPoint, line),
-  });
+  const effective = effectiveHeadingAt(segments, index, s);
+  return ruleHeading(
+    effective.heading,
+    effective.s,
+    headingGeometryAt(segments[index].curve, s),
+  );
 }
 
-/** The heading a segment ends at. See `getLineStartHeading` for `heading`/`t`. */
-export function getLineEndHeading(
-  line: AtomicPath | undefined,
-  previousPoint: Point,
-  heading: Heading | undefined = line?.heading,
-  t = 1,
-): number {
-  if (!line || !line.endPoint || !heading) return 0;
-
-  const priorPoint =
-    line.controlPoints.length > 0
-      ? line.controlPoints[line.controlPoints.length - 1]
-      : previousPoint;
-  return edgeHeading(heading, t, {
-    point: line.endPoint,
-    tangentDegrees: getTangentAngle(priorPoint, line.endPoint),
-    curvePoints: lineCurvePoints(previousPoint, line),
-  });
-}
-
-function edgeHeading(
+/** `progress` is how far through the rule the robot is, by distance. */
+function ruleHeading(
   heading: Heading,
-  t: number,
+  progress: number,
   geometry: HeadingGeometry,
 ): number {
   switch (heading.type) {
     case "constant":
       return heading.degrees;
     case "linear":
-      return shortestRotation(heading.startDeg, heading.endDeg, t);
+      return shortestRotation(heading.startDeg, heading.endDeg, progress);
     case "tangential":
       return normalizeAngleDegrees(
         geometry.tangentDegrees + (heading.reverse ? 180 : 0),
       );
     case "piecewise":
-      return evaluatePiecewiseHeading(heading.piecewiseHeading, t, geometry);
+      return evaluatePiecewiseHeading(
+        heading.piecewiseHeading,
+        progress,
+        geometry,
+      );
   }
 }
 
@@ -227,11 +208,9 @@ function geometryAtCompletion(
   geometry: HeadingGeometry,
   completion: number,
 ): HeadingGeometry {
-  if (!geometry.curvePoints) return geometry;
-  return {
-    ...curveGeometryAtCompletion(geometry.curvePoints, completion),
-    curvePoints: geometry.curvePoints,
-  };
+  return geometry.curve
+    ? headingGeometryAt(geometry.curve, completion)
+    : geometry;
 }
 
 function tangentialAngle(
@@ -438,12 +417,20 @@ export function evaluatePiecewiseHeading(
     (segment.interpolationType === "tangential" ||
       segment.interpolationType === "facing-point")
   ) {
-    const previousAngle = piecewiseSegmentEndAngle(segments, index - 1, geometry);
+    const previousAngle = piecewiseSegmentEndAngle(
+      segments,
+      index - 1,
+      geometry,
+    );
     if (previousAngle !== null) {
       const targetAngle =
         segment.interpolationType === "tangential"
           ? tangentialAngle(geometry, segment.reversed)
-          : facingPointAngle(geometry, segment.parameters?.point, segment.reversed);
+          : facingPointAngle(
+              geometry,
+              segment.parameters?.point,
+              segment.reversed,
+            );
       return interpolateAngleDegrees(
         previousAngle,
         targetAngle,

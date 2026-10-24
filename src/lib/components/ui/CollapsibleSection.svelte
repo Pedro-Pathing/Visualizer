@@ -1,48 +1,37 @@
 <script lang="ts">
-  import ChevronDownIcon from "../icons/ChevronDownIcon.svelte";
+  import type { Component } from "svelte";
+  import { ChevronDown } from "@lucide/svelte";
 
   interface Props {
     title: string;
     collapsed?: boolean;
-    /** Heroicon `d` path for the leading icon; omit to render title only. */
-    iconPath?: string;
+    icon?: Component;
     onToggle: () => void;
     children?: import("svelte").Snippet;
   }
 
-  let {
-    title,
-    collapsed = true,
-    iconPath = "",
-    onToggle,
-    children,
-  }: Props = $props();
+  let { title, collapsed = true, icon, onToggle, children }: Props = $props();
 </script>
 
-<div class="mb-4">
+<div class="mb-3">
   <button
+    type="button"
     onclick={onToggle}
-    class="console-trigger w-full justify-between transition-colors duration-250"
+    class="flex w-full items-center justify-between rounded-lg border border-border bg-base px-3 py-2 text-sm font-semibold text-heading transition hover:bg-body/10"
     aria-expanded={!collapsed}
   >
-    <div class="flex items-center gap-2">
-      {#if iconPath}
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke-width={1.5}
-          stroke="currentColor"
-          class="size-5"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" d={iconPath} />
-        </svg>
+    <span class="flex items-center gap-2">
+      {#if icon}
+        {@const Icon = icon}
+        <Icon class="size-4 text-body" />
       {/if}
-      <span class="font-semibold">{title}</span>
-    </div>
-    <ChevronDownIcon
-      className="size-5 transition-transform duration-200"
-      rotated={collapsed}
+      {title}
+    </span>
+    <ChevronDown
+      class={[
+        "size-4 text-body transition-transform duration-200",
+        collapsed && "-rotate-90",
+      ]}
     />
   </button>
 

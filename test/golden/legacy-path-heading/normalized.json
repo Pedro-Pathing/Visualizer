@@ -1,0 +1,113 @@
+{
+  "startPoint": {
+    "x": 8,
+    "y": 64,
+    "headingDeg": 0
+  },
+  "lines": [
+    {
+      "id": "line-mjuohs00-000d57",
+      "color": "#7DB9C6",
+      "name": "",
+      "waitAfter": {
+        "name": "Score",
+        "durationMs": 500
+      },
+      "waitBeforeMs": 0,
+      "waitAfterMs": 500,
+      "waitBeforeName": "",
+      "waitAfterName": "Score",
+      "kind": "atomic",
+      "endPoint": {
+        "x": 40,
+        "y": 64
+      },
+      "controlPoints": [],
+      "heading": {
+        "type": "constant",
+        "degrees": 0
+      }
+    },
+    {
+      "id": "line-mjuohs00-4qh0z0",
+      "color": "#A6C78B",
+      "name": "",
+      "waitBeforeMs": 0,
+      "waitAfterMs": 0,
+      "waitBeforeName": "",
+      "waitAfterName": "",
+      "kind": "atomic",
+      "endPoint": {
+        "x": 60,
+        "y": 100
+      },
+      "controlPoints": [
+        {
+          "x": 60,
+          "y": 64
+        }
+      ],
+      "heading": {
+        "type": "tangential",
+        "reverse": true
+      }
+    },
+    {
+      "id": "line-mjuohs00-r79ise",
+      "color": "#edc948",
+      "name": "",
+      "waitBeforeMs": 0,
+      "waitAfterMs": 0,
+      "waitBeforeName": "",
+      "waitAfterName": "",
+      "kind": "atomic",
+      "endPoint": {
+        "x": 24,
+        "y": 120
+      },
+      "controlPoints": [
+        {
+          "x": 60,
+          "y": 130
+        },
+        {
+          "x": 30,
+          "y": 100
+        }
+      ],
+      "heading": {
+        "type": "linear",
+        "startDeg": 90,
+        "endDeg": 180
+      }
+    }
+  ],
+  "shapes": [],
+  "sequence": [
+    {
+      "kind": "path",
+      "lineId": "line-mjuohs00-000d57"
+    },
+    {
+      "kind": "path",
+      "lineId": "line-mjuohs00-4qh0z0"
+    },
+    {
+      "kind": "path",
+      "lineId": "line-mjuohs00-r79ise"
+    }
+  ],
+  "fieldPoints": [],
+  "robot": {
+    "forwardVelocity": 75,
+    "strafeVelocity": 65,
+    "aVelocity": 3.141592653589793,
+    "kFriction": 0.1,
+    "rWidth": 16,
+    "rHeight": 16,
+    "safetyMargin": 1,
+    "maxAcceleration": 30,
+    "maxDeceleration": 30
+  },
+  "activePaths": []
+}

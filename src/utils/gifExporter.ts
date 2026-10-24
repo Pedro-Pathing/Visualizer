@@ -1,12 +1,9 @@
 import GIF from "gif.js";
 
 export interface GifExportOptions {
-  /** Element used to derive the output dimensions (Two.js renderer). */
-  source: HTMLCanvasElement | SVGSVGElement;
-  /** Explicit output width, overriding `source * scale`. */
-  width?: number;
-  /** Explicit output height, overriding `source * scale`. */
-  height?: number;
+  /** Output size in pixels. */
+  width: number;
+  height: number;
   /** Total duration in milliseconds. */
   duration: number;
   /** Frames per second (default: 20). */
@@ -15,8 +12,6 @@ export interface GifExportOptions {
   quality?: number;
   /** Number of encoder workers (defaults to a value based on CPU count). */
   workers?: number;
-  /** Scale factor for output (default: 0.65). */
-  scale?: number;
   onProgress?: (progress: number) => void;
   onFrameAdvance?: (frameIndex: number, totalFrames: number) => Promise<void>;
   /**
@@ -40,34 +35,17 @@ export interface GifExportOptions {
 
 export async function exportAsGif(options: GifExportOptions): Promise<Blob> {
   const {
-    source,
-    width: explicitWidth,
-    height: explicitHeight,
+    width,
+    height,
     duration,
     fps = 20,
     quality = 10,
     workers,
-    scale = 0.65,
     onProgress,
     onFrameAdvance,
     onDrawFrame,
     shouldCancel,
   } = options;
-
-  // Explicit dimensions (if provided) are the final output size, so we do not
-  // scale them a second time. Otherwise derive them from the renderer element.
-  const sourceWidth =
-    source instanceof HTMLCanvasElement
-      ? source.width
-      : source.clientWidth || source.viewBox?.baseVal?.width;
-  const sourceHeight =
-    source instanceof HTMLCanvasElement
-      ? source.height
-      : source.clientHeight || source.viewBox?.baseVal?.height;
-
-  const width = explicitWidth ?? Math.max(1, Math.floor(sourceWidth * scale));
-  const height =
-    explicitHeight ?? Math.max(1, Math.floor(sourceHeight * scale));
 
   // Calculate frame count and delay (delay in ms, matching gif.js semantics).
   const frameCount = Math.max(1, Math.ceil((duration / 1000) * fps));

@@ -1,4 +1,6 @@
 import type { Shape } from "../types";
+import { RED_ALLIANCE_COLORS } from "../config/defaults";
+import { makeShapeId } from "./ids";
 
 /**
  * Shape creation factory functions
@@ -7,17 +9,16 @@ import type { Shape } from "../types";
 /**
  * Create a triangle shape at default position
  */
-export function createTriangle(existingShapesCount: number): Shape {
+export function createTriangle(): Shape {
   return {
-    id: `triangle-${existingShapesCount + 1}`,
+    id: makeShapeId(),
     name: "",
     vertices: [
       { x: 60, y: 60 },
       { x: 84, y: 60 },
       { x: 72, y: 84 },
     ],
-    color: "#dc2626",
-    fillColor: "#ff6b6b",
+    ...RED_ALLIANCE_COLORS,
   };
 }
 
@@ -26,7 +27,7 @@ export function createTriangle(existingShapesCount: number): Shape {
  */
 export function createRectangle(existingShapesCount: number): Shape {
   return {
-    id: `rectangle-${existingShapesCount + 1}`,
+    id: makeShapeId(),
     name: `Obstacle ${existingShapesCount + 1}`,
     vertices: [
       { x: 30, y: 30 },
@@ -34,8 +35,7 @@ export function createRectangle(existingShapesCount: number): Shape {
       { x: 60, y: 50 },
       { x: 30, y: 50 },
     ],
-    color: "#dc2626",
-    fillColor: "#ff6b6b",
+    ...RED_ALLIANCE_COLORS,
   };
 }
 
@@ -57,11 +57,10 @@ export function createNGon(sides: number, existingShapesCount: number): Shape {
   }
 
   return {
-    id: `${sides}-gon-${existingShapesCount + 1}`,
+    id: makeShapeId(),
     name: `Obstacle ${existingShapesCount + 1}`,
     vertices,
-    color: "#dc2626",
-    fillColor: "#ff6b6b",
+    ...RED_ALLIANCE_COLORS,
   };
 }
 
