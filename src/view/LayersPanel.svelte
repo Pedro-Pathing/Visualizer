@@ -89,19 +89,45 @@
     {/if}
 
     <PanelSection title="Robot">
-      <dl
-        class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 px-2 font-mono text-xs text-heading tabular-nums"
-        aria-label="Robot pose"
-      >
-        <dt class="text-body">x</dt>
-        <dd>{playback.robotPose.x.toFixed(1)}</dd>
-        <dt class="text-body">y</dt>
-        <dd>{playback.robotPose.y.toFixed(1)}</dd>
-        <dt class="text-body">heading</dt>
-        <dd>{playback.robotPose.heading.toFixed(0)}°</dd>
-        <dt class="text-body">t</dt>
-        <dd>{playback.robotPose.t?.toFixed(3) ?? "–"}</dd>
+      {@const pose = playback.robotPose}
+      {@const readouts = [
+        { label: "X", value: pose.x.toFixed(1), unit: "in" },
+        { label: "Y", value: pose.y.toFixed(1), unit: "in" },
+        { label: "Heading", value: pose.heading.toFixed(0), unit: "°" },
+        { label: "t", value: pose.t?.toFixed(3) ?? "–", unit: "" },
+      ]}
+      <dl class="grid grid-cols-2 gap-1.5 px-1" aria-label="Robot pose">
+        {#each readouts as { label, value, unit } (label)}
+          <div
+            class="flex flex-col gap-0.5 rounded-lg border border-border bg-base/60 px-2.5 py-1.5"
+          >
+            <dt
+              class="text-[10px] font-medium tracking-wide text-body uppercase"
+            >
+              {label}
+            </dt>
+            <dd
+              class="flex items-baseline gap-1 font-mono text-sm text-heading tabular-nums"
+            >
+              {value}
+              {#if unit}<span class="text-[10px] text-body">{unit}</span>{/if}
+            </dd>
+          </div>
+        {/each}
       </dl>
+      <div
+        class="mx-1 mt-1.5 h-1 overflow-hidden rounded-full bg-border"
+        role="progressbar"
+        aria-label="Progress along the current segment"
+        aria-valuemin={0}
+        aria-valuemax={1}
+        aria-valuenow={pose.t ?? 0}
+      >
+        <div
+          class="h-full rounded-full bg-primary"
+          style={`width: ${(pose.t ?? 0) * 100}%`}
+        ></div>
+      </div>
     </PanelSection>
 
     <PanelSection

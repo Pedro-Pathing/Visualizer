@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Pipette } from "@lucide/svelte";
   import { labelClass } from "./styles";
 
   interface Props {
@@ -30,13 +31,25 @@
         onclick={() => onchange(color)}
       ></button>
     {/each}
-    <input
-      type="color"
-      class="size-6 cursor-pointer rounded border border-border bg-base p-0 disabled:cursor-not-allowed disabled:opacity-50"
-      aria-label={`Custom ${label.toLowerCase()}`}
-      {value}
-      {disabled}
-      oninput={(event) => onchange(event.currentTarget.value)}
-    />
+    <!-- The native picker is hidden; the label's icon opens it. -->
+    <label
+      class={[
+        "relative flex size-6 items-center justify-center rounded-md border border-border text-body transition focus-within:ring-2 focus-within:ring-primary",
+        disabled
+          ? "cursor-not-allowed opacity-50"
+          : "cursor-pointer hover:border-primary/50 hover:text-heading",
+      ]}
+      title={`Pick a custom ${label.toLowerCase()}`}
+    >
+      <Pipette class="size-3.5" />
+      <input
+        type="color"
+        class="absolute inset-0 size-full cursor-[inherit] opacity-0"
+        aria-label={`Custom ${label.toLowerCase()}`}
+        {value}
+        {disabled}
+        oninput={(event) => onchange(event.currentTarget.value)}
+      />
+    </label>
   </div>
 </div>
