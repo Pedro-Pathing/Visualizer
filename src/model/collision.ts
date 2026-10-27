@@ -43,7 +43,7 @@ export interface CollisionOptions {
   angleStep?: number;
 }
 
-type Footprint = Pick<RobotConfig, "rWidth" | "rHeight" | "safetyMargin">;
+type Footprint = Pick<RobotConfig, "rLength" | "rWidth" | "safetyMargin">;
 
 const DEFAULT_ANGLE_STEP = 5;
 /** Bisection rounds when locating where contact begins or ends. */
@@ -56,8 +56,8 @@ export function robotFootprint(pose: Pose, robot: Footprint): BasePoint[] {
     pose.x,
     pose.y,
     pose.heading,
+    robot.rLength + 2 * margin,
     robot.rWidth + 2 * margin,
-    robot.rHeight + 2 * margin,
   );
 }
 
@@ -68,7 +68,7 @@ export function findCollisions(
   options: CollisionOptions = {},
 ): Collision[] {
   const margin = Math.max(0, doc.robot.safetyMargin || 0);
-  const shortSide = Math.min(doc.robot.rWidth, doc.robot.rHeight) + 2 * margin;
+  const shortSide = Math.min(doc.robot.rLength, doc.robot.rWidth) + 2 * margin;
   const step = options.step ?? shortSide / 2;
   const angleStep = options.angleStep ?? DEFAULT_ANGLE_STEP;
   if (!(step > 0 && angleStep > 0)) return [];

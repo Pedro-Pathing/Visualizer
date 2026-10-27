@@ -5,20 +5,20 @@ import { flattenToAtomicSegments } from "../utils/pathTraversal";
 
 /**
  * The outline swept by the robot's sides as it drives every segment: the left
- * rail forward, then the right rail back. `rHeight` is the robot's
- * side-to-side size; `rWidth` runs along its heading.
+ * rail forward, then the right rail back. `rWidth` is the robot's
+ * side-to-side size; `rLength` runs along its heading.
  */
 export function generateGhostPathPoints(
   startPoint: StartPose,
   lines: Path[],
-  rHeight: number,
+  rWidth: number,
   samples = 200,
 ): BasePoint[] {
   const segments = flattenToAtomicSegments(startPoint, lines);
   if (segments.length === 0) return [];
 
   const samplesPerSegment = Math.max(10, Math.ceil(samples / segments.length));
-  const halfWidth = rHeight / 2;
+  const halfWidth = rWidth / 2;
   const left: BasePoint[] = [];
   const right: BasePoint[] = [];
 

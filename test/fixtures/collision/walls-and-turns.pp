@@ -36,7 +36,7 @@
     { "kind": "path", "lineId": "line-wide-swing" }
   ],
   "fieldPoints": [],
-  "robot": { "rWidth": 16, "rHeight": 16, "safetyMargin": 1 },
+  "robot": { "rLength": 16, "rWidth": 16, "safetyMargin": 1 },
   "version": "2.0.0",
   "timestamp": "2026-10-01T00:00:00.000Z"
 }

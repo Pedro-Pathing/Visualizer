@@ -40,7 +40,7 @@ describe("ProjectStore", () => {
     const original = project.doc;
     const snapshot = structuredClone(original);
     project.apply(updatePoint(endpoint(project), { x: 10, y: 20 }));
-    project.apply(updateRobot({ rWidth: 30 }));
+    project.apply(updateRobot({ rLength: 30 }));
     expect(original).toEqual(snapshot);
   });
 

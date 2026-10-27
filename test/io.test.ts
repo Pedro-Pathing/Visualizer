@@ -55,6 +55,7 @@ describe("robot config", () => {
       version: "1.5.0",
       settings: {
         rWidth: 18,
+        rHeight: 14,
         xVelocity: 50,
         yVelocity: 45,
         maxVelocity: 40,
@@ -63,7 +64,8 @@ describe("robot config", () => {
     });
     expect(result.ok && result.doc.robot).toEqual({
       ...DEFAULT_ROBOT,
-      rWidth: 18,
+      rLength: 18,
+      rWidth: 14,
       forwardVelocity: 50,
       strafeVelocity: 45,
     });
@@ -78,11 +80,11 @@ describe("robot config", () => {
     const result = parse({
       ...minimal,
       version: PROJECT_VERSION,
-      robot: { rWidth: 20, rHeight: "wide", forwardVelocity: null },
+      robot: { rLength: 20, rWidth: "wide", forwardVelocity: null },
     });
     expect(result.ok && result.doc.robot).toEqual({
       ...DEFAULT_ROBOT,
-      rWidth: 20,
+      rLength: 20,
     });
   });
 
@@ -90,10 +92,10 @@ describe("robot config", () => {
     const result = parse({
       ...minimal,
       version: PROJECT_VERSION,
-      robot: { rWidth: 20 },
+      robot: { rLength: 20 },
       settings: { rWidth: 30 },
     });
-    expect(result.ok && result.doc.robot.rWidth).toBe(20);
+    expect(result.ok && result.doc.robot.rLength).toBe(20);
   });
 });
 
@@ -109,13 +111,13 @@ describe("serializeProject", () => {
     const saved = JSON.parse(serializeProject(doc));
     expect(saved.version).toBe(PROJECT_VERSION);
     expect(saved.settings).toBeUndefined();
-    expect(saved.robot.rWidth).toBe(18);
+    expect(saved.robot.rLength).toBe(18);
   });
 });
 
 describe("createDefaultProject", () => {
   it("uses the given robot config", () => {
-    const robot = { ...DEFAULT_ROBOT, rWidth: 12 };
+    const robot = { ...DEFAULT_ROBOT, rLength: 12 };
     expect(createDefaultProject(robot, "biobuzz.webp").robot).toBe(robot);
   });
 

@@ -32,6 +32,15 @@
 <div class="flex flex-col gap-3 px-1">
   <div class="grid grid-cols-2 gap-2">
     <NumberField
+      id="robot-length"
+      label="Length (in)"
+      value={robot.rLength}
+      min={1}
+      max={36}
+      step={0.5}
+      onInput={(v) => setNumber(v, "rLength", 1, 36)}
+    />
+    <NumberField
       id="robot-width"
       label="Width (in)"
       value={robot.rWidth}
@@ -39,15 +48,6 @@
       max={36}
       step={0.5}
       onInput={(v) => setNumber(v, "rWidth", 1, 36)}
-    />
-    <NumberField
-      id="robot-height"
-      label="Height (in)"
-      value={robot.rHeight}
-      min={1}
-      max={36}
-      step={0.5}
-      onInput={(v) => setNumber(v, "rHeight", 1, 36)}
     />
   </div>
 

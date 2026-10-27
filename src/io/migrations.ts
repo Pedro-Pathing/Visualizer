@@ -6,6 +6,9 @@ export type RawProject = Record<string, unknown>;
 const RENAMED_ROBOT_KEYS: Record<string, string> = {
   xVelocity: "forwardVelocity",
   yVelocity: "strafeVelocity",
+  // The old width ran along the heading and the old height side to side.
+  rWidth: "rLength",
+  rHeight: "rWidth",
 };
 
 interface Migration {

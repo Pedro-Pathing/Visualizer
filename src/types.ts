@@ -117,8 +117,8 @@ export interface Settings {
   strafeVelocity: number; // inches/sec
   aVelocity: number;
   kFriction: number;
-  rWidth: number;
-  rHeight: number;
+  rLength: number; // inches along the heading
+  rWidth: number; // inches side to side
   safetyMargin: number;
   maxAcceleration: number; // inches/sec²
   maxDeceleration?: number; // inches/sec²
@@ -157,8 +157,8 @@ export type RobotConfig = Pick<
   | "strafeVelocity"
   | "aVelocity"
   | "kFriction"
+  | "rLength"
   | "rWidth"
-  | "rHeight"
   | "safetyMargin"
   | "maxAcceleration"
   | "maxDeceleration"

@@ -43,8 +43,8 @@
     "strafeVelocity": 55,
     "aVelocity": 4,
     "kFriction": 0.2,
-    "rWidth": 18,
-    "rHeight": 14,
+    "rLength": 18,
+    "rWidth": 14,
     "safetyMargin": 2,
     "maxAcceleration": 35,
     "maxDeceleration": 25

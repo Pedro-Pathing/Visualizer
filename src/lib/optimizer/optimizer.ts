@@ -43,8 +43,8 @@ export function buildOptimizationPayload(
     y_velocity: settings.strafeVelocity,
     angular_velocity: settings.aVelocity,
     friction_coefficient: settings.kFriction,
-    robot_width: settings.rWidth,
-    robot_height: settings.rHeight,
+    robot_width: settings.rLength,
+    robot_height: settings.rWidth,
     min_coord_field: 0,
     max_coord_field: FIELD_SIZE,
     interpolation:

@@ -115,8 +115,8 @@ export async function renderPathGif(request: GifRequest): Promise<Blob> {
           robotImage,
           { x: toX(pose.x), y: toY(pose.y) },
           -pose.heading,
+          path.settings.rLength * pixelsPerInch,
           path.settings.rWidth * pixelsPerInch,
-          path.settings.rHeight * pixelsPerInch,
           path.opacity ?? 1,
         );
       });

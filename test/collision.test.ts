@@ -20,7 +20,7 @@ import {
 } from "../src/utils/filename";
 import { DEFAULT_ROBOT, goldenPath, loadProject } from "./support/fixtures";
 
-const ROBOT = { ...DEFAULT_ROBOT, rWidth: 18, rHeight: 12, safetyMargin: 1 };
+const ROBOT = { ...DEFAULT_ROBOT, rLength: 18, rWidth: 12, safetyMargin: 1 };
 
 const line = (
   id: string,
@@ -109,7 +109,7 @@ const extent = (points: BasePoint[]) => ({
 });
 
 describe("robotFootprint", () => {
-  it("runs rWidth along the heading and grows by the margin", () => {
+  it("runs rLength along the heading and grows by the margin", () => {
     const pose = { x: 50, y: 50, heading: 0 };
     expect(extent(robotFootprint(pose, ROBOT))).toEqual({
       minX: 40,
@@ -185,7 +185,7 @@ describe("findCollisions", () => {
     });
 
     it("catches a robot too wide for the notch", () => {
-      const wide = { ...ROBOT, rHeight: 22 };
+      const wide = { ...ROBOT, rWidth: 22 };
       const { collisions } = collide(
         project({ x: 20, y: 70 }, into, [notch], wide),
       );
@@ -239,7 +239,7 @@ describe("findCollisions", () => {
   });
 
   it("catches a corner swinging into an obstacle while turning in place", () => {
-    const long = { ...ROBOT, rWidth: 30, rHeight: 10, safetyMargin: 0 };
+    const long = { ...ROBOT, rLength: 30, rWidth: 10, safetyMargin: 0 };
     const doc = project(
       { x: 20, y: 70 },
       [
@@ -330,7 +330,7 @@ describe("findCollisions", () => {
     const sliverAt = (x: number) => box("sliver", x, 60, x + 0.05, 80);
     const offsets = Array.from({ length: 40 }, (_, i) => 50 + i * 0.75);
     const route = [line("east", { x: 120, y: 70 })];
-    const tiny = { ...ROBOT, rWidth: 2, rHeight: 2, safetyMargin: 0 };
+    const tiny = { ...ROBOT, rLength: 2, rWidth: 2, safetyMargin: 0 };
 
     for (const x of offsets) {
       const doc = project({ x: 20, y: 70 }, route, [sliverAt(x)], tiny);

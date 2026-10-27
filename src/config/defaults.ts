@@ -10,8 +10,8 @@ import { makePathId } from "../utils/ids";
 /**
  * Default robot dimensions
  */
+export const DEFAULT_ROBOT_LENGTH = 16;
 export const DEFAULT_ROBOT_WIDTH = 16;
-export const DEFAULT_ROBOT_HEIGHT = 16;
 
 /**
  * Default canvas drawing settings
@@ -50,8 +50,8 @@ export const DEFAULT_SETTINGS: Settings = {
   strafeVelocity: 65,
   aVelocity: Math.PI,
   kFriction: 0.1,
+  rLength: DEFAULT_ROBOT_LENGTH,
   rWidth: DEFAULT_ROBOT_WIDTH,
-  rHeight: DEFAULT_ROBOT_HEIGHT,
   safetyMargin: 1,
   maxAcceleration: 30,
   maxDeceleration: 30,

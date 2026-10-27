@@ -84,7 +84,7 @@
 
   let ghost = $derived(
     settings.showGhostPaths && !overlays.active
-      ? generateGhostPathPoints(doc.startPoint, doc.lines, settings.rHeight, 50)
+      ? generateGhostPathPoints(doc.startPoint, doc.lines, settings.rWidth, 50)
       : [],
   );
   let overlayGhosts = $derived(
@@ -93,7 +93,7 @@
           generateGhostPathPoints(
             overlay.doc.startPoint,
             overlay.doc.lines,
-            settings.rHeight,
+            settings.rWidth,
             50,
           ),
         )
@@ -105,8 +105,8 @@
           generateOnionLayers(
             doc.startPoint,
             doc.lines,
+            settings.rLength,
             settings.rWidth,
-            settings.rHeight,
             settings.onionLayerSpacing || 6,
           ),
           playback.prediction,
@@ -424,8 +424,8 @@
           <RobotSprite
             {xy}
             {heading}
-            widthPx={x(settings.rWidth)}
-            heightPx={x(settings.rHeight)}
+            widthPx={x(settings.rLength)}
+            heightPx={x(settings.rWidth)}
             {settings}
             alt="Robot {index + 1}"
             zIndex={20 - index}
@@ -440,8 +440,8 @@
         <RobotSprite
           {xy}
           {heading}
-          widthPx={x(settings.rWidth)}
-          heightPx={x(settings.rHeight)}
+          widthPx={x(settings.rLength)}
+          heightPx={x(settings.rWidth)}
           {settings}
           alt="Robot"
           zIndex={20}
