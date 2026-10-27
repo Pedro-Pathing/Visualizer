@@ -360,7 +360,10 @@ export function createActions(deps: ActionDeps): Action[] {
       title: "Export animation as GIF",
       when: () => !gif.running,
       run: () =>
-        void gif.run(fieldMapSource(prefs.settings), deps.field().pixels),
+        void gif.run(
+          fieldMapSource(prefs.settings, theme.resolved),
+          deps.field().pixels,
+        ),
     },
 
     {

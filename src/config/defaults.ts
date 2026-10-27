@@ -42,6 +42,19 @@ export const AVAILABLE_FIELD_MAPS = [
   { value: "custom", label: "Custom Field (Upload)" },
 ];
 
+export type ColorScheme = "light" | "dark";
+
+/**
+ * Fields drawn in both schemes. The key is the field's id, which is not a file
+ * itself; fields not listed here use `/fields/<id>` in either scheme.
+ */
+export const FIELD_SCHEME_IMAGES: Record<
+  string,
+  Record<ColorScheme, string>
+> = {
+  "biobuzz.webp": { light: "biobuzz-light.webp", dark: "biobuzz-dark.webp" },
+};
+
 /**
  * Default settings
  */

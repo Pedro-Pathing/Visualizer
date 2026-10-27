@@ -16,7 +16,8 @@ const PRECACHE = [
   "/fields/centerstage.webp",
   "/fields/intothedeep.webp",
   "/fields/decode.webp",
-  "/fields/biobuzz.webp",
+  "/fields/biobuzz-dark.webp",
+  "/fields/biobuzz-light.webp",
   "/robot.png",
   "/logo-duck.svg",
 ];

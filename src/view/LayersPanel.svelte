@@ -107,15 +107,15 @@
       <dl class="grid grid-cols-2 gap-1.5 px-1" aria-label="Robot pose">
         {#each readouts as { label, value, unit } (label)}
           <div
-                  class="flex flex-col gap-0.5 rounded-lg border border-border bg-base/60 px-2.5 py-1.5"
+            class="flex flex-col gap-0.5 rounded-lg border border-border bg-base/60 px-2.5 py-1.5"
           >
             <dt
-                    class="text-[10px] font-medium tracking-wide text-body uppercase"
+              class="text-[10px] font-medium tracking-wide text-body uppercase"
             >
               {label}
             </dt>
             <dd
-                    class="flex items-baseline gap-1 font-mono text-sm text-heading tabular-nums"
+              class="flex items-baseline gap-1 font-mono text-sm text-heading tabular-nums"
             >
               {value}
               {#if unit}<span class="text-[10px] text-body">{unit}</span>{/if}
@@ -124,19 +124,18 @@
         {/each}
       </dl>
       <div
-              class="mx-1 mt-1.5 h-1 overflow-hidden rounded-full bg-border"
-              role="progressbar"
-              aria-label="Progress along the current segment"
-              aria-valuemin={0}
-              aria-valuemax={1}
-              aria-valuenow={pose.t ?? 0}
+        class="mx-1 mt-1.5 h-1 overflow-hidden rounded-full bg-border"
+        role="progressbar"
+        aria-label="Progress along the current segment"
+        aria-valuemin={0}
+        aria-valuemax={1}
+        aria-valuenow={pose.t ?? 0}
       >
         <div
-                class="h-full rounded-full bg-primary"
-                style={`width: ${(pose.t ?? 0) * 100}%`}
+          class="h-full rounded-full bg-primary"
+          style={`width: ${(pose.t ?? 0) * 100}%`}
         ></div>
       </div>
     </PanelSection>
-
   </div>
 </aside>

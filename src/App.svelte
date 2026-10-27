@@ -150,6 +150,7 @@
       <FieldPanel
         settings={prefs.settings}
         {overlays}
+        scheme={theme.resolved}
         bind:element={fieldElement}
         bind:pixels={fieldPixels}
       />

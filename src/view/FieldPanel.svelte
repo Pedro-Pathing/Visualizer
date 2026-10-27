@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { BasePoint, Settings } from "../types";
-  import { FIELD_SIZE, LINE_WIDTH } from "../config/defaults";
+  import { FIELD_SIZE, LINE_WIDTH, type ColorScheme } from "../config/defaults";
   import { gridSize, showGrid, snapToGrid } from "../stores";
   import {
     pointAt,
@@ -47,6 +47,8 @@
   interface Props {
     settings: Settings;
     overlays: Overlays;
+    /** Picks the field image variant for fields that have one per scheme. */
+    scheme: ColorScheme;
     /** The field element, for exporting it as an image. */
     element?: HTMLDivElement;
     /** The field's size on screen, in pixels. */
@@ -56,6 +58,7 @@
   let {
     settings,
     overlays,
+    scheme,
     element = $bindable(),
     pixels = $bindable(FIELD_SIZE),
   }: Props = $props();
@@ -74,7 +77,7 @@
 
   let doc = $derived(project.doc);
   let obstaclesOn = $derived(Boolean(settings.experimentalFeatures?.obstacles));
-  let fieldMapSrc = $derived(fieldMapSource(settings));
+  let fieldMapSrc = $derived(fieldMapSource(settings, scheme));
   let robotImageSrc = $derived(settings.robotImage || "/robot.png");
   let loadedFieldMap = $state("");
   let loadedRobotImage = $state("");
