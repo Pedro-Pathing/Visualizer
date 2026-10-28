@@ -1,16 +1,10 @@
-import type {
-  AtomicPath,
-  BasePoint,
-  Path,
-  SequenceItem,
-  StartPose,
-} from "../../types";
+import type { AtomicPath, Path, SequenceItem, StartPose } from "../../types";
+import { curveOf, type Curve } from "../../model/curve";
+import { atomicSegments } from "../../utils/pathTraversal";
 import {
-  atomicSegments,
-  getPointAndTangentAtProgress,
-  lineCurvePoints,
-} from "../../utils/pathTraversal";
-import { headingAngleAt } from "../../utils/headingInterpolation";
+  headingAngleAt,
+  headingGeometryAt,
+} from "../../utils/headingInterpolation";
 import { headingCall } from "./heading";
 import { IdentifierAllocator, toClassName } from "./identifiers";
 import { PEDRO_API } from "./pedroApi";
@@ -96,11 +90,12 @@ export function buildExportModel(input: BuildModelInput): ExportModel {
     const endPoint = line.endPoint;
     segmentNumber += 1;
     const endPoseVar = poseNames.allocate(line.name, `point${segmentNumber}`);
-    const curvePoints = lineCurvePoints({ x: previous.x, y: previous.y }, line);
-    const endHeadingDeg = headingAngleAt(line.heading, "end", {
-      ...getPointAndTangentAtProgress(curvePoints, 1),
-      curvePoints,
-    });
+    const curve = curveOf({ x: previous.x, y: previous.y }, line);
+    const endHeadingDeg = headingAngleAt(
+      line.heading,
+      "end",
+      headingGeometryAt(curve, 1),
+    );
 
     let segmentStartPoseVar = previous.varName;
     if (!overridden && line.heading.type === "linear") {
@@ -162,7 +157,7 @@ export function buildExportModel(input: BuildModelInput): ExportModel {
           endPoseVar,
           endX: endPoint.x,
           endY: endPoint.y,
-          curvePoints,
+          curve,
           label,
           notes,
         });
@@ -191,7 +186,7 @@ export function buildExportModel(input: BuildModelInput): ExportModel {
       endPoseVar: string;
       endX: number;
       endY: number;
-      curvePoints?: BasePoint[];
+      curve?: Curve;
       label: string;
       notes: string[];
     },
@@ -201,7 +196,7 @@ export function buildExportModel(input: BuildModelInput): ExportModel {
       endPoseVar: ctx.endPoseVar,
       endX: ctx.endX,
       endY: ctx.endY,
-      curvePoints: ctx.curvePoints,
+      curve: ctx.curve,
       definePose,
       warn(message) {
         ctx.notes.push(message);

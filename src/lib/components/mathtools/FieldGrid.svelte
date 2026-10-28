@@ -1,26 +1,33 @@
 <script lang="ts">
   import { gridSize } from "../../../stores";
-  import { FIELD_SIZE } from "../../../config";
-  import type * as d3 from "d3";
+  import {
+    FIELD_IMAGE_OVERHANG,
+    FIELD_SEAM_COLOR,
+    FIELD_SIZE,
+  } from "../../../config";
+  import type { Axis } from "../../../view/viewport";
 
   interface Props {
-    x: d3.ScaleLinear<number, number>;
-    y: d3.ScaleLinear<number, number>;
+    x: Axis;
+    y: Axis;
   }
 
   let { x, y }: Props = $props();
 
   let spacing = $derived(Math.max(1, $gridSize || 12));
 
+  // Lines are spaced from the tile corner, which sits under the wall, so they
+  // land on the seams painted in the field image.
   let gridPositions = $derived(
     (() => {
-      const positions: number[] = [];
-      for (let pos = 0; pos <= FIELD_SIZE; pos += spacing) {
-        positions.push(Number(pos.toFixed(6)));
+      const positions = [0];
+      const first = Math.ceil(FIELD_IMAGE_OVERHANG / spacing);
+      for (let k = first; ; k++) {
+        const pos = Number((k * spacing - FIELD_IMAGE_OVERHANG).toFixed(6));
+        if (pos >= FIELD_SIZE) break;
+        if (pos > 0) positions.push(pos);
       }
-      if (positions[positions.length - 1] !== FIELD_SIZE) {
-        positions.push(FIELD_SIZE);
-      }
+      positions.push(FIELD_SIZE);
       return positions;
     })(),
   );
@@ -39,56 +46,67 @@
           : "text-xs",
   );
 
-  function showsLabel(index: number, position: number): boolean {
+  // Index of a line counted from the tile corner, so styling and labels follow
+  // the seams rather than the array order.
+  const lineIndex = (position: number) =>
+    Math.round((position + FIELD_IMAGE_OVERHANG) / spacing);
+
+  function showsLabel(position: number): boolean {
     return (
-      index % labelInterval === 0 || position === 0 || position === FIELD_SIZE
+      lineIndex(position) % labelInterval === 0 ||
+      position === 0 ||
+      position === FIELD_SIZE
     );
   }
+
+  const formatLabel = (position: number) => Number(position.toFixed(2));
 </script>
 
 <svg class="absolute top-0 left-0 w-full h-full pointer-events-none z-20">
   <!-- Vertical grid lines -->
-  {#each gridPositions as position, i (position)}
+  {#each gridPositions as position (position)}
+    {@const major = lineIndex(position) % 2 === 0}
     <line
       x1={x(position)}
       y1={y(0)}
       x2={x(position)}
       y2={y(FIELD_SIZE)}
-      stroke={i % 2 === 0 ? "#6b7280" : "#9ca3af"}
-      stroke-width={i % 2 === 0 ? "1.5" : "0.5"}
+      stroke={major ? FIELD_SEAM_COLOR : "#9ca3af"}
+      stroke-width={major ? "1.5" : "0.5"}
       opacity="0.3"
     />
-    {#if showsLabel(i, position)}
+    {#if showsLabel(position)}
       <text
         x={x(position)}
         y={y(0) + 15}
-        class="fill-gray-600 dark:fill-gray-400 {labelFontSize}"
+        class="field-label {labelFontSize}"
         text-anchor="middle"
       >
-        {position}"
+        {formatLabel(position)}"
       </text>
     {/if}
   {/each}
 
   <!-- Horizontal grid lines -->
-  {#each gridPositions as position, i (position)}
+  {#each gridPositions as position (position)}
+    {@const major = lineIndex(position) % 2 === 0}
     <line
       x1={x(0)}
       y1={y(position)}
       x2={x(FIELD_SIZE)}
       y2={y(position)}
-      stroke={i % 2 === 0 ? "#6b7280" : "#9ca3af"}
-      stroke-width={i % 2 === 0 ? "1.5" : "0.5"}
+      stroke={major ? FIELD_SEAM_COLOR : "#9ca3af"}
+      stroke-width={major ? "1.5" : "0.5"}
       opacity="0.3"
     />
-    {#if showsLabel(i, position)}
+    {#if showsLabel(position)}
       <text
         x={x(0) - 5}
         y={y(position) + 4}
-        class="fill-gray-600 dark:fill-gray-400 {labelFontSize}"
+        class="field-label {labelFontSize}"
         text-anchor="end"
       >
-        {position}"
+        {formatLabel(position)}"
       </text>
     {/if}
   {/each}

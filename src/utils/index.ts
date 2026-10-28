@@ -1,7 +1,6 @@
 export * from "./animation";
 export * from "./color";
 export * from "./normalize";
-export * from "./project";
 export * from "./download";
 export * from "./filename";
 export * from "./file";
@@ -20,17 +19,11 @@ export {
   degreesToRadians,
   headingAngleAt,
   evaluatePiecewiseHeading,
-  getLineStartHeading,
-  getLineEndHeading,
+  segmentHeadingAt,
 } from "./headingInterpolation";
 export type { HeadingGeometry } from "./headingInterpolation";
 
 export {
-  CURVE_SAMPLES,
-  lineCurvePoints,
-  approximateCurveLength,
-  curveCompletionAt,
-  getPointAndTangentAtProgress,
   flattenToAtomicSegments,
   segmentStartById,
   atomicSegments,

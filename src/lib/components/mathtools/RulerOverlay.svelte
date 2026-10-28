@@ -1,15 +1,15 @@
 <script lang="ts">
   import { FIELD_SIZE } from "../../../config";
   import { clamp } from "../../../utils/math";
-  import type * as d3 from "d3";
+  import type { Axis } from "../../../view/viewport";
 
   interface Props {
-    x: d3.ScaleLinear<number, number>;
-    y: d3.ScaleLinear<number, number>;
-    twoElement: HTMLDivElement;
+    x: Axis;
+    y: Axis;
+    fieldElement: HTMLDivElement;
   }
 
-  let { x, y, twoElement }: Props = $props();
+  let { x, y, fieldElement }: Props = $props();
 
   let rulerStart = $state({ x: 20, y: 72 });
   let rulerEnd = $state({ x: 80, y: 72 });
@@ -25,9 +25,9 @@
   }
 
   function handleMouseMove(event: MouseEvent) {
-    if (!dragging || !twoElement) return;
+    if (!dragging) return;
 
-    const rect = twoElement.getBoundingClientRect();
+    const rect = fieldElement.getBoundingClientRect();
     const point = {
       x: clamp(x.invert(event.clientX - rect.left), 0, FIELD_SIZE),
       y: clamp(y.invert(event.clientY - rect.top), 0, FIELD_SIZE),
@@ -86,7 +86,7 @@
   <text
     x={(x(rulerStart.x) + x(rulerEnd.x)) / 2}
     y={(y(rulerStart.y) + y(rulerEnd.y)) / 2 - 10}
-    class="fill-blue-600 dark:fill-blue-400 font-semibold pointer-events-none"
+    class="field-label pointer-events-none font-semibold"
     text-anchor="middle"
   >
     {rulerLength.toFixed(2)}"

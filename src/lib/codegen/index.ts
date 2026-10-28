@@ -1,6 +1,5 @@
 import type { Path, SequenceItem, StartPose } from "../../types";
 import { emitSource } from "./emit";
-import { formatSource } from "./format";
 import { javaSpec } from "./languages/java";
 import { kotlinSpec } from "./languages/kotlin";
 import type { LanguageSpec } from "./languages/spec";
@@ -16,17 +15,15 @@ export { generatePointsArray } from "./points";
 export type { LanguageSpec } from "./languages/spec";
 export type * from "./types";
 
-async function generate(
+function generate(
   spec: LanguageSpec,
   startPoint: StartPose,
   lines: Path[],
   exportMode: ExportMode,
   mirrorHorizontally: boolean,
-): Promise<string> {
+): string {
   const model = buildExportModel({ startPoint, lines, mirrorHorizontally });
-  const source = emitSource(model, spec, exportMode);
-  if (exportMode === "coordinates") return source;
-  return formatSource(source, spec);
+  return emitSource(model, spec, exportMode);
 }
 
 export function generateJavaCode(
@@ -34,7 +31,7 @@ export function generateJavaCode(
   lines: Path[],
   exportMode: ExportMode = "class",
   mirrorHorizontally = false,
-): Promise<string> {
+): string {
   return generate(javaSpec, startPoint, lines, exportMode, mirrorHorizontally);
 }
 
@@ -43,7 +40,7 @@ export function generateKotlinCode(
   lines: Path[],
   exportMode: ExportMode = "class",
   mirrorHorizontally = false,
-): Promise<string> {
+): string {
   return generate(
     kotlinSpec,
     startPoint,
@@ -58,7 +55,7 @@ export function generateSequentialCommandCode(
   lines: Path[],
   className: string | null = null,
   sequence?: SequenceItem[],
-): Promise<string> {
+): string {
   const model = buildExportModel({ startPoint, lines, sequence, className });
-  return formatSource(emitSource(model, javaSpec, "full"), javaSpec);
+  return emitSource(model, javaSpec, "full");
 }

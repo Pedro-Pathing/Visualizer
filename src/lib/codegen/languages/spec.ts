@@ -6,8 +6,6 @@ export interface ImportNeeds {
 export interface LanguageSpec {
   id: "java" | "kotlin";
 
-  prettier: { parser: string; pluginSpecifier: string };
-
   terminator: string;
 
   numberLiteral(value: number): string;

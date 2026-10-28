@@ -13,26 +13,6 @@ export function distanceBetweenPoints(a: BasePoint, b: BasePoint): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-export function quadraticToCubic(
-  P0: { x: number; y: number },
-  P1: { x: number; y: number },
-  P2: { x: number; y: number },
-) {
-  const Q1 = {
-    x: P0.x + (2 / 3) * (P1.x - P0.x),
-    y: P0.y + (2 / 3) * (P1.y - P0.y),
-  };
-  const Q2 = {
-    x: P2.x + (2 / 3) * (P1.x - P2.x),
-    y: P2.y + (2 / 3) * (P1.y - P2.y),
-  };
-  return { Q1, Q2 };
-}
-
-export function easeInOutQuad(x: number): number {
-  return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
-}
-
 export function transformAngle(angle: number) {
   return ((angle + 180) % 360) - 180;
 }
@@ -130,14 +110,6 @@ export function getCurvePoint(
   return getCurvePoint(t, newpoints);
 }
 
-// Helpers for Heading Calculation
-export function getTangentAngle(
-  p1: { x: number; y: number },
-  p2: { x: number; y: number },
-): number {
-  return Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
-}
-
 /**
  * Convert a Catmull-Rom segment to a cubic Bezier control pair.
  * scaledTension should be tension/3 like in the Java implementation.
@@ -189,7 +161,8 @@ export function curveThroughPoints(
     const previous = result[result.length - 1];
     if (
       !previous ||
-      Math.hypot(point.x - previous.x, point.y - previous.y) >= smoothingDistance
+      Math.hypot(point.x - previous.x, point.y - previous.y) >=
+        smoothingDistance
     ) {
       result.push({ x: point.x, y: point.y });
     } else {

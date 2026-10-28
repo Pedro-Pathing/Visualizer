@@ -1,9 +1,11 @@
 import type { Path, Settings, Shape, StartPose } from "../../types";
 import { FIELD_SIZE } from "../../config/defaults";
-import { headingAngleAt } from "../../utils/headingInterpolation";
+import {
+  headingAngleAt,
+  headingGeometryAt,
+} from "../../utils/headingInterpolation";
 import {
   flattenToAtomicSegments,
-  getPointAndTangentAtProgress,
   replaceSegment,
 } from "../../utils/pathTraversal";
 
@@ -22,25 +24,27 @@ export function buildOptimizationPayload(
   );
   if (!segment) throw new Error("Line not found");
 
-  const line = segment.line;
-  const waypoints = segment.points.map((p) => [p.x, p.y]);
+  const { line, curve } = segment;
+  const waypoints = curve.controlPoints.map((p) => [p.x, p.y]);
 
   return {
     waypoints,
-    start_heading_degrees: headingAngleAt(line.heading, "start", {
-      ...getPointAndTangentAtProgress(segment.points, 0),
-      curvePoints: segment.points,
-    }),
-    end_heading_degrees: headingAngleAt(line.heading, "end", {
-      ...getPointAndTangentAtProgress(segment.points, 1),
-      curvePoints: segment.points,
-    }),
-    x_velocity: settings.xVelocity,
-    y_velocity: settings.yVelocity,
+    start_heading_degrees: headingAngleAt(
+      line.heading,
+      "start",
+      headingGeometryAt(curve, 0),
+    ),
+    end_heading_degrees: headingAngleAt(
+      line.heading,
+      "end",
+      headingGeometryAt(curve, 1),
+    ),
+    x_velocity: settings.forwardVelocity,
+    y_velocity: settings.strafeVelocity,
     angular_velocity: settings.aVelocity,
     friction_coefficient: settings.kFriction,
-    robot_width: settings.rWidth,
-    robot_height: settings.rHeight,
+    robot_width: settings.rLength,
+    robot_height: settings.rWidth,
     min_coord_field: 0,
     max_coord_field: FIELD_SIZE,
     interpolation:
@@ -53,7 +57,9 @@ export function buildOptimizationPayload(
   };
 }
 
-export async function runOptimization(payload: any) {
+export async function runOptimization(
+  payload: ReturnType<typeof buildOptimizationPayload>,
+): Promise<unknown> {
   const response = await fetch(`${OPTIMIZER_BASE_URL}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -84,22 +90,23 @@ export async function runOptimization(payload: any) {
 export function applyOptimizedWaypoints(
   paths: Path[],
   lineId: string,
-  result: any,
+  result: unknown,
   targetControlPointIndex?: number,
 ): Path[] | null {
-  const optimizedWaypoints = Array.isArray(result?.optimized_waypoints)
-    ? result.optimized_waypoints
-    : Array.isArray(result)
-      ? result
-      : null;
+  // The optimizer answers with either the waypoints or an object holding them.
+  const waypoints = Array.isArray(result)
+    ? result
+    : (result as { optimized_waypoints?: unknown } | null)?.optimized_waypoints;
 
-  if (!optimizedWaypoints || optimizedWaypoints.length < 2) {
+  if (!Array.isArray(waypoints) || waypoints.length < 2) {
     throw new Error("Unexpected optimizer response format.");
   }
 
-  const interior = optimizedWaypoints
-    .slice(1, optimizedWaypoints.length - 1)
-    .map((p: number[]) => ({ x: p[0], y: p[1] }));
+  const points = waypoints as number[][];
+  const [endX, endY] = points[points.length - 1];
+  const interior = points
+    .slice(1, points.length - 1)
+    .map((p) => ({ x: p[0], y: p[1] }));
 
   let applied = true;
   const next = replaceSegment(paths, lineId, (current) => {
@@ -121,8 +128,8 @@ export function applyOptimizedWaypoints(
       ...current,
       endPoint: {
         ...current.endPoint,
-        x: optimizedWaypoints[optimizedWaypoints.length - 1][0],
-        y: optimizedWaypoints[optimizedWaypoints.length - 1][1],
+        x: endX,
+        y: endY,
       },
       controlPoints: interior,
     };

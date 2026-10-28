@@ -99,16 +99,13 @@ export function polygonCenter(vertices: BasePoint[]): number[] {
 }
 
 /**
- * Calculate the four corner points of a robot at a given position and heading
- * Assumes the robot is a rectangle centered at (x, y) with the given heading angle
- * The heading convention: 0° = right, 90° = down, 180° = left, 270° = up
- * (this matches SVG/screen coordinates where Y increases downward)
- * @param x - Robot center X position (in inches)
- * @param y - Robot center Y position (in inches)
- * @param heading - Robot heading in degrees
- * @param width - Robot width in inches (extends left-right from center)
- * @param height - Robot height in inches (extends forward-backward from center)
- * @returns Array of 4 corner points in order: [front-left, front-right, back-right, back-left]
+ * The four corners of a robot rectangle centered at (x, y), in field
+ * coordinates with y up.
+ * @param heading - Degrees counter-clockwise from +x
+ * @param width - Extent along the heading, as the robot sprite draws it
+ * @param height - Extent across the heading
+ * @returns Corners in counter-clockwise order: back-right, front-right,
+ *   front-left, back-left
  */
 export function getRobotCorners(
   x: number,
@@ -128,19 +125,13 @@ export function getRobotCorners(
   const cos = Math.cos(headingRad);
   const sin = Math.sin(headingRad);
 
-  // Corner offsets relative to center (before rotation)
-  // Define corners in local robot frame:
-  // - width extends perpendicular to heading direction (left/right)
-  // - height extends along heading direction (forward/backward)
   const corners = [
-    { dx: -hw, dy: -hh }, // front-left (forward, left)
-    { dx: hw, dy: -hh }, // front-right (forward, right)
-    { dx: hw, dy: hh }, // back-right (backward, right)
-    { dx: -hw, dy: hh }, // back-left (backward, left)
+    { dx: -hw, dy: -hh },
+    { dx: hw, dy: -hh },
+    { dx: hw, dy: hh },
+    { dx: -hw, dy: hh },
   ];
 
-  // Rotate and translate corners
-  // Using standard 2D rotation matrix for screen coordinates
   return corners.map((corner) => ({
     x: x + corner.dx * cos - corner.dy * sin,
     y: y + corner.dx * sin + corner.dy * cos,
@@ -188,11 +179,6 @@ export function convexHull(points: BasePoint[]): BasePoint[] {
     return distA - distB;
   });
 
-  // Helper function to compute cross product
-  const cross = (o: BasePoint, a: BasePoint, b: BasePoint): number => {
-    return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-  };
-
   // Build the convex hull
   const hull: BasePoint[] = [pivot];
 
@@ -208,4 +194,60 @@ export function convexHull(points: BasePoint[]): BasePoint[] {
   }
 
   return hull;
+}
+
+/** Positive when `o → a → b` turns counter-clockwise. */
+function cross(o: BasePoint, a: BasePoint, b: BasePoint): number {
+  return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+}
+
+/** Whether `p`, already known to be collinear with `a`–`b`, lies on that segment. */
+function withinSegment(a: BasePoint, b: BasePoint, p: BasePoint): boolean {
+  return (
+    p.x >= Math.min(a.x, b.x) &&
+    p.x <= Math.max(a.x, b.x) &&
+    p.y >= Math.min(a.y, b.y) &&
+    p.y <= Math.max(a.y, b.y)
+  );
+}
+
+/** Whether segments `a`–`b` and `c`–`d` share any point, touching included. */
+export function segmentsIntersect(
+  a: BasePoint,
+  b: BasePoint,
+  c: BasePoint,
+  d: BasePoint,
+): boolean {
+  const abc = cross(a, b, c);
+  const abd = cross(a, b, d);
+  const cda = cross(c, d, a);
+  const cdb = cross(c, d, b);
+  if (
+    ((abc > 0 && abd < 0) || (abc < 0 && abd > 0)) &&
+    ((cda > 0 && cdb < 0) || (cda < 0 && cdb > 0))
+  ) {
+    return true;
+  }
+  return (
+    (abc === 0 && withinSegment(a, b, c)) ||
+    (abd === 0 && withinSegment(a, b, d)) ||
+    (cda === 0 && withinSegment(c, d, a)) ||
+    (cdb === 0 && withinSegment(c, d, b))
+  );
+}
+
+/**
+ * Whether two simple polygons overlap. Either may be non-convex: if no edges
+ * cross, they overlap only when one lies wholly inside the other.
+ */
+export function polygonsOverlap(a: BasePoint[], b: BasePoint[]): boolean {
+  if (a.length === 0 || b.length === 0) return false;
+  for (let i = 0, j = a.length - 1; i < a.length; j = i++) {
+    for (let k = 0, l = b.length - 1; k < b.length; l = k++) {
+      if (segmentsIntersect(a[j], a[i], b[l], b[k])) return true;
+    }
+  }
+  return (
+    pointInPolygon([a[0].x, a[0].y], b) || pointInPolygon([b[0].x, b[0].y], a)
+  );
 }

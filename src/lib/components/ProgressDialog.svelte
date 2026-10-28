@@ -1,8 +1,10 @@
 <script lang="ts">
   import Modal from "./ui/Modal.svelte";
+  import Button from "./ui/Button.svelte";
 
   interface Props {
     isOpen?: boolean;
+    /** Between 0 and 1. */
     progress?: number;
     statusMessage?: string;
     onCancel?: () => void;
@@ -15,7 +17,7 @@
     onCancel = () => {},
   }: Props = $props();
 
-  let progressPercentage = $derived(Math.round(progress * 100));
+  let percent = $derived(Math.round(progress * 100));
 </script>
 
 <Modal
@@ -23,29 +25,34 @@
   titleId="progress-title"
   closeOnEscape={false}
   closeOnBackdrop={false}
+  panelClass="w-full max-w-sm mx-4 p-5"
 >
-  <h2 id="progress-title" class="text-xl font-semibold text-[#e8e8e8] mb-4">
-    Exporting GIF
-  </h2>
+  <div class="flex flex-col gap-4">
+    <h2 id="progress-title" class="text-base font-semibold text-heading">
+      Exporting GIF
+    </h2>
 
-  <div class="mb-4">
-    <div class="flex justify-between items-center mb-2">
-      <span class="text-sm text-[#d0d0d0]">{statusMessage}</span>
-      <span class="text-sm font-semibold text-[#e8e8e8]">
-        {progressPercentage}%
-      </span>
-    </div>
-
-    <!-- Progress bar -->
-    <div class="w-full bg-[#333333] rounded-full h-3 overflow-hidden">
+    <div class="flex flex-col gap-2">
+      <div class="flex items-center justify-between text-sm">
+        <span class="text-body">{statusMessage}</span>
+        <span class="font-mono text-heading tabular-nums">{percent}%</span>
+      </div>
       <div
-        class="bg-linear-to-r from-blue-500 to-purple-600 h-full rounded-full transition-all duration-300 ease-out"
-        style="width: {progressPercentage}%"
-      ></div>
+        class="h-2 overflow-hidden rounded-full bg-body/20"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+      >
+        <div
+          class="h-full rounded-full bg-primary transition-[width] duration-300"
+          style={`width: ${percent}%`}
+        ></div>
+      </div>
     </div>
-  </div>
 
-  <div class="flex justify-end">
-    <button onclick={onCancel} class="console-action">Cancel</button>
+    <div class="flex justify-end">
+      <Button variant="ghost" onclick={onCancel}>Cancel</Button>
+    </div>
   </div>
 </Modal>

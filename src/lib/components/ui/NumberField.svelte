@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { fieldClass, labelClass } from "./styles";
+
   interface Props {
     id: string;
     label: string;
@@ -23,7 +25,7 @@
     step = undefined,
     suffix = "",
     disabled = false,
-    inputClass = "console-input px-3 py-2",
+    inputClass = "",
     onInput,
   }: Props = $props();
 
@@ -71,23 +73,9 @@
   }
 </script>
 
-<div>
-  <label
-    for={id}
-    class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1"
-  >
-    {label}
-    {#if description}
-      <div class="text-xs text-neutral-500 dark:text-neutral-400">
-        {description}
-      </div>
-    {/if}
-  </label>
-  <div
-    class:flex={Boolean(suffix)}
-    class:items-center={Boolean(suffix)}
-    class:gap-2={Boolean(suffix)}
-  >
+<div class="flex min-w-0 flex-col gap-1">
+  <label for={id} class={labelClass}>{label}</label>
+  <div class={suffix && "flex items-center gap-2"}>
     <input
       {id}
       type="number"
@@ -100,12 +88,13 @@
       onfocus={() => (focused = true)}
       onblur={handleBlur}
       onkeydown={handleKeydown}
-      class="{inputClass} focus:outline-none focus:ring-2 focus:ring-blue-500"
+      class={[fieldClass, "font-mono", inputClass]}
     />
     {#if suffix}
-      <span class="text-sm text-neutral-500 dark:text-neutral-400"
-        >{suffix}</span
-      >
+      <span class="text-xs text-body">{suffix}</span>
     {/if}
   </div>
+  {#if description}
+    <p class="text-xs text-body">{description}</p>
+  {/if}
 </div>

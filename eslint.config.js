@@ -50,6 +50,66 @@ export default ts.config(
     },
   },
   {
+    // The portable core: plain TypeScript that must run outside this app.
+    files: [
+      "src/io/**/*.ts",
+      "src/model/**/*.ts",
+      "src/sim/**/*.ts",
+      "src/lib/codegen/**/*.ts",
+      "src/lib/scene/stroke.ts",
+      "src/utils/color.ts",
+      "src/utils/filename.ts",
+      "src/utils/geometry.ts",
+      "src/utils/headingInterpolation.ts",
+      "src/utils/ids.ts",
+      "src/utils/math.ts",
+      "src/utils/normalize.ts",
+      "src/utils/pathTraversal.ts",
+      "src/utils/shapes.ts",
+      "src/utils/timeCalculator.ts",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["svelte", "svelte/*", "**/*.svelte", "$lib", "$lib/*"],
+              message: "The core must not depend on Svelte.",
+            },
+            {
+              group: ["two.js", "two.js/*", "d3", "d3-*", "hotkeys-js"],
+              message:
+                "The core must not depend on rendering or input libraries.",
+            },
+            {
+              group: ["**/stores", "**/lib/toast", "**/utils/perf"],
+              message:
+                "The core must not depend on app state or instrumentation.",
+            },
+          ],
+        },
+      ],
+      "no-restricted-globals": [
+        "error",
+        ...[
+          "window",
+          "document",
+          "localStorage",
+          "sessionStorage",
+          "navigator",
+        ].map((name) => ({
+          name,
+          message: "The core must not touch the DOM or browser storage.",
+        })),
+        ...["alert", "confirm", "prompt"].map((name) => ({
+          name,
+          message: "The core must not show UI.",
+        })),
+      ],
+    },
+  },
+  {
     ignores: [
       "dist/",
       "out/",

@@ -113,14 +113,13 @@ export type SequenceWaitItem = {
 export type SequenceItem = SequencePathItem | SequenceWaitItem;
 
 export interface Settings {
-  xVelocity: number;
-  yVelocity: number;
+  forwardVelocity: number; // inches/sec
+  strafeVelocity: number; // inches/sec
   aVelocity: number;
   kFriction: number;
-  rWidth: number;
-  rHeight: number;
+  rLength: number; // inches along the heading
+  rWidth: number; // inches side to side
   safetyMargin: number;
-  maxVelocity: number; // inches/sec
   maxAcceleration: number; // inches/sec²
   maxDeceleration?: number; // inches/sec²
   fieldMap: string;
@@ -132,7 +131,7 @@ export interface Settings {
   onionColor?: string; // Color for onion-layer colliders
   onionNextPointOnly?: boolean; // When true, onion layers show only for the next point (UI-only for now)
   showHeadingArrow?: boolean; // Show arrow indicating robot heading direction
-  showCurrentTValue?: boolean; // Show the current path t value near the robot
+  showAllPoints?: boolean; // Show points on paths that aren't selected
   leftPanelWidth?: number; // Width of the left sidebar in pixels
   rightPanelWidth?: number; // Width of the right sidebar in pixels
   headingArrowLength?: number; // Length of the heading arrow in pixels
@@ -143,12 +142,27 @@ export interface Settings {
   rightPanelMinWidth?: number; // Minimum width of the right sidebar in pixels
   penToolMaxPaths?: number; // Maximum number of paths a single pen stroke may create
   curveThroughMaxPoints?: number; // Maximum interior through points per curve
+  autoCollapsePanels?: boolean; // Hide the side panels while playing or drawing, and the inspector when nothing is selected
   experimentalFeatures?: {
     optimize?: boolean;
     curveThrough?: boolean;
     obstacles?: boolean;
   };
 }
+
+/** The settings that change how a path drives, so they are saved with it. */
+export type RobotConfig = Pick<
+  Settings,
+  | "forwardVelocity"
+  | "strafeVelocity"
+  | "aVelocity"
+  | "kFriction"
+  | "rLength"
+  | "rWidth"
+  | "safetyMargin"
+  | "maxAcceleration"
+  | "maxDeceleration"
+>;
 
 export interface Shape {
   id: string;

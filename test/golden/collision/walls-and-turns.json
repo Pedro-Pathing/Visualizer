@@ -1,0 +1,41 @@
+[
+  {
+    "lineId": null,
+    "obstacle": {
+      "kind": "wall"
+    },
+    "start": 3.939,
+    "end": 4.08,
+    "firstContact": {
+      "x": 20,
+      "y": 130,
+      "heading": 19.626
+    }
+  },
+  {
+    "lineId": "line-along-top",
+    "obstacle": {
+      "kind": "wall"
+    },
+    "start": 4.08,
+    "end": 5.225,
+    "firstContact": {
+      "x": 20,
+      "y": 130,
+      "heading": 45
+    }
+  },
+  {
+    "lineId": "line-wide-swing",
+    "obstacle": {
+      "kind": "wall"
+    },
+    "start": 9.433,
+    "end": 10.002,
+    "firstContact": {
+      "x": 129.567,
+      "y": 96.563,
+      "heading": -65.355
+    }
+  }
+]
