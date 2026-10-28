@@ -123,18 +123,22 @@
           </div>
         {/each}
       </dl>
+      <!-- The padding widens the hover target beyond the thin bar. -->
       <div
-        class="mx-1 mt-1.5 h-1 overflow-hidden rounded-full bg-border"
+        class="mx-1 mt-0.5 cursor-help py-1.5"
         role="progressbar"
+        title="t: how far the robot is along the current path segment, from 0 (start) to 1 (end)"
         aria-label="Progress along the current segment"
         aria-valuemin={0}
         aria-valuemax={1}
         aria-valuenow={pose.t ?? 0}
       >
-        <div
-          class="h-full rounded-full bg-primary"
-          style={`width: ${(pose.t ?? 0) * 100}%`}
-        ></div>
+        <div class="h-1 overflow-hidden rounded-full bg-border">
+          <div
+            class="h-full rounded-full bg-primary"
+            style={`width: ${(pose.t ?? 0) * 100}%`}
+          ></div>
+        </div>
       </div>
     </PanelSection>
   </div>

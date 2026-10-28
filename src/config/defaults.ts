@@ -30,6 +30,8 @@ export const TILE_SIZE = 24;
  * the floor on every side and are cropped to it.
  */
 export const FIELD_IMAGE_OVERHANG = (6 * TILE_SIZE - FIELD_SIZE) / 2;
+/** The tile seams in every field image are drawn in this color. */
+export const FIELD_SEAM_COLOR = "#000000";
 
 /**
  * Available field maps
