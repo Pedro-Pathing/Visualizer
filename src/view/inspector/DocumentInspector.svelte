@@ -13,9 +13,6 @@
 </script>
 
 <div class="flex flex-col gap-2">
-  <p class="text-xs text-body">
-    Nothing selected. These belong to the project and are saved with it.
-  </p>
   <PanelSection title="Start">
     <StartingPointSection />
   </PanelSection>

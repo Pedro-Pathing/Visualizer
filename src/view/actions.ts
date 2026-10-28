@@ -336,7 +336,7 @@ export function createActions(deps: ActionDeps): Action[] {
     {
       id: "export.json",
       group: "Export",
-      title: "Export project as JSON",
+      title: "Export project as PP JSON",
       run: () => {
         const name = pathStem(get(currentFilePath)) || "path";
         downloadBlob(
@@ -345,7 +345,7 @@ export function createActions(deps: ActionDeps): Action[] {
           }),
           `${name}${PROJECT_EXTENSION}`,
         );
-        showToast("Exported project as JSON", "success");
+        showToast("Exported project as PP JSON", "success");
       },
     },
     {

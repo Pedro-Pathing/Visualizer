@@ -50,7 +50,7 @@
   </p>
 
   <Toggle
-    label="One heading for the whole group"
+    label="Override nested path headings"
     description={group.heading
       ? "Every path inside follows this heading."
       : "Each path inside keeps its own heading."}
