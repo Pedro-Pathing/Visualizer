@@ -2,6 +2,7 @@ import { get } from "svelte/store";
 import {
   gridSize,
   protractorLockToRobot,
+  show3D,
   showGrid,
   showProtractor,
   showRuler,
@@ -22,7 +23,7 @@ export function cycleGrid() {
   if (next) gridSize.set(next);
   else showGrid.set(false);
 }
-
+export const toggle3D = () => show3D.update((on) =>!on)
 export const toggleSnap = () => snapToGrid.update((on) => !on);
 export const toggleRuler = () => showRuler.update((on) => !on);
 export const toggleProtractor = () => showProtractor.update((on) => !on);

@@ -148,6 +148,7 @@ export interface Settings {
     curveThrough?: boolean;
     obstacles?: boolean;
   };
+  robotModelRotation?: number;
 }
 
 /** The settings that change how a path drives, so they are saved with it. */

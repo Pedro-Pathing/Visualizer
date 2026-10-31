@@ -2,6 +2,9 @@
   import type { BasePoint, Settings } from "../types";
   import { FIELD_SIZE, LINE_WIDTH, type ColorScheme } from "../config/defaults";
   import { gridSize, showGrid, snapToGrid } from "../stores";
+  import { Canvas } from "@threlte/core";
+  import Field3d from "../lib/scene/Field3d.svelte";
+  import { robotModelUrl, show3D } from "../stores";
   import {
     pointAt,
     setShapes,
@@ -376,6 +379,22 @@
       style={`width: ${pixels}px; height: ${pixels}px; max-width: 100%; max-height: 100%; aspect-ratio: 1 / 1; -webkit-touch-callout: none;`}
       oncontextmenu={onContextMenu}
     >
+    {#if $show3D}
+  <div class="absolute inset-0 z-40 bg-base">
+    <Canvas>
+      <Field3d
+        rWidth={settings.rLength}
+        rHeight={settings.rWidth}
+        startPoint={doc.startPoint}
+        lines={doc.lines}
+        robotPos={playback.robotPose}
+        robotHeading={playback.robotPose.heading}
+        robotModelUrl={$robotModelUrl}
+        robotModelRotation={settings.robotModelRotation ?? 0}
+      />
+    </Canvas>
+  </div>
+{/if}
       <FieldMapImage
         src={fieldMapSrc}
         fieldMapName={settings.fieldMap}
