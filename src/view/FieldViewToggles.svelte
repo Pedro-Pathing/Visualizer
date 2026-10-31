@@ -3,6 +3,10 @@
     Angle,
     Grid3x3,
     Lock,
+    FileUp,
+    Box,
+    RotateCcw,
+    Upload,
     LockOpen,
     Magnet,
     Ruler,
@@ -12,18 +16,22 @@
   import {
     gridSize,
     protractorLockToRobot,
+    show3D,
     showGrid,
     showProtractor,
     showRuler,
     snapToGrid,
+    robotModelUrl,
   } from "../stores";
   import {
     cycleGrid,
+    toggle3D,
     toggleProtractor,
     toggleProtractorLock,
     toggleRuler,
     toggleSnap,
   } from "./viewOptions";
+    let fileInput: HTMLInputElement;
 </script>
 
 <div
@@ -75,5 +83,44 @@
     >
       {#if $protractorLockToRobot}<Lock />{:else}<LockOpen />{/if}
     </IconButton>
+  {/if}
+  <IconButton label="3D view" active={$show3D} onclick= {toggle3D}>
+  <Box/>
+  </IconButton>
+    {#if $show3D}
+        <input
+      bind:this={fileInput}
+      type="file"
+      hidden
+      accept=".glb"
+      onchange={(e) => {
+        const file = e.currentTarget.files?.[0];
+        if (file) {
+          if ($robotModelUrl) 
+          {
+            URL.revokeObjectURL($robotModelUrl);
+          }
+          robotModelUrl.set(URL.createObjectURL(file));
+        }
+        e.currentTarget.value = "";
+      }}
+    />
+    <IconButton
+      label="Upload robot model (.glb)"
+      onclick={() => fileInput.click()}
+      >
+      <FileUp/>
+    </IconButton>
+    {#if $robotModelUrl}
+      <IconButton
+        label="Reset robot model"
+        onclick={() => {
+          URL.revokeObjectURL($robotModelUrl);
+          robotModelUrl.set("");
+        }}
+      >
+        <RotateCcw/>
+      </IconButton>
+    {/if}
   {/if}
 </div>

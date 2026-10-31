@@ -61,6 +61,5 @@
     step={0.5}
     onInput={(v) => setNumber(v, "safetyMargin", 0, 24)}
   />
-
   <RobotImagePicker bind:settings />
 </div>

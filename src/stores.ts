@@ -1,6 +1,8 @@
 import { writable } from "svelte/store";
 
 // Math tools stores
+export const robotModelUrl = writable("");
+export const show3D = writable(false);
 export const showRuler = writable(false);
 export const showProtractor = writable(false);
 export const showGrid = writable(false);

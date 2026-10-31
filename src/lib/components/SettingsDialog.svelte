@@ -350,6 +350,17 @@
           onInput={(raw) => setNumber("curveThroughMaxPoints", raw)}
         />
       </div>
+      <NumberField
+          id="robot-model-rotation"
+          label="3D model rotation"
+          description="Turns the uploaded 3D robot"
+          value={prefs.robotModelRotation ?? 0}
+          min={-360}
+          max={360}
+          step={1}
+          suffix="deg"
+          onInput={(raw) => setNumber("robotModelRotation", raw)}
+      />
     </PanelSection>
 
     <PanelSection title="Experimental" open={false}>
