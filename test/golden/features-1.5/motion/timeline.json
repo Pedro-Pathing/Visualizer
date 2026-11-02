@@ -1,27 +1,27 @@
 {
-  "totalTime": 16.154343861935146,
+  "totalTime": 13.131165188515615,
   "segmentTimes": [
-    1.8973665961010275,
-    2.2791023309817047,
-    2.285341688845354,
-    3.201785704331128,
-    3.758532900277716
+    1.469693845669907,
+    1.765385074438929,
+    1.7702180602583175,
+    2.4800925421998885,
+    2.9135610245503596
   ],
   "totalDistance": 287.9632149659248,
   "timeline": [
     {
       "type": "travel",
-      "duration": 1.8973665961010275,
+      "duration": 1.469693845669907,
       "startTime": 0,
-      "endTime": 1.8973665961010275,
+      "endTime": 1.469693845669907,
       "lineId": "line-straight"
     },
     {
       "type": "wait",
       "name": "Path visualization wait",
       "duration": 0.75,
-      "startTime": 1.8973665961010275,
-      "endTime": 2.6473665961010275,
+      "startTime": 1.469693845669907,
+      "endTime": 2.219693845669907,
       "startHeading": 0,
       "targetHeading": 0,
       "atPoint": {
@@ -33,8 +33,8 @@
       "type": "wait",
       "name": "Spin up",
       "duration": 1,
-      "startTime": 2.6473665961010275,
-      "endTime": 3.6473665961010275,
+      "startTime": 2.219693845669907,
+      "endTime": 3.219693845669907,
       "startHeading": 0,
       "targetHeading": 0,
       "atPoint": {
@@ -44,30 +44,30 @@
     },
     {
       "type": "travel",
-      "duration": 2.2791023309817047,
-      "startTime": 3.6473665961010275,
-      "endTime": 5.926468927082732,
+      "duration": 1.765385074438929,
+      "startTime": 3.219693845669907,
+      "endTime": 4.985078920108836,
       "lineId": "line-quadratic"
     },
     {
       "type": "travel",
-      "duration": 2.285341688845354,
-      "startTime": 5.926468927082732,
-      "endTime": 8.211810615928087,
+      "duration": 1.7702180602583175,
+      "startTime": 4.985078920108836,
+      "endTime": 6.755296980367153,
       "lineId": "line-cubic"
     },
     {
       "type": "travel",
-      "duration": 3.201785704331128,
-      "startTime": 8.211810615928087,
-      "endTime": 11.413596320259215,
+      "duration": 2.4800925421998885,
+      "startTime": 6.755296980367153,
+      "endTime": 9.235389522567042,
       "lineId": "line-high-order"
     },
     {
       "type": "wait",
       "duration": 0.9822146413982134,
-      "startTime": 11.413596320259215,
-      "endTime": 12.395810961657428,
+      "startTime": 9.235389522567042,
+      "endTime": 10.217604163965255,
       "startHeading": 67.8596311914382,
       "targetHeading": -108.93900426024018,
       "atPoint": {
@@ -77,9 +77,9 @@
     },
     {
       "type": "travel",
-      "duration": 3.758532900277716,
-      "startTime": 12.395810961657428,
-      "endTime": 16.154343861935146,
+      "duration": 2.9135610245503596,
+      "startTime": 10.217604163965255,
+      "endTime": 13.131165188515615,
       "lineId": "line-through"
     }
   ]

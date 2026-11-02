@@ -1,25 +1,25 @@
 {
-  "totalTime": 9.617939052997306,
+  "totalTime": 8.013531882315592,
   "segmentTimes": [
-    2.0655911179772892,
-    2.4815490267088682,
-    2.570798908311149
+    1.6,
+    1.9221996106481345,
+    1.9913322716674573
   ],
   "totalDistance": 127.75319449200146,
   "timeline": [
     {
       "type": "travel",
-      "duration": 2.0655911179772892,
+      "duration": 1.6,
       "startTime": 0,
-      "endTime": 2.0655911179772892,
+      "endTime": 1.6,
       "lineId": "line-mjuohs00-000d57"
     },
     {
       "type": "wait",
       "name": "Path visualization wait",
       "duration": 0.5,
-      "startTime": 2.0655911179772892,
-      "endTime": 2.5655911179772892,
+      "startTime": 1.6,
+      "endTime": 2.1,
       "startHeading": 0,
       "targetHeading": 0,
       "atPoint": {
@@ -30,8 +30,8 @@
     {
       "type": "wait",
       "duration": 1,
-      "startTime": 2.5655911179772892,
-      "endTime": 3.5655911179772892,
+      "startTime": 2.1,
+      "endTime": 3.1,
       "startHeading": 0,
       "targetHeading": 180,
       "atPoint": {
@@ -41,16 +41,16 @@
     },
     {
       "type": "travel",
-      "duration": 2.4815490267088682,
-      "startTime": 3.5655911179772892,
-      "endTime": 6.047140144686157,
+      "duration": 1.9221996106481345,
+      "startTime": 3.1,
+      "endTime": 5.022199610648134,
       "lineId": "line-mjuohs00-4qh0z0"
     },
     {
       "type": "wait",
       "duration": 1,
-      "startTime": 6.047140144686157,
-      "endTime": 7.047140144686157,
+      "startTime": 5.022199610648134,
+      "endTime": 6.022199610648134,
       "startHeading": -90,
       "targetHeading": 90,
       "atPoint": {
@@ -60,9 +60,9 @@
     },
     {
       "type": "travel",
-      "duration": 2.570798908311149,
-      "startTime": 7.047140144686157,
-      "endTime": 9.617939052997306,
+      "duration": 1.9913322716674573,
+      "startTime": 6.022199610648134,
+      "endTime": 8.013531882315592,
       "lineId": "line-mjuohs00-r79ise"
     }
   ]

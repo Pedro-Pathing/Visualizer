@@ -4,8 +4,8 @@
     "obstacle": {
       "kind": "wall"
     },
-    "start": 3.939,
-    "end": 4.08,
+    "start": 3.08,
+    "end": 3.221,
     "firstContact": {
       "x": 20,
       "y": 130,
@@ -17,8 +17,8 @@
     "obstacle": {
       "kind": "wall"
     },
-    "start": 4.08,
-    "end": 5.225,
+    "start": 3.221,
+    "end": 4.109,
     "firstContact": {
       "x": 20,
       "y": 130,
@@ -30,8 +30,8 @@
     "obstacle": {
       "kind": "wall"
     },
-    "start": 9.433,
-    "end": 10.002,
+    "start": 7.463,
+    "end": 7.905,
     "firstContact": {
       "x": 129.567,
       "y": 96.563,

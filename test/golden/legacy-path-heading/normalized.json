@@ -106,8 +106,8 @@
     "rLength": 16,
     "rWidth": 16,
     "safetyMargin": 1,
-    "maxAcceleration": 30,
-    "maxDeceleration": 30
+    "maxAcceleration": 50,
+    "maxDeceleration": 50
   },
   "activePaths": []
 }

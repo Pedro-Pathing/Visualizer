@@ -5,8 +5,8 @@
       "kind": "shape",
       "shapeId": "shape-block"
     },
-    "start": 1.438,
-    "end": 1.998,
+    "start": 1.114,
+    "end": 1.548,
     "firstContact": {
       "x": 51.002,
       "y": 72,
@@ -19,8 +19,8 @@
       "kind": "shape",
       "shapeId": "shape-post"
     },
-    "start": 8.185,
-    "end": 8.621,
+    "start": 6.566,
+    "end": 6.903,
     "firstContact": {
       "x": 103.154,
       "y": 52.156,
