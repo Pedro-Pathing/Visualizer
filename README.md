@@ -2,7 +2,13 @@
 
 c3: art; ans to 1
 
-## Plan in FTC Coordinates
+## Plan Pedro paths in FTC coordinates and tiles
+
+Teams using FTC field coordinates can plan around the field center without translating every waypoint to a corner-based frame. This gives teams a common reference for targets and makes symmetry-based autonomous strategies easier to express. Tile units let students describe a waypoint as two tiles, half a tile, or a tenth of a tile, then switch to inches when needed. Java and Kotlin exports remain in Pedro inches.
+
+These changes have three priorities: support documented FTC coordinates, make tile-based planning accessible to students, and keep the visualization aligned with measured field geometry.
+
+### Use the documented FTC field frame
 
 Open **Settings → Coordinates and Units**. Select Pedro, FTC, or FTC Inverted, then Inches or Tiles. The field image remains fixed:
 
@@ -13,6 +19,65 @@ Open **Settings → Coordinates and Units**. Select Pedro, FTC, or FTC Inverted,
 | FTC Inverted | Center      | Up         | Left       | Up           |
 
 Headings are counterclockwise-positive degrees. Choose the frame appropriate to your field orientation; the visualizer does not infer alliance or season orientation.
+
+[FIRST’s Field Coordinate System Definition](https://ftc-docs.firstinspires.org/en/latest/game_specific_resources/field_coordinate_system/field-coordinate-system.html) places the origin at the field center. From outside the red wall looking inward, +X is right, +Y is away from that wall, and positive rotation is counterclockwise from above. It also documents square fields with inverted alliance areas. The table above expresses those orientations relative to the visualizer’s fixed image; select the orientation that matches the field’s red wall. Zero heading here means facing +X.
+
+A centered origin makes distances to the center explicit and avoids corner-offset arithmetic when reflecting a plan. It does not by itself improve localization accuracy or guarantee a more consistent autonomous run.
+
+### Reuse an autonomous plan across symmetric sides
+
+A team can define one canonical plan and transform it according to an alliance or starting-side selection. For example, **if the relevant game layout and route are symmetric across the FTC X axis**, reflecting Y maps `(x, y)` to `(x, -y)`. Reflect the heading too: `theta` becomes `-theta`. This is a team-defined strategy, not a universal red-to-blue rule; some layouts require reflecting X, rotating both axes, or planning different routes.
+
+This standalone Java example uses tile positions and degree headings in the **FTC** frame. The enum holds the transformation signs, so the same waypoints can serve both selections:
+
+```java
+class AlliancePlan {
+    enum Alliance {
+        RED(1, 1), BLUE(1, -1); // Example only: assumes Y-reflection symmetry.
+
+        final int xSign, ySign;
+        Alliance(int xSign, int ySign) {
+            this.xSign = xSign;
+            this.ySign = ySign;
+        }
+    }
+
+    record TilePose(double x, double y, double headingDeg) {}
+    record PedroPose(double x, double y, double headingDeg) {}
+
+    static TilePose forAlliance(TilePose pose, Alliance alliance) {
+        double theta = Math.toRadians(pose.headingDeg());
+        double heading = Math.toDegrees(Math.atan2(
+            alliance.ySign * Math.sin(theta),
+            alliance.xSign * Math.cos(theta)));
+        return new TilePose(alliance.xSign * pose.x(),
+                            alliance.ySign * pose.y(), heading);
+    }
+
+    // Matches this visualizer's FTC frame and retained 141.5-inch field model.
+    static PedroPose toPedro(TilePose pose, double inchesPerTile) {
+        double center = 141.5 / 2;
+        return new PedroPose(center + pose.y() * inchesPerTile,
+                             center - pose.x() * inchesPerTile,
+                             pose.headingDeg() - 90);
+    }
+
+    static PedroPose targetFor(Alliance alliance, double inchesPerTile) {
+        TilePose canonical = new TilePose(2, 1, 30);
+        return toPedro(forAlliance(canonical, alliance), inchesPerTile);
+    }
+}
+```
+
+At 23.5 inches per tile, the canonical target is `(2, 1, 30°)` for RED and `(2, -1, -30°)` for BLUE. Converting once to Pedro gives `(94.25, 23.75, -60°)` and `(47.25, 23.75, -120°)`, respectively. Headings equivalent modulo 360° describe the same orientation. The sign formula also handles X reflection or a 180° rotation when the enum signs are chosen accordingly.
+
+Apply the transformation consistently to the start pose, every endpoint, curve controls, through points, and facing-point targets. Reflection reverses rotation direction, so explicit turn choices must follow the reflected plan as well. Check that transformed routes and mechanisms suit the actual game geometry. The example illustrates robot-side planning; selecting an FTC display frame does not automatically generate alliance-selection code. Already-exported Java/Kotlin coordinates are Pedro inches and must not be converted a second time.
+
+### Reason in tiles, switch to inches
+
+Choose **Tiles** to enter whole or fractional tile coordinates: `0.5` is half a tile and `0.1` is one tenth. Choose **Inches** to inspect the same physical path in inches. Switching frame or units preserves the path. When Tiles is selected, changing Inches per Tile instead preserves the tile coordinates and recalculates their inch positions, keeping a waypoint on the corresponding tile intersection.
+
+### Align planning with measured field geometry
 
 **Inches per Tile defaults to 23.5 and is editable.** The STEP assembly linked by [FIRST’s field-resources page](https://ftc-resources.firstinspires.org/ftc/field) models an interior tile repeat spacing of approximately 23.502 inches. FIRST’s nominal 24-inch description is not an exact assembled seam pitch. Measure your assembled field and adjust the calibration if needed; previously saved values are preserved.
 
