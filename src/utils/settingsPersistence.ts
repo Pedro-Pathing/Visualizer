@@ -2,7 +2,17 @@ import { DEFAULT_SETTINGS } from "../config/defaults";
 import type { Settings } from "../types";
 
 // Versioning for settings schema
-const SETTINGS_VERSION = "1.0.0";
+const SETTINGS_VERSION = "1.0.1";
+
+/**
+ * Previous cached settings defaulted these to 0; if those were zero we are switching them to the new defaults.
+ */
+const PANEL_LAYOUT_KEYS = [
+  "leftPanelWidth",
+  "rightPanelWidth",
+  "leftPanelMinWidth",
+  "rightPanelMinWidth",
+] as const;
 
 interface StoredSettings {
   version: string;
@@ -53,7 +63,7 @@ export function normalizeLegacyFieldMap(input: Settings): Settings {
   return next;
 }
 
-function migrateSettings(stored: Partial<StoredSettings>): Settings {
+export function migrateSettings(stored: Partial<StoredSettings>): Settings {
   const defaults = { ...DEFAULT_SETTINGS };
 
   if (!stored.settings) {
@@ -72,6 +82,12 @@ function migrateSettings(stored: Partial<StoredSettings>): Settings {
     }
   });
 
+  if (stored.version !== SETTINGS_VERSION) {
+    for (const key of PANEL_LAYOUT_KEYS) {
+      if (!migrated[key]) migrated[key] = defaults[key];
+    }
+  }
+
   return normalizeLegacyFieldMap(migrated);
 }
 
@@ -83,9 +99,6 @@ export async function loadSettings(): Promise<Settings> {
       return { ...DEFAULT_SETTINGS };
     }
     const stored: StoredSettings = JSON.parse(raw);
-    if (stored.version !== SETTINGS_VERSION) {
-      // Optionally handle migration here
-    }
     return migrateSettings(stored);
   } catch {
     return { ...DEFAULT_SETTINGS };
