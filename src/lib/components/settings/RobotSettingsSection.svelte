@@ -5,7 +5,7 @@
   import { clampNumberInput } from "../../settings/numericSetting";
   import { updateRobot } from "../../../model/commands";
   import { useProject } from "../../../state/project.svelte";
-
+  import { show3D, robotBoxColor, robotBoxHeight } from "../../../stores";
   interface Props {
     /** Display preferences: the robot image. */
     settings: Settings;
@@ -62,4 +62,26 @@
     onInput={(v) => setNumber(v, "safetyMargin", 0, 24)}
   />
   <RobotImagePicker bind:settings />
+    {#if $show3D}
+    <div class="grid grid-cols-2 items-end gap-2">
+      <label class="flex flex-col gap-1 text-xs text-body" for="robot-box-color">
+        3D box color
+        <input
+          id="robot-box-color"
+          type="color"
+          class="h-8 w-full cursor-pointer rounded border border-body/40 bg-transparent p-0.5"
+          bind:value={$robotBoxColor}
+        />
+      </label>
+      <NumberField
+        id="robot-box-height"
+        label="3D box height (in)"
+        value={$robotBoxHeight}
+        min={1}
+        max={45}
+        step={1}
+        onInput={(v) => robotBoxHeight.set(clampNumberInput(v, 1, 45)) }
+      />
+    </div>
+  {/if}
 </div>

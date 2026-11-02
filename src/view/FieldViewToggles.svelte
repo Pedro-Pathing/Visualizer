@@ -22,6 +22,8 @@
     showRuler,
     snapToGrid,
     robotModelUrl,
+    robotBoxColor,
+    robotBoxHeight,
   } from "../stores";
   import {
     cycleGrid,

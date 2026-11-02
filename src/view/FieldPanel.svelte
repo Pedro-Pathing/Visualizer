@@ -4,7 +4,7 @@
   import { gridSize, showGrid, snapToGrid } from "../stores";
   import { Canvas } from "@threlte/core";
   import Field3d from "../lib/scene/Field3d.svelte";
-  import { robotModelUrl, show3D } from "../stores";
+  import { robotModelUrl, show3D,robotBoxColor,robotBoxHeight } from "../stores";
   import {
     pointAt,
     setShapes,
@@ -391,6 +391,8 @@
         robotHeading={playback.robotPose.heading}
         robotModelUrl={$robotModelUrl}
         robotModelRotation={settings.robotModelRotation ?? 0}
+        robotBoxColor={$robotBoxColor}
+        robotBoxHeight={$robotBoxHeight}
       />
     </Canvas>
   </div>

@@ -2,6 +2,8 @@ import { writable } from "svelte/store";
 
 // Math tools stores
 export const robotModelUrl = writable("");
+export const robotBoxColor = writable("#259633");
+export const robotBoxHeight = writable(5);
 export const show3D = writable(false);
 export const showRuler = writable(false);
 export const showProtractor = writable(false);

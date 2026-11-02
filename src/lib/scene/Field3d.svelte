@@ -19,6 +19,8 @@
         robotHeading,
         robotModelUrl = null,
         robotModelRotation = 0,
+        robotBoxColor = "#ff0000",
+        robotBoxHeight = 5,
     }: {
         rWidth: number
         rHeight: number
@@ -28,6 +30,8 @@
         robotHeading: number
         robotModelUrl?: string | null
         robotModelRotation?: number
+        robotBoxColor?: string
+        robotBoxHeight?: number
     } = $props();
 
     let robotX = $derived(robotPos.x - FIELD_SIZE / 2);
@@ -49,15 +53,20 @@ let points = $derived([
             {x: startPoint.x, y: startPoint.y},
             ...endPoints 
         ]);
-    let curve = $derived.by(() => {
-        const result = [startPoint];
-        let segStart = startPoint;
-        for (const seg of atomicSegments(lines)) {
-            result.push(...curveOf(segStart, seg).sample(50).slice(1));
-            segStart = seg.endPoint;
-        }
-        return result;
-    });
+    let strokes = $derived.by(() => {
+    const result: { points: number[]; color: string }[] = [];
+    let segStart: BasePoint = startPoint;
+    for (const seg of atomicSegments(lines)) {
+        const sampled = curveOf(segStart, seg).sample(50);
+        result.push({
+            points: sampled.flatMap((p) => 
+            [p.x - FIELD_SIZE / 2, -20, FIELD_SIZE / 2 - p.y]),
+            color: seg.color,
+        });
+        segStart = seg.endPoint;
+    }
+    return result;
+});
     let controlPoints= $derived.by( () =>{
         const result=[]
         for(const seg of atomicSegments(lines)){
@@ -67,10 +76,6 @@ let points = $derived([
         }
         return result;
     });
-    let linePoints = $derived(
-        curve.flatMap((p) => 
-        [p.x - FIELD_SIZE / 2, -20, FIELD_SIZE / 2 - p.y])
-    );
     
 </script>
 {#each points as p}
@@ -85,14 +90,16 @@ let points = $derived([
         <T.MeshStandardMaterial color={cP.color}/>
     </T.Mesh>
 {/each}
-<T.Mesh>
-    <T is={MeshLineGeometry} points={linePoints} />
-    <T is={MeshLineMaterial}
-        lineWidth={3}
-        color="yellow"
-        resolution={[1, 1]}
-    />
-</T.Mesh>
+{#each strokes as stroke}
+    <T.Mesh>
+        <T is={MeshLineGeometry} points={stroke.points} />
+        <T is={MeshLineMaterial}
+            lineWidth={3}
+            color={stroke.color}
+            resolution={[1, 1]}
+        />
+    </T.Mesh>
+{/each}
 <T.PerspectiveCamera makeDefault fov={40} position={[0,130,200]}>
     <OrbitControls
     enableZoom={true}
@@ -109,9 +116,9 @@ let points = $derived([
     </T.Group>
 {:else}
 <T.DirectionalLight intensity={1.2} position={[5,10,5]}/>
-<T.Mesh position={[robotX,-20,robotZ]} rotation={[0,robotRotY,0]}>
-        <T.BoxGeometry args={[rWidth*1, 5, rHeight*1]} />
-        <T.MeshStandardMaterial color="red" />
+<T.Mesh position={[robotX,-20+robotBoxHeight/2,robotZ]} rotation={[0,robotRotY,0]}>
+        <T.BoxGeometry args={[rWidth*1,robotBoxHeight,rHeight*1]} />
+        <T.MeshStandardMaterial color={robotBoxColor} />
 </T.Mesh>
 {/if}
 
