@@ -1,10 +1,13 @@
 <script lang="ts">
-  import { gridSize } from "../../../stores";
+  import { coordinateSettings } from "../../../stores";
   import {
-    FIELD_IMAGE_OVERHANG,
-    FIELD_SEAM_COLOR,
-    FIELD_SIZE,
-  } from "../../../config";
+    gridOrigin,
+    gridSpacing,
+    toDisplay,
+    unitLabel,
+  } from "../../../utils/coordinates";
+  import { gridSize } from "../../../stores";
+  import { FIELD_SEAM_COLOR, FIELD_SIZE } from "../../../config";
   import type { Axis } from "../../../view/viewport";
 
   interface Props {
@@ -14,16 +17,18 @@
 
   let { x, y }: Props = $props();
 
-  let spacing = $derived(Math.max(1, $gridSize || 12));
+  let spacing = $derived(
+    Math.max(0.1, gridSpacing($gridSize || 12, $coordinateSettings)),
+  );
+  let origin = $derived(gridOrigin($coordinateSettings));
 
-  // Lines are spaced from the tile corner, which sits under the wall, so they
-  // land on the seams painted in the field image.
+  // Display frames set the grid origin; geometry remains in Pedro inches.
   let gridPositions = $derived(
     (() => {
       const positions = [0];
-      const first = Math.ceil(FIELD_IMAGE_OVERHANG / spacing);
+      const first = Math.ceil(-origin / spacing);
       for (let k = first; ; k++) {
-        const pos = Number((k * spacing - FIELD_IMAGE_OVERHANG).toFixed(6));
+        const pos = Number((k * spacing + origin).toFixed(6));
         if (pos >= FIELD_SIZE) break;
         if (pos > 0) positions.push(pos);
       }
@@ -46,10 +51,9 @@
           : "text-xs",
   );
 
-  // Index of a line counted from the tile corner, so styling and labels follow
-  // the seams rather than the array order.
+  // Count from the selected origin for major lines and label frequency.
   const lineIndex = (position: number) =>
-    Math.round((position + FIELD_IMAGE_OVERHANG) / spacing);
+    Math.round((position - origin) / spacing);
 
   function showsLabel(position: number): boolean {
     return (
@@ -59,7 +63,17 @@
     );
   }
 
-  const formatLabel = (position: number) => Number(position.toFixed(2));
+  function formatLabel(position: number, vertical: boolean) {
+    const point = toDisplay(
+      vertical ? { x: position, y: origin } : { x: origin, y: position },
+      $coordinateSettings,
+    );
+    const swapped =
+      $coordinateSettings.coordinateSystem === "ftc" ||
+      $coordinateSettings.coordinateSystem === "ftc-inverted";
+    const axis = vertical ? (swapped ? "y" : "x") : swapped ? "x" : "y";
+    return `${axis.toUpperCase()}: ${Number(point[axis].toFixed(2))} ${unitLabel($coordinateSettings)}`;
+  }
 </script>
 
 <svg class="absolute top-0 left-0 w-full h-full pointer-events-none z-20">
@@ -82,7 +96,7 @@
         class="field-label {labelFontSize}"
         text-anchor="middle"
       >
-        {formatLabel(position)}"
+        {formatLabel(position, true)}
       </text>
     {/if}
   {/each}
@@ -106,7 +120,7 @@
         class="field-label {labelFontSize}"
         text-anchor="end"
       >
-        {formatLabel(position)}"
+        {formatLabel(position, false)}
       </text>
     {/if}
   {/each}

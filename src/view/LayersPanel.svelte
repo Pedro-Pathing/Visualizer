@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { displayHeading, toDisplay, unitLabel } from "../utils/coordinates";
   import { PanelLeft, Plus, RotateCcw } from "@lucide/svelte";
   import type { Settings } from "../types";
   import { getDefaultShapes } from "../config/defaults";
@@ -38,7 +39,7 @@
   }
 
   function resetObstacles() {
-    project.apply(setShapes(getDefaultShapes(settings.fieldMap)));
+    project.apply(setShapes(getDefaultShapes(settings.fieldMap, settings)));
   }
 </script>
 
@@ -98,10 +99,23 @@
 
     <PanelSection title="Robot">
       {@const pose = playback.robotPose}
+      {@const displayed = toDisplay(pose, settings)}
       {@const readouts = [
-        { label: "X", value: pose.x.toFixed(1), unit: "in" },
-        { label: "Y", value: pose.y.toFixed(1), unit: "in" },
-        { label: "Heading", value: pose.heading.toFixed(0), unit: "°" },
+        {
+          label: "X",
+          value: displayed.x.toFixed(2),
+          unit: unitLabel(settings),
+        },
+        {
+          label: "Y",
+          value: displayed.y.toFixed(2),
+          unit: unitLabel(settings),
+        },
+        {
+          label: "Heading",
+          value: displayHeading(pose.heading, settings).toFixed(0),
+          unit: "°",
+        },
         { label: "t", value: pose.t?.toFixed(3) ?? "–", unit: "" },
       ]}
       <dl class="grid grid-cols-2 gap-1.5 px-1" aria-label="Robot pose">

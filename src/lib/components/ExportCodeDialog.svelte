@@ -5,6 +5,8 @@
   import IconButton from "./ui/IconButton.svelte";
   import Button from "./ui/Button.svelte";
   import { checkboxClass, fieldClass, labelClass } from "./ui/styles";
+  import { coordinateSettings } from "../../stores";
+  import { unitLabel } from "../../utils/coordinates";
   import { currentFilePath } from "../../stores";
   import {
     generateJavaCode,
@@ -62,7 +64,7 @@
       case "kotlin":
         return generateKotlinCode(startPoint, lines, mode, mirror);
       case "points":
-        return generatePointsArray(startPoint, lines);
+        return generatePointsArray(startPoint, lines, $coordinateSettings);
       case "sequential":
         return generateSequentialCommandCode(
           startPoint,
@@ -150,6 +152,16 @@
     <IconButton label="Close" onclick={() => (isOpen = false)}><X /></IconButton
     >
   </div>
+
+  <p class="border-b border-border px-5 py-2 text-xs text-body">
+    {#if format === "points"}
+      Points use {$coordinateSettings.coordinateSystem ?? "pedro"} coordinates in
+      {unitLabel($coordinateSettings)}.
+    {:else}
+      Robot code uses Pedro coordinates and inches, regardless of display
+      settings.
+    {/if}
+  </p>
 
   <div class="code-export relative min-h-0 flex-1 overflow-auto text-[13px]">
     <!-- Shiki's output, built from generated code with its HTML escaped. -->

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { coordinateSettings } from "../stores";
+  import { inchesPerUnit, unitLabel } from "../utils/coordinates";
   import { Pause, Play, Repeat } from "@lucide/svelte";
   import type { Obstacle } from "../model/collision";
   import { formatTime } from "../utils";
@@ -103,6 +105,9 @@
   <div class="font-mono text-xs whitespace-nowrap text-body tabular-nums">
     <span class="text-heading">{formatTime(playback.seconds)}</span>
     / {formatTime(playback.duration)}
-    · {playback.prediction.totalDistance.toFixed(0)} in
+    · {(
+      playback.prediction.totalDistance / inchesPerUnit($coordinateSettings)
+    ).toFixed(2)}
+    {unitLabel($coordinateSettings)}
   </div>
 </div>

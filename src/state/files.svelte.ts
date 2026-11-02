@@ -1,3 +1,4 @@
+import { normalizeCoordinateSettings } from "../utils/coordinates";
 import { fromStore, get } from "svelte/store";
 import { debounce } from "lodash";
 import {
@@ -51,11 +52,27 @@ export class ProjectFiles {
 
   /** The open project as it would be saved, including which overlays are shown. */
   current(): ProjectDoc {
-    return { ...this.#project.doc, activePaths: this.#activePaths.current };
+    return {
+      ...this.#project.doc,
+      coordinates: normalizeCoordinateSettings(this.#prefs.settings),
+      activePaths: this.#activePaths.current,
+    };
   }
 
   /** Open a document, starting a fresh undo history. */
   open(doc: ProjectDoc, options: { saved?: boolean } = {}) {
+    if (doc.coordinates) {
+      this.#prefs.value = {
+        ...this.#prefs.value,
+        ...normalizeCoordinateSettings(doc.coordinates),
+      };
+    }
+    const fields = doc.shapes.flatMap((shape) =>
+      shape.fieldCalibration ? [shape.fieldCalibration.fieldMap] : [],
+    );
+    if (fields.length > 0 && fields.every((field) => field === fields[0])) {
+      this.#prefs.value = { ...this.#prefs.value, fieldMap: fields[0] };
+    }
     this.#project.load(doc, options);
     activePaths.set(doc.activePaths);
   }
@@ -77,6 +94,7 @@ export class ProjectFiles {
       createDefaultProject(
         this.#project.doc.robot,
         this.#prefs.settings.fieldMap,
+        this.#prefs.settings,
       ),
     );
     currentFilePath.set(null);

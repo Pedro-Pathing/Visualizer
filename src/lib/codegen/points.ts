@@ -1,9 +1,11 @@
+import { toDisplay, type CoordinateSettings } from "../../utils/coordinates";
 import type { BasePoint, Path, StartPose } from "../../types";
 import { atomicSegments } from "../../utils/pathTraversal";
 
 export function generatePointsArray(
   startPoint: StartPose,
   paths: Path[],
+  settings: CoordinateSettings = {},
 ): string {
   const points: BasePoint[] = [startPoint];
 
@@ -15,6 +17,7 @@ export function generatePointsArray(
   });
 
   const pointsString = points
+    .map((point) => toDisplay(point, settings))
     .map((point) => `(${coordinate(point.x)}, ${coordinate(point.y)})`)
     .join(", ");
 

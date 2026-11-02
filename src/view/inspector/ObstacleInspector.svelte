@@ -1,11 +1,10 @@
 <script lang="ts">
+  import { coordinateSettings } from "../../stores";
+  import { gridSpacing } from "../../utils/coordinates";
+  import CoordinateField from "../../lib/components/CoordinateField.svelte";
   import { Minus, Plus, Trash2 } from "@lucide/svelte";
   import type { Shape } from "../../types";
-  import {
-    BLUE_ALLIANCE_COLORS,
-    FIELD_SIZE,
-    RED_ALLIANCE_COLORS,
-  } from "../../config";
+  import { BLUE_ALLIANCE_COLORS, RED_ALLIANCE_COLORS } from "../../config";
   import { gridSize, showGrid, snapToGrid } from "../../stores";
   import { setShapes, updatePoint, updateShape } from "../../model/commands";
   import { useEditor } from "../../state/editor.svelte";
@@ -30,24 +29,16 @@
   let number = $derived(
     project.doc.shapes.findIndex((candidate) => candidate.id === shape.id) + 1,
   );
-  let step = $derived($snapToGrid && $showGrid ? $gridSize : 0.1);
+  let step = $derived(
+    $snapToGrid && $showGrid
+      ? gridSpacing($gridSize, $coordinateSettings)
+      : 0.1,
+  );
 
   function edit(patch: Partial<Shape>, field?: string) {
     project.apply(
       updateShape(shape.id, (current) => ({ ...current, ...patch })),
       { coalesce: field && `${shape.id}.${field}` },
-    );
-  }
-
-  function setVertex(index: number, axis: "x" | "y", input: HTMLInputElement) {
-    const value = parseFloat(input.value);
-    if (Number.isNaN(value)) return;
-    project.apply(
-      updatePoint(
-        { kind: "vertex", shapeId: shape.id, index },
-        { [axis]: value },
-      ),
-      { coalesce: `${shape.id}.${index}.${axis}` },
     );
   }
 
@@ -60,6 +51,12 @@
 </script>
 
 <div class="flex flex-col gap-3">
+  {#if shape.fieldCalibration}
+    <p class="text-xs text-body">
+      Built-in outline: follows tile calibration. Editing a vertex makes it
+      custom.
+    </p>
+  {/if}
   <div class="flex items-end gap-2">
     <label class="flex min-w-0 flex-1 flex-col gap-1">
       <span class={labelClass}>Name</span>
@@ -101,25 +98,35 @@
         <span class="w-4 text-right font-mono text-xs text-body"
           >{index + 1}</span
         >
-        <input
+        <CoordinateField
           class={fieldClass}
-          type="number"
-          min="0"
-          max={FIELD_SIZE}
+          point={vertex}
+          axis="x"
           {step}
           aria-label={`Vertex ${index + 1} x`}
-          value={vertex.x}
-          oninput={(event) => setVertex(index, "x", event.currentTarget)}
+          onpoint={(point) =>
+            project.apply(
+              updatePoint(
+                { kind: "vertex", shapeId: shape.id, index },
+                { x: point.x, y: point.y },
+              ),
+              { coalesce: `${shape.id}.${index}.x` },
+            )}
         />
-        <input
+        <CoordinateField
           class={fieldClass}
-          type="number"
-          min="0"
-          max={FIELD_SIZE}
+          point={vertex}
+          axis="y"
           {step}
           aria-label={`Vertex ${index + 1} y`}
-          value={vertex.y}
-          oninput={(event) => setVertex(index, "y", event.currentTarget)}
+          onpoint={(point) =>
+            project.apply(
+              updatePoint(
+                { kind: "vertex", shapeId: shape.id, index },
+                { x: point.x, y: point.y },
+              ),
+              { coalesce: `${shape.id}.${index}.y` },
+            )}
         />
         <IconButton
           label="Remove vertex"

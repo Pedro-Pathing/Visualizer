@@ -32,7 +32,16 @@ const MIGRATIONS: Migration[] = [
           .filter((key) => key in settings)
           .map((key) => [RENAMED_ROBOT_KEYS[key] ?? key, settings[key]]),
       );
-      return { ...rest, robot };
+      const hasCoordinates = [
+        "coordinateSystem",
+        "distanceUnit",
+        "tileSize",
+      ].some((key) => key in settings);
+      return {
+        ...rest,
+        robot,
+        ...(hasCoordinates ? { coordinates: settings } : {}),
+      };
     },
   },
 ];

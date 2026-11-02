@@ -9,7 +9,12 @@ import {
 
 const FIXTURE_DIR = join(import.meta.dirname, "../fixtures/projects");
 
-export const DEFAULT_ROBOT = robotConfigOf(DEFAULT_SETTINGS);
+// Historical golden fixtures use the original limits, independently of new-project defaults.
+export const DEFAULT_ROBOT = robotConfigOf({
+  ...DEFAULT_SETTINGS,
+  maxAcceleration: 30,
+  maxDeceleration: 30,
+});
 
 export interface Fixture {
   name: string;

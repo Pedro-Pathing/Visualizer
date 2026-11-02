@@ -1,3 +1,4 @@
+import { PROJECT_EXTENSION } from "../src/utils/filename";
 import { expect, test, type Page } from "@playwright/test";
 
 /** The default project: one path ending at (56, 36), drawn as `point-1-0`. */
@@ -6,7 +7,7 @@ const ENDPOINT = "#point-1-0";
 async function openApp(page: Page) {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/");
+  await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page.locator(ENDPOINT)).toBeVisible();
   return errors;
 }
@@ -80,7 +81,7 @@ test("adding a path is undoable", async ({ page }) => {
   await openApp(page);
   expect(await pathCount(page)).toBe(1);
 
-  await page.getByRole("button", { name: "Add path" }).click();
+  await page.getByRole("button", { name: "Add path", exact: true }).click();
   await expect.poll(() => pathCount(page)).toBe(2);
 
   await undo(page);
@@ -139,7 +140,10 @@ test("duplicate mirrored opens a mirrored copy", async ({ page }) => {
   await page.getByRole("menuitem", { name: "Duplicate mirrored…" }).click();
   await page.getByRole("button", { name: "Create" }).click();
   await expect(
-    page.getByText("path_mirrored.pp", { exact: true }),
+    page.getByRole("button", {
+      name: `path_mirrored${PROJECT_EXTENSION}`,
+      exact: true,
+    }),
   ).toBeVisible();
   // The field is 141.5" wide, so x = 56 lands on 85.5.
   await page.locator(ENDPOINT).click();

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { coordinateSettings } from "./stores";
   import PanelDivider from "./lib/components/PanelDivider.svelte";
   import MobileBlocked from "./lib/components/MobileBlocked.svelte";
   import TopBar from "./view/TopBar.svelte";
@@ -29,6 +30,9 @@
     ),
   );
   const prefs = new Prefs(project);
+  $effect(() => {
+    coordinateSettings.set(prefs.settings);
+  });
   const overlays = new Overlays(project, () => prefs.settings);
   const playback = new Playback(project, overlays, () => prefs.settings);
   const editor = new EditorState(project);

@@ -1,3 +1,4 @@
+import { normalizeCoordinateSettings } from "./coordinates";
 import { DEFAULT_SETTINGS } from "../config/defaults";
 import type { Settings } from "../types";
 
@@ -18,6 +19,8 @@ const SETTINGS_STORAGE_KEY = "pedro_settings";
  */
 export function normalizeLegacyFieldMap(input: Settings): Settings {
   const next = { ...input };
+  if (next.robotImage?.startsWith("/") && !next.robotImage.startsWith("//"))
+    next.robotImage = next.robotImage.slice(1);
 
   // Saved settings from before x/y velocity became forward/strafe.
   const legacy = next as Settings & {
@@ -50,7 +53,7 @@ export function normalizeLegacyFieldMap(input: Settings): Settings {
     next.fieldMap = DEFAULT_SETTINGS.fieldMap;
   }
 
-  return next;
+  return { ...next, ...normalizeCoordinateSettings(next) };
 }
 
 function migrateSettings(stored: Partial<StoredSettings>): Settings {

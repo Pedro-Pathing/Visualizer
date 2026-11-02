@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { coordinateSettings } from "../../stores";
+  import { displayHeading, storedHeading } from "../../utils/coordinates";
+  import CoordinateField from "./CoordinateField.svelte";
   import { ChevronRight, Plus, Trash2, TriangleAlert } from "@lucide/svelte";
   import Button from "./ui/Button.svelte";
   import IconButton from "./ui/IconButton.svelte";
@@ -527,8 +530,16 @@
                     step="1"
                     class={numberFieldClass}
                     value={segment.continueFromPrevious
-                      ? (linkedStart?.toFixed(1) ?? "")
-                      : (segment.parameters?.startDeg ?? 0)}
+                      ? linkedStart === null
+                        ? ""
+                        : displayHeading(
+                            linkedStart,
+                            $coordinateSettings,
+                          ).toFixed(1)
+                      : displayHeading(
+                          segment.parameters?.startDeg ?? 0,
+                          $coordinateSettings,
+                        )}
                     readonly={segment.continueFromPrevious}
                     placeholder={segment.continueFromPrevious
                       ? "follows the path"
@@ -540,7 +551,10 @@
                     onchange={(event) =>
                       updateSegment(index, {
                         parameters: {
-                          startDeg: Number(event.currentTarget.value),
+                          startDeg: storedHeading(
+                            Number(event.currentTarget.value),
+                            $coordinateSettings,
+                          ),
                         },
                       })}
                   />
@@ -551,12 +565,18 @@
                     type="number"
                     step="1"
                     class={numberFieldClass}
-                    value={segment.parameters?.endDeg ?? 0}
+                    value={displayHeading(
+                      segment.parameters?.endDeg ?? 0,
+                      $coordinateSettings,
+                    )}
                     disabled={locked}
                     onchange={(event) =>
                       updateSegment(index, {
                         parameters: {
-                          endDeg: Number(event.currentTarget.value),
+                          endDeg: storedHeading(
+                            Number(event.currentTarget.value),
+                            $coordinateSettings,
+                          ),
                         },
                       })}
                   />
@@ -570,8 +590,16 @@
                   step="1"
                   class={numberFieldClass}
                   value={segment.continueFromPrevious
-                    ? (linkedStart?.toFixed(1) ?? "")
-                    : (segment.parameters?.degrees ?? 0)}
+                    ? linkedStart === null
+                      ? ""
+                      : displayHeading(
+                          linkedStart,
+                          $coordinateSettings,
+                        ).toFixed(1)
+                    : displayHeading(
+                        segment.parameters?.degrees ?? 0,
+                        $coordinateSettings,
+                      )}
                   readonly={segment.continueFromPrevious}
                   placeholder={segment.continueFromPrevious
                     ? "follows the path"
@@ -583,7 +611,10 @@
                   onchange={(event) =>
                     updateSegment(index, {
                       parameters: {
-                        degrees: Number(event.currentTarget.value),
+                        degrees: storedHeading(
+                          Number(event.currentTarget.value),
+                          $coordinateSettings,
+                        ),
                       },
                     })}
                 />
@@ -592,40 +623,24 @@
               <div class="grid grid-cols-2 gap-2">
                 <label class="flex flex-col gap-1">
                   <span class={labelClass}>Target X</span>
-                  <input
-                    type="number"
-                    step="0.1"
+                  <CoordinateField
                     class={numberFieldClass}
-                    value={segment.parameters?.point?.x ?? 0}
+                    point={segment.parameters?.point ?? { x: 0, y: 0 }}
+                    axis="x"
                     disabled={locked}
-                    onchange={(event) =>
-                      updateSegment(index, {
-                        parameters: {
-                          point: {
-                            x: Number(event.currentTarget.value),
-                            y: segment.parameters?.point?.y ?? 0,
-                          },
-                        },
-                      })}
+                    onpoint={(point) =>
+                      updateSegment(index, { parameters: { point } })}
                   />
                 </label>
                 <label class="flex flex-col gap-1">
                   <span class={labelClass}>Target Y</span>
-                  <input
-                    type="number"
-                    step="0.1"
+                  <CoordinateField
                     class={numberFieldClass}
-                    value={segment.parameters?.point?.y ?? 0}
+                    point={segment.parameters?.point ?? { x: 0, y: 0 }}
+                    axis="y"
                     disabled={locked}
-                    onchange={(event) =>
-                      updateSegment(index, {
-                        parameters: {
-                          point: {
-                            x: segment.parameters?.point?.x ?? 0,
-                            y: Number(event.currentTarget.value),
-                          },
-                        },
-                      })}
+                    onpoint={(point) =>
+                      updateSegment(index, { parameters: { point } })}
                   />
                 </label>
               </div>

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { coordinateSettings } from "../../stores";
+  import { displayHeading, storedHeading } from "../../utils/coordinates";
   import PiecewiseHeadingEditor from "./PiecewiseHeadingEditor.svelte";
   import Toggle from "./ui/Toggle.svelte";
   import { fieldClass, labelClass } from "./ui/styles";
@@ -78,7 +80,7 @@
 
   function degreesFrom(input: HTMLInputElement): number {
     const value = parseFloat(input.value);
-    return Number.isNaN(value) ? 0 : value;
+    return storedHeading(Number.isNaN(value) ? 0 : value, $coordinateSettings);
   }
 
   const degreeFieldClass = [fieldClass, "font-mono"];
@@ -117,9 +119,7 @@
           class={degreeFieldClass}
           type="number"
           step="1"
-          min="-180"
-          max="180"
-          value={heading.startDeg}
+          value={displayHeading(heading.startDeg, $coordinateSettings)}
           oninput={(e) => update({ startDeg: degreesFrom(e.currentTarget) })}
           title="The heading the robot starts this path at"
           disabled={locked}
@@ -131,9 +131,7 @@
           class={degreeFieldClass}
           type="number"
           step="1"
-          min="-180"
-          max="180"
-          value={heading.endDeg}
+          value={displayHeading(heading.endDeg, $coordinateSettings)}
           oninput={(e) => update({ endDeg: degreesFrom(e.currentTarget) })}
           title="The heading the robot ends this path at"
           disabled={locked}
@@ -147,9 +145,7 @@
         class={degreeFieldClass}
         type="number"
         step="1"
-        min="-180"
-        max="180"
-        value={heading.degrees || 0}
+        value={displayHeading(heading.degrees || 0, $coordinateSettings)}
         oninput={(e) => update({ degrees: degreesFrom(e.currentTarget) })}
         onblur={(e) => {
           if (Number.isNaN(parseFloat(e.currentTarget.value))) {

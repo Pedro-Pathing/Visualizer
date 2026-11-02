@@ -149,9 +149,22 @@ export const updateShape =
   (doc) => ({
     ...doc,
     shapes: doc.shapes.map((shape) =>
-      shape.id === shapeId ? update(shape) : shape,
+      shape.id === shapeId ? detachEditedOutline(shape, update(shape)) : shape,
     ),
   });
+
+function detachEditedOutline(before: Shape, after: Shape): Shape {
+  if (
+    !before.fieldCalibration ||
+    (before.vertices.length === after.vertices.length &&
+      before.vertices.every(
+        (p, i) => p.x === after.vertices[i].x && p.y === after.vertices[i].y,
+      ))
+  )
+    return after;
+  const { fieldCalibration: _link, ...custom } = after;
+  return custom;
+}
 
 export const updateRobot =
   (patch: Partial<RobotConfig>): Command =>

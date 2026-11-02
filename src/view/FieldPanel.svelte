@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { gridOrigin, gridSpacing, formatPoint } from "../utils/coordinates";
   import type { BasePoint, Settings } from "../types";
   import { FIELD_SIZE, LINE_WIDTH, type ColorScheme } from "../config/defaults";
   import { gridSize, showGrid, snapToGrid } from "../stores";
@@ -168,7 +169,8 @@
     return snapPoint(point, {
       snapToGrid: $snapToGrid,
       showGrid: $showGrid,
-      gridSize: $gridSize,
+      gridSize: gridSpacing($gridSize, settings),
+      origin: gridOrigin(settings),
     });
   }
 
@@ -311,8 +313,7 @@
       editor.penStroke = [snapped(point)];
       (event.currentTarget as Element).setPointerCapture(event.pointerId);
     } else if (editor.tool === "coordinate") {
-      const { x: px, y: py } = snapped(point);
-      const text = `${px.toFixed(2)}, ${py.toFixed(2)}`;
+      const text = formatPoint(snapped(point), settings);
       void navigator.clipboard?.writeText(text);
       showToast(`Copied (${text})`, "success");
       editor.setTool("select");
@@ -377,6 +378,7 @@
       oncontextmenu={onContextMenu}
     >
       <FieldMapImage
+        {settings}
         src={fieldMapSrc}
         fieldMapName={settings.fieldMap}
         onSettled={() => (loadedFieldMap = fieldMapSrc)}
@@ -408,9 +410,7 @@
           style={`left: ${x(editor.coordinateHover.x)}px; top: ${y(editor.coordinateHover.y)}px;`}
         >
           <span class="mr-1 text-primary">+</span>
-          {editor.coordinateHover.x.toFixed(2)}, {editor.coordinateHover.y.toFixed(
-            2,
-          )}
+          {formatPoint(editor.coordinateHover, settings)}
         </div>
       {/if}
 
@@ -580,6 +580,7 @@
                 pointer-events="none"
               />
               <path
+                data-testid="collision-footprint"
                 d={polylinePath(mark.footprint, true)}
                 fill="none"
                 stroke={COLLISION_COLOR}

@@ -53,6 +53,7 @@ export class GifExport {
       const blob = await renderPathGif({
         paths: this.#paths(),
         fieldImageSrc,
+        coordinates: this.#prefs.settings,
         robotImageSrc: this.#prefs.settings.robotImage || "/robot.png",
         fieldPixels,
         shouldCancel: () => this.#cancelled,

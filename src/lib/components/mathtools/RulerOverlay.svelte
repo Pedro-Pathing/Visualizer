@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { coordinateSettings } from "../../../stores";
+  import { inchesPerUnit, unitLabel } from "../../../utils/coordinates";
   import { FIELD_SIZE } from "../../../config";
   import { clamp } from "../../../utils/math";
   import type { Axis } from "../../../view/viewport";
@@ -89,6 +91,7 @@
     class="field-label pointer-events-none font-semibold"
     text-anchor="middle"
   >
-    {rulerLength.toFixed(2)}"
+    {(rulerLength / inchesPerUnit($coordinateSettings)).toFixed(2)}
+    {unitLabel($coordinateSettings)}
   </text>
 </svg>

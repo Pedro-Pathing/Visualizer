@@ -1,4 +1,8 @@
 <script lang="ts">
+  import {
+    DEFAULT_TILE_SIZE,
+    normalizeCoordinateSettings,
+  } from "../../utils/coordinates";
   import { X } from "@lucide/svelte";
   import Modal from "./ui/Modal.svelte";
   import Button from "./ui/Button.svelte";
@@ -118,7 +122,69 @@
       them in the inspector.
     </p>
 
-    <PanelSection title="Display">
+    <PanelSection title="Coordinates and Units" open={true}>
+      <div class="flex flex-col gap-3 px-1">
+        <label class="flex flex-col gap-1">
+          <span class={labelClass}>Coordinate frame</span>
+          <select class={fieldClass} bind:value={prefs.coordinateSystem}>
+            <option value="pedro">Pedro (bottom-left, X right, Y up)</option>
+            <option value="ftc">FTC (center, X down, Y right)</option>
+            <option value="ftc-inverted"
+              >FTC Inverted (center, X up, Y left)</option
+            >
+          </select>
+        </label>
+        <label class="flex flex-col gap-1">
+          <span class={labelClass}>Distance units</span>
+          <select class={fieldClass} bind:value={prefs.distanceUnit}>
+            <option value="inches">Inches</option>
+            <option value="tiles">Tiles</option>
+          </select>
+        </label>
+        <NumberField
+          id="tile-size"
+          label="Inches per tile"
+          description="Calibrates tile coordinates, grid, image, and built-in obstacles."
+          value={prefs.tileSize ?? DEFAULT_TILE_SIZE}
+          min={0.001}
+          step={0.125}
+          onInput={(raw) => {
+            const tileSize = normalizeCoordinateSettings({
+              tileSize: Number(raw),
+            }).tileSize;
+            project.changeTileSize(prefs, tileSize);
+            prefs.tileSize = tileSize;
+          }}
+        />
+        <p class="text-xs text-body">
+          The 23.5 in default approximates the 23.502 in assembled tile repeat
+          measured in
+          <a
+            class="underline"
+            href="https://ftc-resources.firstinspires.org/ftc/field/field-cad-step"
+            target="_blank"
+            rel="noreferrer">FIRST’s BIOBUZZ CAD</a
+          >. The
+          <a
+            class="underline"
+            href="https://ftc-resources.firstinspires.org/ftc/archive/2027/game/manual-09"
+            target="_blank"
+            rel="noreferrer">FTC manual (§9.1–9.2)</a
+          >
+          describes 24 in as nominal. Calibrate to your own field.
+        </p>
+        <p class="text-xs text-body">
+          Switching frame or units preserves physical paths. Changing inches per
+          tile with Tiles selected preserves tile coordinates instead. Robot
+          dimensions and motion settings remain in inches. Java and Kotlin
+          exports always use Pedro coordinates and inches. Untouched built-in
+          obstacle outlines follow calibration; editing their vertices makes
+          them custom.
+        </p>
+      </div>
+    </PanelSection>
+
+    <PanelSection title="Display" open={false}>
       <div class="flex flex-col gap-3 px-1">
         <div class="flex flex-col gap-1">
           <span class={labelClass}>Theme</span>
@@ -152,7 +218,7 @@
             value={prefs.fieldMap}
             onchange={(event) => {
               prefs.fieldMap = event.currentTarget.value;
-              project.apply(setShapes(getDefaultShapes(prefs.fieldMap)));
+              project.apply(setShapes(getDefaultShapes(prefs.fieldMap, prefs)));
             }}
           >
             {#each AVAILABLE_FIELD_MAPS as field (field.value)}

@@ -1,3 +1,5 @@
+import { untrack } from "svelte";
+import { inchesPerTile } from "../utils/coordinates";
 import { debounce } from "lodash";
 import type { Settings } from "../types";
 import { DEFAULT_SETTINGS } from "../config/defaults";
@@ -24,6 +26,10 @@ export class Prefs {
 
   constructor(project: ProjectStore) {
     this.#project = project;
+    $effect(() => {
+      const tileSize = inchesPerTile(this.value);
+      untrack(() => project.calibrateField({ tileSize }));
+    });
     const persist = debounce(
       (settings: Settings) => saveSettings(settings),
       1000,

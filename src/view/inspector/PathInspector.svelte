@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { coordinateSettings } from "../../stores";
+  import { gridSpacing } from "../../utils/coordinates";
+  import CoordinateField from "../../lib/components/CoordinateField.svelte";
   import { Lock, LockOpen, Plus, Trash2, X } from "@lucide/svelte";
   import type { AtomicPath, BasePoint, Path } from "../../types";
-  import { FIELD_SIZE } from "../../config";
   import { gridSize, showGrid, snapToGrid } from "../../stores";
   import { updatePathById, updatePoint } from "../../model/commands";
   import { atomicSegments } from "../../utils/pathTraversal";
@@ -28,7 +30,11 @@
       1,
   );
   let index = $derived(editor.selectedPointIndex);
-  let step = $derived($snapToGrid && $showGrid ? $gridSize : 0.1);
+  let step = $derived(
+    $snapToGrid && $showGrid
+      ? gridSpacing($gridSize, $coordinateSettings)
+      : 0.1,
+  );
   let isOnlyPath = $derived(atomicSegments(project.doc.lines).length <= 1);
   /** A through-curve's inner points replace its control points. */
   let throughPoints = $derived(
@@ -69,11 +75,6 @@
       ),
     );
   }
-
-  const numberFrom = (input: HTMLInputElement) => {
-    const value = parseFloat(input.value);
-    return Number.isNaN(value) ? null : value;
-  };
 </script>
 
 <div class="flex flex-col gap-3">
@@ -161,23 +162,19 @@
           {row.label}
         </span>
         {#each ["x", "y"] as const as axis (axis)}
-          <input
+          <CoordinateField
             class={[
               fieldClass,
               "font-mono [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none",
             ]}
-            type="number"
-            min="0"
-            max={FIELD_SIZE}
             {step}
             aria-label={`${row.label} ${axis.toUpperCase()}`}
-            value={Number(row.point[axis].toFixed(2))}
+            point={row.point}
+            {axis}
             disabled={locked}
             onfocus={() => (editor.selectedPointIndex = row.index)}
-            oninput={(event) => {
-              const value = numberFrom(event.currentTarget);
-              if (value !== null) movePoint(row.index, { [axis]: value });
-            }}
+            onpoint={(point) =>
+              movePoint(row.index, { x: point.x, y: point.y })}
           />
         {/each}
         <div class="flex">

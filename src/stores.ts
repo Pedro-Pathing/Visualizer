@@ -1,5 +1,8 @@
 import { writable } from "svelte/store";
 
+import type { CoordinateSettings } from "./utils/coordinates";
+export const coordinateSettings = writable<CoordinateSettings>({});
+
 // Math tools stores
 export const showRuler = writable(false);
 export const showProtractor = writable(false);

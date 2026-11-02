@@ -1,18 +1,24 @@
 <script lang="ts">
-  import { FIELD_IMAGE_OVERHANG, FIELD_SIZE } from "../../config/defaults";
+  import {
+    FIELD_INCHES,
+    fieldImageLayout,
+    type CoordinateSettings,
+  } from "../../utils/coordinates";
 
   interface Props {
     src: string;
+    settings: CoordinateSettings;
     fieldMapName: string | undefined;
     onSettled?: () => void;
   }
 
-  let { src, fieldMapName, onSettled = () => {} }: Props = $props();
+  let { src, settings, fieldMapName, onSettled = () => {} }: Props = $props();
 
   const FALLBACK_FIELD_MAP = "/fields/decode.webp";
-  // The parent clips to the floor; the image's edge tiles run under the walls.
-  const inset = `${(-FIELD_IMAGE_OVERHANG / FIELD_SIZE) * 100}%`;
-  const extent = `${((FIELD_SIZE + 2 * FIELD_IMAGE_OVERHANG) / FIELD_SIZE) * 100}%`;
+  // Calibrate seam spacing in physical inches; the parent keeps the field boundary fixed.
+  const layout = $derived(fieldImageLayout(settings));
+  const inset = $derived(`${(layout.offset / FIELD_INCHES) * 100}%`);
+  const extent = $derived(`${(layout.size / FIELD_INCHES) * 100}%`);
 </script>
 
 <img

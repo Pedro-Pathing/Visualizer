@@ -1,0 +1,18 @@
+{
+  "source": "https://ftc-resources.firstinspires.org/ftc/field/field-cad-step",
+  "download_sha256": "5e768b731f1ec8dcd14debba53225c43718877923c351ce08504305f68f7fe00",
+  "source_filename": "field-cad-step.step",
+  "source_header_timestamp": "2026-09-09T15:05:36Z",
+  "method": "STEP assembly imported with Open CASCADE; placed component bounding planes measured in millimetres, converted at 25.4 mm/in. Floor axes are X and Z; Y is height. Bounds include the CAD kernel tolerance, negligible at reported 0.001-inch precision.",
+  "measurements_inches": {
+    "interior_tile_repeat_pitch": 23.502083,
+    "uncut_tile_tip_to_tip": 24.3125,
+    "between_lower_rail_innermost_extents_X": 141.17,
+    "between_lower_rail_innermost_extents_Z": 141.17,
+    "between_glass_inner_faces_X": 141.348,
+    "between_glass_inner_faces_Z": 141.348,
+    "tile_floor_overall_X": 141.169596,
+    "tile_floor_overall_Z": 141.169596
+  },
+  "limitations": "These describe this specific downloadable BIOBUZZ CAD assembly, not guaranteed measurements for every physical field. Tile batches, assembly, and perimeter design vary."
+}

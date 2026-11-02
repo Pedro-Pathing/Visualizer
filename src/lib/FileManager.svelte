@@ -158,7 +158,11 @@
         return;
       }
 
-      const doc = createDefaultProject(currentProject().robot, fieldMap);
+      const doc = createDefaultProject(
+        currentProject().robot,
+        fieldMap,
+        currentProject().coordinates,
+      );
       await browserFileStore.writeFile(name, serializeProject(doc));
       await refreshDirectory();
       applyProject(doc);

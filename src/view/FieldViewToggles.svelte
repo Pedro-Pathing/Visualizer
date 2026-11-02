@@ -1,4 +1,14 @@
 <script lang="ts">
+  import { coordinateSettings } from "../stores";
+  import { gridSpacing, inchesPerUnit, unitLabel } from "../utils/coordinates";
+  let spacing = $derived(
+    Number(
+      (
+        gridSpacing($gridSize, $coordinateSettings) /
+        inchesPerUnit($coordinateSettings)
+      ).toFixed(3),
+    ),
+  );
   import {
     Angle,
     Grid3x3,
@@ -33,7 +43,9 @@
   aria-orientation="vertical"
 >
   <IconButton
-    label={$showGrid ? `Grid: ${$gridSize}" (G for the next size)` : "Grid (G)"}
+    label={$showGrid
+      ? `Grid: ${spacing} ${unitLabel($coordinateSettings)} (G for the next size)`
+      : "Grid (G)"}
     active={$showGrid}
     onclick={cycleGrid}
     class="relative"
@@ -42,7 +54,7 @@
     {#if $showGrid}
       <span
         class="absolute -right-0.5 -bottom-0.5 rounded bg-surface px-0.5 font-mono text-[9px] leading-none tabular-nums"
-        >{$gridSize}</span
+        >{spacing}</span
       >
     {/if}
   </IconButton>

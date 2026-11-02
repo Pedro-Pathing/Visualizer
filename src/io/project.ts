@@ -1,4 +1,5 @@
 import {
+  calibrateFieldShapes,
   getDefaultPaths,
   getDefaultShapes,
   getDefaultStartPoint,
@@ -23,7 +24,12 @@ import {
 import { compareVersions, isRecord, migrateProject } from "./migrations";
 import { normalizeRobotConfig } from "./robot";
 
-export const PROJECT_VERSION = "2.0.0";
+import {
+  normalizeCoordinateSettings,
+  type CoordinateSettings,
+} from "../utils/coordinates";
+
+export const PROJECT_VERSION = "2.2.0";
 
 export interface ProjectDoc {
   startPoint: StartPose;
@@ -32,6 +38,8 @@ export interface ProjectDoc {
   sequence: SequenceItem[];
   fieldPoints: FieldPoint[];
   robot: RobotConfig;
+  /** Display frame and units; geometry always remains Pedro inches. */
+  coordinates?: CoordinateSettings;
   /** Other saved files shown alongside this one. */
   activePaths: string[];
 }
@@ -83,10 +91,16 @@ export function projectFromJson(
   const doc: ProjectDoc = {
     startPoint: normalizeStartPose(project.startPoint as StoredStartPose),
     lines,
-    shapes: normalizeShapes(project.shapes),
+    shapes: calibrateFieldShapes(
+      normalizeShapes(project.shapes),
+      normalizeCoordinateSettings(project.coordinates),
+    ),
     sequence: deriveSequence(project, lines),
     fieldPoints: normalizeFieldPoints(project),
     robot: normalizeRobotConfig(project.robot, robotFallback),
+    ...(project.coordinates
+      ? { coordinates: normalizeCoordinateSettings(project.coordinates) }
+      : {}),
     activePaths: Array.isArray(project.activePaths)
       ? project.activePaths.filter((path) => typeof path === "string")
       : [],
@@ -108,15 +122,19 @@ export function serializeProject(
 export function createDefaultProject(
   robot: RobotConfig,
   fieldMap: string,
+  coordinates?: CoordinateSettings,
 ): ProjectDoc {
   const lines = normalizePaths(getDefaultPaths());
   return {
     startPoint: getDefaultStartPoint(),
     lines,
-    shapes: getDefaultShapes(fieldMap),
+    shapes: getDefaultShapes(fieldMap, coordinates),
     sequence: deriveSequence({}, lines),
     fieldPoints: [],
     robot,
+    ...(coordinates
+      ? { coordinates: normalizeCoordinateSettings(coordinates) }
+      : {}),
     activePaths: [],
   };
 }

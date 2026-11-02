@@ -112,7 +112,9 @@ export type SequenceWaitItem = {
 
 export type SequenceItem = SequencePathItem | SequenceWaitItem;
 
-export interface Settings {
+import type { CoordinateSettings } from "./utils/coordinates";
+
+export interface Settings extends CoordinateSettings {
   forwardVelocity: number; // inches/sec
   strafeVelocity: number; // inches/sec
   aVelocity: number;
@@ -165,6 +167,8 @@ export type RobotConfig = Pick<
 >;
 
 export interface Shape {
+  /** Untouched built-in outlines follow field-image calibration. Vertex edits detach them. */
+  fieldCalibration?: { fieldMap: string; tileSize: number };
   id: string;
   name?: string;
   vertices: BasePoint[];
