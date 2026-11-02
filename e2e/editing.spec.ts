@@ -80,7 +80,7 @@ test("adding a path is undoable", async ({ page }) => {
   await openApp(page);
   expect(await pathCount(page)).toBe(1);
 
-  await page.getByRole("button", { name: "Add path" }).click();
+  await page.getByRole("button", { name: "Add path", exact: true }).click();
   await expect.poll(() => pathCount(page)).toBe(2);
 
   await undo(page);
@@ -139,7 +139,7 @@ test("duplicate mirrored opens a mirrored copy", async ({ page }) => {
   await page.getByRole("menuitem", { name: "Duplicate mirrored…" }).click();
   await page.getByRole("button", { name: "Create" }).click();
   await expect(
-    page.getByText("path_mirrored.pp", { exact: true }),
+    page.getByRole("button", { name: "path_mirrored.pp.json" }),
   ).toBeVisible();
   // The field is 141.5" wide, so x = 56 lands on 85.5.
   await page.locator(ENDPOINT).click();
