@@ -12,6 +12,7 @@ import {
   atomicSegments,
   findPathById,
   findSegmentById,
+  flattenToAtomicSegments,
   groupPaths,
   groupingProblem,
   insertPaths,
@@ -25,6 +26,8 @@ import { fitStrokeToLines } from "../lib/pen/strokeFitting";
 import {
   applyOptimizedWaypoints,
   buildOptimizationPayload,
+  describeOptimization,
+  optimizeBlocker,
   runOptimization,
 } from "../lib/optimizer/optimizer";
 import { showToast } from "../lib/toast";
@@ -387,27 +390,76 @@ export class EditorState {
     }));
   }
 
-  /** Run the path optimizer on every segment in turn. */
-  async optimizeAll(settings: Settings) {
+  /** Run the path optimizer on every segment it can take. */
+  optimizeAll(settings: Settings) {
+    const { startPoint, lines } = this.#project.doc;
+    const segments = flattenToAtomicSegments(startPoint, lines);
+    const ready = segments.filter((s) => !optimizeBlocker(s, settings));
+    const skipped = segments.length - ready.length;
+    return this.optimizeLines(
+      ready.map((s) => s.line.id),
+      settings,
+      skipped
+        ? `Skipped ${skipped} path${skipped === 1 ? "" : "s"} the optimizer can't take.`
+        : null,
+    );
+  }
+
+  /**
+   * Run the path optimizer on the given segments. The requests go out
+   * together, and the results are applied in order once all have answered.
+   */
+  async optimizeLines(
+    lineIds: string[],
+    settings: Settings,
+    note: string | null = null,
+  ) {
     if (this.optimizing) return;
     this.optimizing = true;
     try {
-      for (const line of atomicSegments(this.#lines)) {
-        const { startPoint, lines, shapes } = this.#project.doc;
-        const payload = buildOptimizationPayload(
-          line.id,
-          startPoint,
-          lines,
-          shapes,
-          settings,
-        );
+      // A segment's endpoints never move, so no request depends on another's result.
+      const { startPoint, lines, shapes } = this.#project.doc;
+      const results = await Promise.allSettled(
+        lineIds.map((lineId) =>
+          runOptimization(
+            buildOptimizationPayload(
+              lineId,
+              startPoint,
+              lines,
+              shapes,
+              settings,
+            ),
+          ),
+        ),
+      );
+      const unchanged: string[] = [];
+      let failure: unknown = null;
+      lineIds.forEach((lineId, i) => {
+        const outcome = results[i];
+        // Keep the segments that did answer; the first failure is reported below.
+        if (outcome.status === "rejected") {
+          failure ??= outcome.reason;
+          return;
+        }
+        const result = outcome.value;
         const optimized = applyOptimizedWaypoints(
-          lines,
-          line.id,
-          await runOptimization(payload),
+          this.#project.doc.lines,
+          lineId,
+          result,
         );
         if (optimized) this.#project.apply(setLines(normalizePaths(optimized)));
-      }
+        if (!optimized || (result as { changed?: unknown })?.changed === false)
+          unchanged.push(lineId);
+      });
+      if (failure) throw failure;
+      const warning = describeOptimization(
+        this.#project.doc,
+        settings,
+        lineIds,
+        unchanged,
+      );
+      const message = [warning, note].filter(Boolean).join(" ");
+      if (message) showToast(message, "warning");
     } catch (error) {
       console.error(error);
       showToast((error as Error).message || "Optimization failed.", "error");

@@ -1,10 +1,14 @@
 <script lang="ts">
   import { Lock, LockOpen, Plus, Trash2, X } from "@lucide/svelte";
-  import type { AtomicPath, BasePoint, Path } from "../../types";
+  import type { AtomicPath, BasePoint, Path, Settings } from "../../types";
   import { FIELD_SIZE } from "../../config";
   import { gridSize, showGrid, snapToGrid } from "../../stores";
   import { updatePathById, updatePoint } from "../../model/commands";
-  import { atomicSegments } from "../../utils/pathTraversal";
+  import {
+    atomicSegments,
+    flattenToAtomicSegments,
+  } from "../../utils/pathTraversal";
+  import { optimizeBlocker } from "../../lib/optimizer/optimizer";
   import { useEditor } from "../../state/editor.svelte";
   import { useProject } from "../../state/project.svelte";
   import Button from "../../lib/components/ui/Button.svelte";
@@ -13,12 +17,14 @@
   import IconButton from "../../lib/components/ui/IconButton.svelte";
   import { fieldClass, labelClass } from "../../lib/components/ui/styles";
   import HeadingControls from "../../lib/components/HeadingControls.svelte";
+  import OptimizeButton from "../../lib/components/OptimizeButton.svelte";
 
   interface Props {
     line: AtomicPath;
+    settings: Settings;
   }
 
-  let { line }: Props = $props();
+  let { line, settings }: Props = $props();
 
   const project = useProject();
   const editor = useEditor();
@@ -34,6 +40,14 @@
   let throughPoints = $derived(
     line.throughPoints?.length ? line.throughPoints : null,
   );
+
+  let optimizeBlockedBy = $derived.by(() => {
+    const segment = flattenToAtomicSegments(
+      project.doc.startPoint,
+      project.doc.lines,
+    ).find((entry) => entry.line.id === line.id);
+    return segment ? optimizeBlocker(segment, settings) : "Path not found";
+  });
 
   /** Every point in driving order; `index` is its point address (0 is the end). */
   let rows = $derived([
@@ -92,6 +106,11 @@
           }))}
       />
     </label>
+    <OptimizeButton
+      label={optimizeBlockedBy ?? "Optimize this path"}
+      disabled={optimizeBlockedBy !== null}
+      onclick={() => editor.optimizeLines([line.id], settings)}
+    />
     <IconButton
       label={isOnlyPath ? "At least one path must remain" : "Delete path"}
       disabled={isOnlyPath || line.locked}

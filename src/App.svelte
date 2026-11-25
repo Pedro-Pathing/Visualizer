@@ -138,6 +138,8 @@
         {overlays}
         hidden={leftHidden}
         onHide={() => layout.toggle("left")}
+        onToggleObstacles={() =>
+          actions.find((a) => a.id === "experimental.toggleObstacles")?.run()}
       />
 
       <PanelDivider

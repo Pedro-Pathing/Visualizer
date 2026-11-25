@@ -60,7 +60,7 @@
     {:else if selectedGroup}
       <GroupInspector group={selectedGroup} />
     {:else if editor.selectedLine}
-      <PathInspector line={editor.selectedLine} />
+      <PathInspector line={editor.selectedLine} settings={prefs.settings} />
     {:else}
       <DocumentInspector {prefs} />
     {/if}

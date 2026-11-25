@@ -21,7 +21,18 @@ export interface Pose {
   y: number;
   /** Degrees counter-clockwise from +x. */
   heading: number;
+  /** How far the footprint grows here, in inches; the robot's full safety margin when absent. */
+  margin?: number;
 }
+
+/**
+ * The safety margin is 0 at a segment's ends, where the robot may touch a wall
+ * or game piece, and grows 1 in per this many inches of path until it reaches
+ * its full value. pedro_opt applies the same ramp (its margin_ramp).
+ */
+export const MARGIN_RAMP = 6;
+/** Overlap this small (in) is contact, not a hit: pedro_opt's FEAS_TOL, and room for trig rounding. */
+const CONTACT_TOLERANCE = 1e-3;
 
 export type Obstacle = { kind: "shape"; shapeId: string } | { kind: "wall" };
 
@@ -49,9 +60,9 @@ const DEFAULT_ANGLE_STEP = 5;
 /** Bisection rounds when locating where contact begins or ends. */
 const BOUNDARY_ROUNDS = 12;
 
-/** The robot rectangle at `pose`, grown by the safety margin on every side. */
+/** The robot rectangle at `pose`, grown by the pose's margin (or the full safety margin) on every side. */
 export function robotFootprint(pose: Pose, robot: Footprint): BasePoint[] {
-  const margin = Math.max(0, robot.safetyMargin || 0);
+  const margin = pose.margin ?? Math.max(0, robot.safetyMargin || 0);
   return getRobotCorners(
     pose.x,
     pose.y,
@@ -59,6 +70,12 @@ export function robotFootprint(pose: Pose, robot: Footprint): BasePoint[] {
     robot.rLength + 2 * margin,
     robot.rWidth + 2 * margin,
   );
+}
+
+/** The footprint collisions are tested with: just inside `robotFootprint`, so touching is not a hit. */
+function hitFootprint(pose: Pose, robot: Footprint): BasePoint[] {
+  const margin = pose.margin ?? Math.max(0, robot.safetyMargin || 0);
+  return robotFootprint({ ...pose, margin: margin - CONTACT_TOLERANCE }, robot);
 }
 
 /** Every interval of `timeline` where the robot touches an obstacle or leaves the field. */
@@ -86,7 +103,7 @@ export function findCollisions(
     if (!motion) continue;
 
     for (const sample of samplesOf(motion, angleStep)) {
-      const footprint = robotFootprint(sample.pose, doc.robot);
+      const footprint = hitFootprint(sample.pose, doc.robot);
       const before = previous?.motion === motion ? previous.sample : null;
 
       for (const target of targets) {
@@ -193,15 +210,18 @@ function motionOf(
 
   const { curve, index } = segment;
   const profile = motionProfile(curve.length, doc.robot);
+  const margin = Math.max(0, doc.robot.safetyMargin || 0);
   return {
     lineId: segment.line.id,
     steps: Math.max(1, Math.ceil(curve.length / step)),
     poseAt(s) {
       const point = curve.pointAt(s);
+      const fromEnd = Math.min(s, 1 - s) * curve.length;
       return {
         x: point.x,
         y: point.y,
         heading: segmentHeadingAt(segments, index, s),
+        margin: Math.min(margin, fromEnd / MARGIN_RAMP),
       };
     },
     timeAt: (s) =>
@@ -216,10 +236,12 @@ function turnInPlace(event: TimelineEvent, startPoint: StartPose): Motion {
   return {
     lineId: null,
     steps: 1,
+    // Turning in place happens at a segment's end, where the margin is 0.
     poseAt: (u) => ({
       x: point.x,
       y: point.y,
       heading: shortestRotation(from, to, u),
+      margin: 0,
     }),
     timeAt: (u) => event.startTime + u * event.duration,
   };
@@ -256,7 +278,7 @@ function boundary(
 ): number {
   for (let round = 0; round < BOUNDARY_ROUNDS; round++) {
     const middle = (inside + outside) / 2;
-    if (target.hits(robotFootprint(motion.poseAt(middle), robot))) {
+    if (target.hits(hitFootprint(motion.poseAt(middle), robot))) {
       inside = middle;
     } else {
       outside = middle;

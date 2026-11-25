@@ -2,7 +2,9 @@ import { DEFAULT_SETTINGS } from "../config/defaults";
 import type { Settings } from "../types";
 
 // Versioning for settings schema
-const SETTINGS_VERSION = "1.0.1";
+const SETTINGS_VERSION = "1.0.2";
+/** Settings saved before this version stored the optimizer off, its old default. */
+const OPTIMIZE_ON_SINCE = "1.0.2";
 
 /**
  * Previous cached settings defaulted these to 0; if those were zero we are switching them to the new defaults.
@@ -86,6 +88,16 @@ export function migrateSettings(stored: Partial<StoredSettings>): Settings {
     for (const key of PANEL_LAYOUT_KEYS) {
       if (!migrated[key]) migrated[key] = defaults[key];
     }
+  }
+
+  const older = (stored.version ?? "0").localeCompare(OPTIMIZE_ON_SINCE, undefined, {
+    numeric: true,
+  });
+  if (older < 0) {
+    migrated.experimentalFeatures = {
+      ...migrated.experimentalFeatures,
+      optimize: true,
+    };
   }
 
   return normalizeLegacyFieldMap(migrated);

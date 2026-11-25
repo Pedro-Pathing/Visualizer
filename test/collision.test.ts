@@ -198,7 +198,8 @@ describe("findCollisions", () => {
         project({ x: 20, y: 70 }, [line("in", { x: 75, y: 70 })], [notch]),
       );
       expect(collisions).toHaveLength(1);
-      expect(collisions[0].firstContact.x).toBeCloseTo(70, 2);
+      // Contact is within 6 in of the end, so the margin is part-ramped: 70.2 + 9 + (75 - 70.2) / 6 = 80.
+      expect(collisions[0].firstContact.x).toBeCloseTo(70.2, 2);
     });
   });
 
@@ -234,8 +235,58 @@ describe("findCollisions", () => {
     const [hit] = collisions;
     expect(hit.obstacle).toEqual({ kind: "wall" });
     expect(hit.lineId).toBe("north");
-    expect(hit.firstContact.y).toBeCloseTo(131.5, 2);
+    // The margin ramps up over the last 6 in: 132 + 9 + (135 - 132) / 6 = 141.5.
+    expect(hit.firstContact.y).toBeCloseTo(132, 2);
     expect(hit.end).toBeCloseTo(timeline[timeline.length - 1].endTime, 9);
+  });
+
+  it("lets the robot start against a wall and end touching an obstacle", () => {
+    // Back edge flush with the left wall, front edge flush with the box at the end.
+    const doc = project(
+      { x: 9, y: 70 },
+      [line("away", { x: 51, y: 70 })],
+      [box("box", 60, 50, 80, 90)],
+    );
+    expect(collide(doc).collisions).toEqual([]);
+  });
+
+  it("lets the robot start flush against a wall at a heading trig rounds", () => {
+    // At 90 degrees cos is 6e-17, which puts a corner a hair outside the field.
+    const doc = project(
+      { x: 70, y: 9, headingDeg: 90 },
+      [
+        line(
+          "up",
+          { x: 70, y: 60 },
+          { heading: { type: "constant", degrees: 90 } },
+        ),
+      ],
+      [],
+    );
+    expect(collide(doc).collisions).toEqual([]);
+  });
+
+  it("grows a large margin no faster than 1 in per 6 in of path", () => {
+    // A 7 in margin, driving straight off the wall: clearance outgrows the margin.
+    const doc = project({ x: 9, y: 70 }, [line("away", { x: 100, y: 70 })], [], {
+      ...ROBOT,
+      safetyMargin: 7,
+    });
+    expect(collide(doc).collisions).toEqual([]);
+  });
+
+  it("keeps the full margin away from a segment's ends, walls included", () => {
+    // The bottom edge runs 0.5 in above the wall; the ramp passes 0.5 in (+ the 0.001 contact tolerance) 3.006 in from the start.
+    const doc = project(
+      { x: 20, y: 6.5 },
+      [line("along", { x: 120, y: 6.5 })],
+      [],
+    );
+    const { collisions } = collide(doc);
+    expect(collisions).toHaveLength(1);
+    expect(collisions[0].obstacle).toEqual({ kind: "wall" });
+    expect(collisions[0].firstContact.x).toBeCloseTo(23.006, 2);
+    expect(collisions[0].firstContact.margin).toBeCloseTo(0.501, 3);
   });
 
   it("catches a corner swinging into an obstacle while turning in place", () => {
@@ -307,7 +358,8 @@ describe("findCollisions", () => {
           },
         ),
       ],
-      [box("block", 59, 60, 62, 80)],
+      // Overlaps the parked robot's front by 0.5 in: flush contact alone is not a hit.
+      [box("block", 58.5, 60, 62, 80)],
     );
     const { timeline } = calculateVisualizationPathTime(
       doc.startPoint,

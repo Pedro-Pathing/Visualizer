@@ -91,7 +91,7 @@ export const DEFAULT_SETTINGS: Settings = {
   curveThroughMaxPoints: 4,
   autoCollapsePanels: false,
   experimentalFeatures: {
-    optimize: false,
+    optimize: true,
     curveThrough: false,
     obstacles: false,
   },

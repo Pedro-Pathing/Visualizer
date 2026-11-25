@@ -1,5 +1,8 @@
 import type { Path, Settings, Shape, StartPose } from "../../types";
 import { FIELD_SIZE } from "../../config/defaults";
+import type { ProjectDoc } from "../../io/project";
+import { findCollisions, MARGIN_RAMP } from "../../model/collision";
+import { calculateVisualizationPathTime } from "../../utils/timeCalculator";
 import {
   headingAngleAt,
   headingGeometryAt,
@@ -7,9 +10,77 @@ import {
 import {
   flattenToAtomicSegments,
   replaceSegment,
+  type FlatSegment,
 } from "../../utils/pathTraversal";
 
 export const OPTIMIZER_BASE_URL = "https://fpa.pedropathing.com";
+
+// Extra clearance (in) on top of the user's safety margin. It exceeds the server's 1e-3 in
+// feasibility tolerance, so a result the server calls feasible never touches in collision.ts.
+const OBSTACLE_SLACK = 0.1;
+// shortcut: a 2-point shape (a segment to collision.ts) is sent as a rectangle this thin on each side; upgrade if the server ever takes degenerate polygons.
+const SEGMENT_HALF_WIDTH = 0.01;
+// The server rejects the whole request beyond these.
+const MAX_OBSTACLES = 64;
+const MAX_OBSTACLE_VERTICES = 64;
+// pedro_opt caps waypoints at 12: start, end and this many control points.
+const MAX_CONTROL_POINTS = 10;
+
+const avoidsObstacles = (settings: Settings) =>
+  Boolean(settings.experimentalFeatures?.obstacles);
+
+/** Obstacle polygons in the server's 3..64 point form. collision.ts treats a 2-point shape as a segment, so it becomes a thin rectangle. */
+function obstaclePolygons(shapes: Shape[]): number[][][] {
+  const polygons: number[][][] = [];
+  for (const { vertices } of shapes) {
+    if (vertices.length >= 3) {
+      polygons.push(vertices.map((v) => [v.x, v.y]));
+    } else if (vertices.length === 2) {
+      const [a, b] = vertices;
+      const length = Math.hypot(b.x - a.x, b.y - a.y);
+      if (length === 0) continue;
+      const nx = (-(b.y - a.y) / length) * SEGMENT_HALF_WIDTH;
+      const ny = ((b.x - a.x) / length) * SEGMENT_HALF_WIDTH;
+      polygons.push([
+        [a.x + nx, a.y + ny],
+        [b.x + nx, b.y + ny],
+        [b.x - nx, b.y - ny],
+        [a.x - nx, a.y - ny],
+      ]);
+    }
+  }
+  if (
+    polygons.length > MAX_OBSTACLES ||
+    polygons.some((polygon) => polygon.length > MAX_OBSTACLE_VERTICES)
+  ) {
+    throw new Error(
+      `Too many obstacles for the optimizer (at most ${MAX_OBSTACLES} shapes of ${MAX_OBSTACLE_VERTICES} points).`,
+    );
+  }
+  return polygons;
+}
+
+/** Why the optimizer can't take this segment, or null when it can. */
+export function optimizeBlocker(
+  { line, ancestors }: FlatSegment,
+  settings: Settings,
+): string | null {
+  if (line.locked) return "Path is locked";
+  if (line.throughPoints?.length) return "Through-curves can't be optimized yet";
+  if (!line.controlPoints.length) return "Add a control point to optimize";
+  if (line.controlPoints.length > MAX_CONTROL_POINTS)
+    return `The optimizer takes at most ${MAX_CONTROL_POINTS} control points`;
+  if (line.controlPoints.some((point) => point.locked))
+    return "Unlock the control points to optimize";
+  // The server only models constant, linear and tangential headings on their own segment.
+  if (
+    avoidsObstacles(settings) &&
+    (line.heading.type === "piecewise" ||
+      ancestors.some((group) => group.heading))
+  )
+    return "Piecewise/group headings can't avoid obstacles yet";
+  return null;
+}
 
 export function buildOptimizationPayload(
   lineId: string,
@@ -26,6 +97,9 @@ export function buildOptimizationPayload(
 
   const { line, curve } = segment;
   const waypoints = curve.controlPoints.map((p) => [p.x, p.y]);
+  const avoid = avoidsObstacles(settings);
+  // Same clamp as robotFootprint in model/collision.ts.
+  const margin = avoid ? Math.max(0, settings.safetyMargin || 0) : 0;
 
   return {
     waypoints,
@@ -53,7 +127,11 @@ export function buildOptimizationPayload(
         : line.heading.type === "constant"
           ? "constant"
           : "linear",
-    obstacles: shapes.map((shape) => shape.vertices.map((v) => [v.x, v.y])),
+    obstacles: avoid ? obstaclePolygons(shapes) : [],
+    // The server ramps this up from 0 at the segment's ends (1 in per margin_ramp in), as collision.ts does,
+    // and applies it to walls and obstacles. The slack makes its clean result clean here too.
+    safety_margin: avoid ? margin + OBSTACLE_SLACK : 0,
+    margin_ramp: MARGIN_RAMP,
   };
 }
 
@@ -137,4 +215,31 @@ export function applyOptimizedWaypoints(
 
   if (!applied || next === paths) return null;
   return next;
+}
+
+/**
+ * The one warning to show after optimizing `lineIds`, or null when obstacles are off or
+ * the Visualizer's own collision check finds them clear. `unchanged` are the ones the
+ * optimizer left as they were.
+ */
+export function describeOptimization(
+  doc: ProjectDoc,
+  settings: Settings,
+  lineIds: string[],
+  unchanged: string[],
+): string | null {
+  if (!avoidsObstacles(settings)) return null;
+  // Same check playback draws in red.
+  const { timeline } = calculateVisualizationPathTime(
+    doc.startPoint,
+    doc.lines,
+    settings,
+    doc.sequence,
+  );
+  const hit = new Set(findCollisions(doc, timeline).map((c) => c.lineId));
+  const stuck = lineIds.filter((id) => hit.has(id));
+  if (!stuck.length) return null;
+  return stuck.every((id) => unchanged.includes(id))
+    ? "Optimizer could not clear the obstacles or the wall. Move an endpoint out of the obstacle or add a control point."
+    : "Optimizer could not find a path clear of the obstacles or the wall; remaining overlaps are shown in red.";
 }

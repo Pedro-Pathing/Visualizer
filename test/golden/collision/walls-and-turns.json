@@ -1,27 +1,14 @@
 [
   {
-    "lineId": null,
-    "obstacle": {
-      "kind": "wall"
-    },
-    "start": 3.08,
-    "end": 3.221,
-    "firstContact": {
-      "x": 20,
-      "y": 130,
-      "heading": 19.626
-    }
-  },
-  {
     "lineId": "line-along-top",
     "obstacle": {
       "kind": "wall"
     },
-    "start": 3.221,
-    "end": 4.109,
+    "start": 3.43,
+    "end": 4.108,
     "firstContact": {
-      "x": 20,
-      "y": 130,
+      "x": 21.083,
+      "y": 129.932,
       "heading": 45
     }
   },
@@ -33,9 +20,9 @@
     "start": 7.463,
     "end": 7.905,
     "firstContact": {
-      "x": 129.567,
-      "y": 96.563,
-      "heading": -65.355
+      "x": 129.569,
+      "y": 96.559,
+      "heading": -65.361
     }
   }
 ]

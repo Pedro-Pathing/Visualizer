@@ -1,9 +1,13 @@
 <script lang="ts">
-  import { PanelLeft, Plus, RotateCcw } from "@lucide/svelte";
+  import { Eye, EyeOff, PanelLeft, Plus, RotateCcw } from "@lucide/svelte";
   import type { Settings } from "../types";
   import { getDefaultShapes } from "../config/defaults";
   import { createTriangle } from "../utils";
-  import { atomicSegments } from "../utils/pathTraversal";
+  import {
+    atomicSegments,
+    flattenToAtomicSegments,
+  } from "../utils/pathTraversal";
+  import { optimizeBlocker } from "../lib/optimizer/optimizer";
   import { setShapes } from "../model/commands";
   import { useEditor } from "../state/editor.svelte";
   import { useProject } from "../state/project.svelte";
@@ -11,6 +15,7 @@
   import type { Overlays } from "../state/overlays.svelte";
   import IconButton from "../lib/components/ui/IconButton.svelte";
   import PanelSection from "../lib/components/ui/PanelSection.svelte";
+  import OptimizeButton from "../lib/components/OptimizeButton.svelte";
   import { surfaceClass } from "../lib/components/ui/styles";
   import PathTree from "./layers/PathTree.svelte";
   import ObstacleList from "./layers/ObstacleList.svelte";
@@ -21,15 +26,28 @@
     overlays: Overlays;
     hidden?: boolean;
     onHide: () => void;
+    onToggleObstacles: () => void;
   }
 
-  let { settings, overlays, hidden = false, onHide }: Props = $props();
+  let {
+    settings,
+    overlays,
+    hidden = false,
+    onHide,
+    onToggleObstacles,
+  }: Props = $props();
 
   const project = useProject();
   const editor = useEditor();
   const playback = usePlayback();
 
   let overlaysOpen = $state(false);
+  let obstaclesOn = $derived(Boolean(settings.experimentalFeatures?.obstacles));
+  let canOptimize = $derived(
+    flattenToAtomicSegments(project.doc.startPoint, project.doc.lines).some(
+      (segment) => !optimizeBlocker(segment, settings),
+    ),
+  );
 
   function addObstacle() {
     const shape = createTriangle();
@@ -63,6 +81,14 @@
       count={atomicSegments(project.doc.lines).length}
     >
       {#snippet actions()}
+        <OptimizeButton
+          label={canOptimize
+            ? "Optimize all paths"
+            : "No path the optimizer can take"}
+          size="sm"
+          disabled={!canOptimize}
+          onclick={() => editor.optimizeAll(settings)}
+        />
         <IconButton label="Add path" size="sm" onclick={() => editor.addPath()}>
           <Plus />
         </IconButton>
@@ -70,23 +96,38 @@
       <PathTree />
     </PanelSection>
 
-    {#if settings.experimentalFeatures?.obstacles}
-      <PanelSection title="Obstacles" count={project.doc.shapes.length}>
-        {#snippet actions()}
-          <IconButton
-            label="Reset obstacles to field default"
-            size="sm"
-            onclick={resetObstacles}
-          >
-            <RotateCcw />
-          </IconButton>
+    <PanelSection
+      title="Obstacles"
+      count={obstaclesOn ? project.doc.shapes.length : undefined}
+    >
+      {#snippet actions()}
+        {#if obstaclesOn}
           <IconButton label="Add obstacle" size="sm" onclick={addObstacle}>
             <Plus />
           </IconButton>
-        {/snippet}
+        {/if}
+        <!-- Last, so it stays put when the buttons beside it appear. -->
+        <IconButton
+          label={obstaclesOn ? "Turn obstacles off" : "Turn obstacles on"}
+          size="sm"
+          active={obstaclesOn}
+          onclick={onToggleObstacles}
+        >
+          {#if obstaclesOn}<Eye />{:else}<EyeOff />{/if}
+        </IconButton>
+      {/snippet}
+      {#if obstaclesOn}
         <ObstacleList />
-      </PanelSection>
-    {/if}
+        <button
+          type="button"
+          class="mt-1 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-body transition hover:bg-body/10 hover:text-heading [&_svg]:size-3.5"
+          onclick={resetObstacles}
+        >
+          <RotateCcw />
+          Reset to field default
+        </button>
+      {/if}
+    </PanelSection>
 
     <PanelSection
       title="Overlays"
