@@ -127,29 +127,29 @@ describe("optimizer payload obstacles", () => {
     expect(payload.obstacles[1]).toEqual(BOX.vertices.map((v) => [v.x, v.y]));
   });
 
-  it("rejects more than 64 obstacles or 64 points per obstacle when on", () => {
-    expect(() => build(triangles(65), settings(true))).toThrow(
+  it("rejects more than 16 obstacles or 16 points per obstacle when on", () => {
+    expect(() => build(triangles(17), settings(true))).toThrow(
       /Too many obstacles/,
     );
     const many = shape(
       "many",
-      Array.from({ length: 65 }, (_, i) => ({ x: i, y: i % 2 })),
+      Array.from({ length: 17 }, (_, i) => ({ x: i, y: i % 2 })),
     );
     expect(() => build([many], settings(true))).toThrow(/Too many obstacles/);
   });
 
-  it("accepts exactly 64 obstacles and exactly 64 points per obstacle", () => {
-    expect(() => build(triangles(64), settings(true))).not.toThrow();
+  it("accepts exactly 16 obstacles and exactly 16 points per obstacle", () => {
+    expect(() => build(triangles(16), settings(true))).not.toThrow();
     const max = shape(
       "max",
-      Array.from({ length: 64 }, (_, i) => ({ x: i, y: i % 2 })),
+      Array.from({ length: 16 }, (_, i) => ({ x: i, y: i % 2 })),
     );
-    expect(() => build([...triangles(63), max], settings(true))).not.toThrow();
+    expect(() => build([...triangles(15), max], settings(true))).not.toThrow();
   });
 
   it("does not limit obstacles when the flag is off", () => {
-    expect(() => build(triangles(65), settings(false))).not.toThrow();
-    expect(build(triangles(65), settings(false)).obstacles).toEqual([]);
+    expect(() => build(triangles(17), settings(false))).not.toThrow();
+    expect(build(triangles(17), settings(false)).obstacles).toEqual([]);
   });
 });
 

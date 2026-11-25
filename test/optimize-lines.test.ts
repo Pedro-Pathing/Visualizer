@@ -57,13 +57,24 @@ afterEach(() => {
 });
 
 describe("optimizeLines", () => {
-  it("sends every segment's request before any answers, then applies each", async () => {
+  it("sends every segment's request before any answers, and applies each as it arrives", async () => {
     const { project, editor: ed } = editor();
     const { fetch, pending } = deferredFetch();
     const done = ed.optimizeLines(["a", "b"], DEFAULT_SETTINGS);
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
 
     pending[1](answer([[40, 10], [60, 20], [80, 10]]));
+    // b updates while a's request is still out.
+    await vi.waitFor(() =>
+      expect((project.doc.lines[1] as AtomicPath).controlPoints).toEqual([
+        { x: 60, y: 20 },
+      ]),
+    );
+    expect((project.doc.lines[0] as AtomicPath).controlPoints).toEqual([
+      { x: 30, y: 30 },
+    ]);
+    expect(ed.optimizing).toBe(true);
+
     pending[0](answer([[20, 10], [30, 20], [40, 10]]));
     await done;
 

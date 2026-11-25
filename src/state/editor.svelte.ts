@@ -407,7 +407,7 @@ export class EditorState {
 
   /**
    * Run the path optimizer on the given segments. The requests go out
-   * together, and the results are applied in order once all have answered.
+   * together, and each path updates as soon as its own answer arrives.
    */
   async optimizeLines(
     lineIds: string[],
@@ -419,9 +419,10 @@ export class EditorState {
     try {
       // A segment's endpoints never move, so no request depends on another's result.
       const { startPoint, lines, shapes } = this.#project.doc;
+      const unchanged: string[] = [];
       const results = await Promise.allSettled(
-        lineIds.map((lineId) =>
-          runOptimization(
+        lineIds.map(async (lineId) => {
+          const result = await runOptimization(
             buildOptimizationPayload(
               lineId,
               startPoint,
@@ -429,29 +430,24 @@ export class EditorState {
               shapes,
               settings,
             ),
-          ),
-        ),
+          );
+          // Applied to the latest doc, which may already hold other paths' results.
+          const optimized = applyOptimizedWaypoints(
+            this.#project.doc.lines,
+            lineId,
+            result,
+          );
+          if (optimized) this.#project.apply(setLines(normalizePaths(optimized)));
+          if (!optimized || (result as { changed?: unknown })?.changed === false)
+            unchanged.push(lineId);
+        }),
       );
-      const unchanged: string[] = [];
-      let failure: unknown = null;
-      lineIds.forEach((lineId, i) => {
-        const outcome = results[i];
-        // Keep the segments that did answer; the first failure is reported below.
-        if (outcome.status === "rejected") {
-          failure ??= outcome.reason;
-          return;
-        }
-        const result = outcome.value;
-        const optimized = applyOptimizedWaypoints(
-          this.#project.doc.lines,
-          lineId,
-          result,
-        );
-        if (optimized) this.#project.apply(setLines(normalizePaths(optimized)));
-        if (!optimized || (result as { changed?: unknown })?.changed === false)
-          unchanged.push(lineId);
-      });
-      if (failure) throw failure;
+      // Keep the segments that did answer; report the first failure in path order.
+      const failure = results.find(
+        (outcome): outcome is PromiseRejectedResult =>
+          outcome.status === "rejected",
+      );
+      if (failure) throw failure.reason;
       const warning = describeOptimization(
         this.#project.doc,
         settings,

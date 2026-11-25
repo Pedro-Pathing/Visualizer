@@ -21,15 +21,15 @@ const OBSTACLE_SLACK = 0.1;
 // shortcut: a 2-point shape (a segment to collision.ts) is sent as a rectangle this thin on each side; upgrade if the server ever takes degenerate polygons.
 const SEGMENT_HALF_WIDTH = 0.01;
 // The server rejects the whole request beyond these.
-const MAX_OBSTACLES = 64;
-const MAX_OBSTACLE_VERTICES = 64;
+const MAX_OBSTACLES = 16;
+const MAX_OBSTACLE_VERTICES = 16;
 // pedro_opt caps waypoints at 12: start, end and this many control points.
 const MAX_CONTROL_POINTS = 10;
 
 const avoidsObstacles = (settings: Settings) =>
   Boolean(settings.experimentalFeatures?.obstacles);
 
-/** Obstacle polygons in the server's 3..64 point form. collision.ts treats a 2-point shape as a segment, so it becomes a thin rectangle. */
+/** Obstacle polygons in the server's 3..16 point form. collision.ts treats a 2-point shape as a segment, so it becomes a thin rectangle. */
 function obstaclePolygons(shapes: Shape[]): number[][][] {
   const polygons: number[][][] = [];
   for (const { vertices } of shapes) {
