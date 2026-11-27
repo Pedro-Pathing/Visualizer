@@ -1,11 +1,11 @@
 import type { BasePoint, Path, StartPose } from "../types";
-import { segmentHeadingAt } from "../utils/headingInterpolation";
-import { flattenToAtomicSegments } from "../utils/pathTraversal";
 import {
   robotBodyCenter,
   robotBodyCorners,
   type RobotBody,
-} from "./robotGeometry";
+} from "../utils/geometry";
+import { segmentHeadingAt } from "../utils/headingInterpolation";
+import { flattenToAtomicSegments } from "../utils/pathTraversal";
 
 /**
  * The outline swept by the robot's sides as it drives every segment: the left

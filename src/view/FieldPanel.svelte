@@ -10,7 +10,7 @@
   } from "../model/commands";
   import { atomicSegments } from "../utils/pathTraversal";
   import { robotFootprint } from "../model/collision";
-  import { robotBodyCenter, type RobotBody } from "../model/robotGeometry";
+  import { robotBodyCenter, type RobotBody } from "../utils/geometry";
   import { generateGhostPathPoints, generateOnionLayers } from "../model/sweep";
   import { robotPoseAt } from "../sim/pose";
   import { smoothStrokePreview } from "../lib/pen/strokeFitting";

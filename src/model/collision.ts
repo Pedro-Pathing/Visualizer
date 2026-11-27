@@ -8,14 +8,17 @@ import type {
   StartPose,
   TimelineEvent,
 } from "../types";
-import { polygonsOverlap } from "../utils/geometry";
+import {
+  polygonsOverlap,
+  robotBodyCorners,
+  type RobotBody,
+} from "../utils/geometry";
 import { segmentHeadingAt } from "../utils/headingInterpolation";
 import { getAngularDifference, shortestRotation } from "../utils/math";
 import {
   flattenToAtomicSegments,
   type FlatSegment,
 } from "../utils/pathTraversal";
-import { robotBodyCorners, type RobotBody } from "./robotGeometry";
 
 export interface Pose {
   x: number;

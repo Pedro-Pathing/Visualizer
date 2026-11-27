@@ -11,7 +11,7 @@ import {
   LINE_WIDTH,
 } from "../../config/defaults";
 import { robotPoseAt } from "../../sim/pose";
-import { robotBodyCenter } from "../../model/robotGeometry";
+import { robotBodyCenter } from "../../utils/geometry";
 import { exportAsGif } from "../../utils/gifExporter";
 import { pathStem } from "../../utils/filename";
 import { flattenToAtomicSegments } from "../../utils/pathTraversal";
