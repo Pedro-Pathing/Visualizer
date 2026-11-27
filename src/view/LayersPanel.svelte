@@ -145,7 +145,7 @@
         { label: "Heading", value: pose.heading.toFixed(0), unit: "°" },
         { label: "t", value: pose.t?.toFixed(3) ?? "–", unit: "" },
       ]}
-      <dl class="grid grid-cols-2 gap-1.5 px-1" aria-label="Robot pose">
+      <dl class="grid grid-cols-2 gap-1.5 px-1" aria-label="Drivetrain pose">
         {#each readouts as { label, value, unit } (label)}
           <div
             class="flex flex-col gap-0.5 rounded-lg border border-border bg-base/60 px-2.5 py-1.5"

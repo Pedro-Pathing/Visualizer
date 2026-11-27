@@ -8,13 +8,14 @@ import type {
   StartPose,
   TimelineEvent,
 } from "../types";
-import { getRobotCorners, polygonsOverlap } from "../utils/geometry";
+import { polygonsOverlap } from "../utils/geometry";
 import { segmentHeadingAt } from "../utils/headingInterpolation";
 import { getAngularDifference, shortestRotation } from "../utils/math";
 import {
   flattenToAtomicSegments,
   type FlatSegment,
 } from "../utils/pathTraversal";
+import { robotBodyCorners, type RobotBody } from "./robotGeometry";
 
 export interface Pose {
   x: number;
@@ -54,7 +55,7 @@ export interface CollisionOptions {
   angleStep?: number;
 }
 
-type Footprint = Pick<RobotConfig, "rLength" | "rWidth" | "safetyMargin">;
+type Footprint = RobotBody & Pick<RobotConfig, "safetyMargin">;
 
 const DEFAULT_ANGLE_STEP = 5;
 /** Bisection rounds when locating where contact begins or ends. */
@@ -63,13 +64,7 @@ const BOUNDARY_ROUNDS = 12;
 /** The robot rectangle at `pose`, grown by the pose's margin (or the full safety margin) on every side. */
 export function robotFootprint(pose: Pose, robot: Footprint): BasePoint[] {
   const margin = pose.margin ?? Math.max(0, robot.safetyMargin || 0);
-  return getRobotCorners(
-    pose.x,
-    pose.y,
-    pose.heading,
-    robot.rLength + 2 * margin,
-    robot.rWidth + 2 * margin,
-  );
+  return robotBodyCorners(pose, robot, margin);
 }
 
 /** The footprint collisions are tested with: just inside `robotFootprint`, so touching is not a hit. */

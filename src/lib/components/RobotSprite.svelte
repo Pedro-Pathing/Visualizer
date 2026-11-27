@@ -2,7 +2,8 @@
   import type { BasePoint, Settings } from "../../types";
 
   interface Props {
-    xy: BasePoint;
+    drivetrainXY: BasePoint;
+    frameXY: BasePoint;
     heading: number;
     widthPx: number;
     heightPx: number;
@@ -16,7 +17,8 @@
   }
 
   let {
-    xy,
+    drivetrainXY,
+    frameXY,
     heading,
     widthPx,
     heightPx,
@@ -39,8 +41,8 @@
 <img
   src={settings.robotImage || DEFAULT_ROBOT_IMAGE}
   {alt}
-  style={`position: absolute; top: ${xy.y}px;
-left: ${xy.x}px; transform: translate(-50%, -50%) rotate(${heading}deg); z-index: ${zIndex}; width: ${widthPx}px; height: ${heightPx}px;user-select: none; -webkit-user-select: none; -moz-user-select: none;-ms-user-select: none;
+  style={`position: absolute; top: ${frameXY.y}px;
+left: ${frameXY.x}px; transform: translate(-50%, -50%) rotate(${heading}deg); z-index: ${zIndex}; width: ${widthPx}px; height: ${heightPx}px;user-select: none; -webkit-user-select: none; -moz-user-select: none;-ms-user-select: none;
 pointer-events: none; opacity: ${opacity};`}
   draggable="false"
   onload={onImageSettled}
@@ -55,7 +57,7 @@ pointer-events: none; opacity: ${opacity};`}
 
 {#if settings.showHeadingArrow}
   <svg
-    style={`position: absolute; top: ${xy.y}px; left: ${xy.x}px; z-index: ${arrowZIndex}; pointer-events: none; overflow: visible; opacity: ${opacity};`}
+    style={`position: absolute; top: ${drivetrainXY.y}px; left: ${drivetrainXY.x}px; z-index: ${arrowZIndex}; pointer-events: none; overflow: visible; opacity: ${opacity};`}
     width="1"
     height="1"
   >

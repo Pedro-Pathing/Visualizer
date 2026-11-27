@@ -67,6 +67,8 @@ export const DEFAULT_SETTINGS: Settings = {
   kFriction: 0.1,
   rLength: DEFAULT_ROBOT_LENGTH,
   rWidth: DEFAULT_ROBOT_WIDTH,
+  drivetrainOffsetX: 0,
+  drivetrainOffsetY: 0,
   safetyMargin: 1,
   maxAcceleration: 50,
   maxDeceleration: 50,

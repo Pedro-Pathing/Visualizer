@@ -52,6 +52,23 @@
   </div>
 
   <NumberField
+    id="robot-pivot-forward"
+    label="Drivetrain X Offset (in)"
+    description="Measured from the frane center to the drivetrain center. Positive is forward."
+    value={robot.drivetrainOffsetX}
+    step={0.1}
+    onInput={(v) => setNumber(v, "drivetrainOffsetX")}
+  />
+  <NumberField
+    id="robot-pivot-left"
+    label="Drivetrain Y offset (in)"
+    description="Measured from the frame center to the drivetrain center. Positive is left."
+    value={robot.drivetrainOffsetY}
+    step={0.1}
+    onInput={(v) => setNumber(v, "drivetrainOffsetY")}
+  />
+
+  <NumberField
     id="safety-margin"
     label="Safety margin (in)"
     description="Buffer kept around obstacles."
