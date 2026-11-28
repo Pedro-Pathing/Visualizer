@@ -10,6 +10,7 @@
   } from "../model/commands";
   import { atomicSegments } from "../utils/pathTraversal";
   import { robotFootprint } from "../model/collision";
+  import { robotBodyCenter, type RobotBody } from "../utils/geometry";
   import { generateGhostPathPoints, generateOnionLayers } from "../model/sweep";
   import { robotPoseAt } from "../sim/pose";
   import { smoothStrokePreview } from "../lib/pen/strokeFitting";
@@ -87,7 +88,7 @@
 
   let ghost = $derived(
     settings.showGhostPaths && !overlays.active
-      ? generateGhostPathPoints(doc.startPoint, doc.lines, settings.rWidth, 50)
+      ? generateGhostPathPoints(doc.startPoint, doc.lines, doc.robot, 50)
       : [],
   );
   let overlayGhosts = $derived(
@@ -96,7 +97,7 @@
           generateGhostPathPoints(
             overlay.doc.startPoint,
             overlay.doc.lines,
-            settings.rWidth,
+            overlay.doc.robot,
             50,
           ),
         )
@@ -108,8 +109,7 @@
           generateOnionLayers(
             doc.startPoint,
             doc.lines,
-            settings.rLength,
-            settings.rWidth,
+            doc.robot,
             settings.onionLayerSpacing || 6,
           ),
           playback.prediction,
@@ -139,14 +139,17 @@
       });
       return {
         trace,
-        footprint: robotFootprint(collision.firstContact, settings),
+        footprint: robotFootprint(collision.firstContact, doc.robot),
       };
     }),
   );
 
-  /** Screen pose for a robot sprite; sprites rotate clockwise. */
-  const sprite = (pose: { x: number; y: number; heading: number }) => ({
-    xy: { x: x(pose.x), y: y(pose.y) },
+  const screen = (point: BasePoint) => ({ x: x(point.x), y: y(point.y) });
+
+  /** Screen positions for the drivetrain and body; sprites rotate clockwise. */
+  const sprite = (pose: BasePoint & { heading: number }, robot: RobotBody) => ({
+    drivetrainXY: screen(pose),
+    frameXY: screen(robotBodyCenter(pose, robot)),
     heading: -pose.heading,
   });
 
@@ -418,17 +421,19 @@
         {x}
         {y}
         fieldElement={element}
-        robotXY={sprite(playback.robotPose).xy}
+        robotXY={screen(playback.robotPose)}
       />
 
       {#if overlays.active}
         {#each playback.overlayPoses as pose, index (index)}
-          {@const { xy, heading } = sprite(pose)}
+          {@const robot = overlays.items[index].doc.robot}
+          {@const { drivetrainXY, frameXY, heading } = sprite(pose, robot)}
           <RobotSprite
-            {xy}
+            {drivetrainXY}
+            {frameXY}
             {heading}
-            widthPx={x(settings.rLength)}
-            heightPx={x(settings.rWidth)}
+            widthPx={x(robot.rLength)}
+            heightPx={x(robot.rWidth)}
             {settings}
             alt="Robot {index + 1}"
             zIndex={20 - index}
@@ -439,12 +444,16 @@
           />
         {/each}
       {:else}
-        {@const { xy, heading } = sprite(playback.robotPose)}
+        {@const { drivetrainXY, frameXY, heading } = sprite(
+          playback.robotPose,
+          doc.robot,
+        )}
         <RobotSprite
-          {xy}
+          {drivetrainXY}
+          {frameXY}
           {heading}
-          widthPx={x(settings.rLength)}
-          heightPx={x(settings.rWidth)}
+          widthPx={x(doc.robot.rLength)}
+          heightPx={x(doc.robot.rWidth)}
           {settings}
           alt="Robot"
           zIndex={20}

@@ -51,6 +51,23 @@
     />
   </div>
 
+  <div class="grid grid-cols-2 gap-2">
+    <NumberField
+      id="robot-pivot-forward"
+      label="Drivetrain X Offset (in)"
+      value={robot.drivetrainOffsetX}
+      step={0.1}
+      onInput={(v) => setNumber(v, "drivetrainOffsetX")}
+    />
+    <NumberField
+      id="robot-pivot-left"
+      label="Drivetrain Y offset (in)"
+      value={robot.drivetrainOffsetY}
+      step={0.1}
+      onInput={(v) => setNumber(v, "drivetrainOffsetY")}
+    />
+  </div>  
+
   <NumberField
     id="safety-margin"
     label="Safety margin (in)"

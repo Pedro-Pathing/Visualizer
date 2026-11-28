@@ -1,5 +1,9 @@
 import type { BasePoint, Path, StartPose } from "../types";
-import { getRobotCorners } from "../utils/geometry";
+import {
+  robotBodyCenter,
+  robotBodyCorners,
+  type RobotBody,
+} from "../utils/geometry";
 import { segmentHeadingAt } from "../utils/headingInterpolation";
 import { flattenToAtomicSegments } from "../utils/pathTraversal";
 
@@ -11,23 +15,24 @@ import { flattenToAtomicSegments } from "../utils/pathTraversal";
 export function generateGhostPathPoints(
   startPoint: StartPose,
   lines: Path[],
-  rWidth: number,
+  robot: RobotBody,
   samples = 200,
 ): BasePoint[] {
   const segments = flattenToAtomicSegments(startPoint, lines);
   if (segments.length === 0) return [];
 
   const samplesPerSegment = Math.max(10, Math.ceil(samples / segments.length));
-  const halfWidth = rWidth / 2;
+  const halfWidth = robot.rWidth / 2;
   const left: BasePoint[] = [];
   const right: BasePoint[] = [];
 
   for (const { index, curve } of segments) {
     for (let i = 0; i <= samplesPerSegment; i++) {
       const s = i / samplesPerSegment;
-      const center = curve.pointAt(s);
-      const heading = (segmentHeadingAt(segments, index, s) * Math.PI) / 180;
-      const normal = { x: -Math.sin(heading), y: Math.cos(heading) };
+      const heading = segmentHeadingAt(segments, index, s);
+      const center = robotBodyCenter({ ...curve.pointAt(s), heading }, robot);
+      const radians = (heading * Math.PI) / 180;
+      const normal = { x: -Math.sin(radians), y: Math.cos(radians) };
       left.push({
         x: center.x + normal.x * halfWidth,
         y: center.y + normal.y * halfWidth,
@@ -59,8 +64,7 @@ export interface OnionLayer {
 export function generateOnionLayers(
   startPoint: StartPose,
   lines: Path[],
-  robotWidth: number,
-  robotHeight: number,
+  robot: RobotBody,
   spacing = 6,
 ): OnionLayer[] {
   if (spacing <= 0) return [];
@@ -79,13 +83,7 @@ export function generateOnionLayers(
         x: point.x,
         y: point.y,
         heading,
-        corners: getRobotCorners(
-          point.x,
-          point.y,
-          heading,
-          robotWidth,
-          robotHeight,
-        ),
+        corners: robotBodyCorners({ ...point, heading }, robot),
         lineId: line.id,
       });
       nextLayer += spacing;

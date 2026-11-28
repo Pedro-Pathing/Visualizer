@@ -7,6 +7,8 @@ export const ROBOT_CONFIG_KEYS = [
   "kFriction",
   "rLength",
   "rWidth",
+  "drivetrainOffsetX",
+  "drivetrainOffsetY",
   "safetyMargin",
   "maxAcceleration",
   "maxDeceleration",
@@ -16,7 +18,6 @@ export function robotConfigOf(settings: Settings): RobotConfig {
   return normalizeRobotConfig(settings, settings);
 }
 
-/** Each key from `input` when it is a finite number, else from `fallback`. */
 export function normalizeRobotConfig(
   input: unknown,
   fallback: RobotConfig,

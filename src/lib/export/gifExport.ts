@@ -11,6 +11,7 @@ import {
   LINE_WIDTH,
 } from "../../config/defaults";
 import { robotPoseAt } from "../../sim/pose";
+import { robotBodyCenter } from "../../utils/geometry";
 import { exportAsGif } from "../../utils/gifExporter";
 import { pathStem } from "../../utils/filename";
 import { flattenToAtomicSegments } from "../../utils/pathTraversal";
@@ -110,10 +111,11 @@ export async function renderPathGif(request: GifRequest): Promise<Blob> {
           path.lines,
           path.settings,
         );
+        const body = robotBodyCenter(pose, path.settings);
         drawRobot(
           context,
           robotImage,
-          { x: toX(pose.x), y: toY(pose.y) },
+          { x: toX(body.x), y: toY(body.y) },
           -pose.heading,
           path.settings.rLength * pixelsPerInch,
           path.settings.rWidth * pixelsPerInch,

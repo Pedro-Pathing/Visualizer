@@ -119,6 +119,8 @@ export interface Settings {
   kFriction: number;
   rLength: number; // inches along the heading
   rWidth: number; // inches side to side
+  drivetrainOffsetX?: number; // drivetrain center ahead of the body center, in inches
+  drivetrainOffsetY?: number; // drivetrain center left of the body center, in inches
   safetyMargin: number;
   maxAcceleration: number; // inches/sec²
   maxDeceleration?: number; // inches/sec²
@@ -159,6 +161,8 @@ export type RobotConfig = Pick<
   | "kFriction"
   | "rLength"
   | "rWidth"
+  | "drivetrainOffsetX"
+  | "drivetrainOffsetY"
   | "safetyMargin"
   | "maxAcceleration"
   | "maxDeceleration"

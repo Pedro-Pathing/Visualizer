@@ -79,6 +79,12 @@ export function optimizeBlocker(
       ancestors.some((group) => group.heading))
   )
     return "Piecewise/group headings can't avoid obstacles yet";
+  if (
+    (settings.drivetrainOffsetX ?? 0) !== 0 ||
+    (settings.drivetrainOffsetY ?? 0) !== 0
+  ) {
+    return "Drivetrain offsets aren't properly optimized yet.";
+  }
   return null;
 }
 
